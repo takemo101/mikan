@@ -10,5 +10,8 @@
 		"typecheck": "tsc -p ../../tsconfig.json --noEmit",
 		"test": "bun test"
 	},
-	"dependencies": {}
+	"dependencies": {
+		"yaml": "^2.6.0",
+		"zod": "^4.3.6"
+	}
 }
