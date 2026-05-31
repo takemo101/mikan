@@ -33,6 +33,7 @@ export type WatchOptions = {
 	now?: () => Date;
 	quiet?: boolean;
 	logger?: WatchLogger;
+	logScanSummary?: boolean;
 };
 
 export function runWatchOnce(options: WatchOptions = {}): WatchResult {
@@ -89,10 +90,12 @@ export function runWatchOnce(options: WatchOptions = {}): WatchResult {
 	}
 
 	writeSnapshot(snapshotPath, current);
-	emit(
-		options,
-		`watch observed ${issues.length} issue(s), ${transitions} transition(s)`,
-	);
+	if (options.logScanSummary !== false) {
+		emit(
+			options,
+			`watch observed ${issues.length} issue(s), ${transitions} transition(s)`,
+		);
+	}
 	return { observed: issues.length, transitions, skipped: false };
 }
 
@@ -100,7 +103,7 @@ export function watchProject(
 	options: WatchOptions & { intervalMs?: number } = {},
 ): ReturnType<typeof setInterval> {
 	const logger = options.quiet ? undefined : (options.logger ?? console.log);
-	const watchOptions = { ...options, logger };
+	const watchOptions = { ...options, logger, logScanSummary: false };
 	if (!options.quiet) {
 		const loaded = loadProjectConfig(options.cwd ?? process.cwd());
 		if (!loaded.ok) throw new Error(loaded.error.message);

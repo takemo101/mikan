@@ -380,6 +380,7 @@ Behavior:
 - Do not retroactively infer or repair moves that happened while watch was not running.
 - If watch observes a direct file move without a matching `Moved from <from> to <to>` or watcher placeholder Status Log entry, append a placeholder once.
 - Do not process transitions while the mikan write lock is held.
+- In long-running watch mode, log startup and events only; do not emit repeated no-op polling summaries such as `watch observed N issue(s), 0 transition(s)`.
 
 Hook template variables in v0:
 
