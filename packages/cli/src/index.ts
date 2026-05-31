@@ -110,7 +110,7 @@ export async function runCli(
 			case "tui":
 				return ok("Starting mikan OpenTUI board\n");
 			case "watch":
-				return runWatch(cwd);
+				return runWatch(cwd, parsed.value);
 			default:
 				return ok(helpText());
 		}
@@ -143,7 +143,12 @@ export async function runInteractiveCommand(
 			return ok("");
 		}
 		if (argv[0] === "watch") {
-			(options.launchWatch ?? (() => watchProject({ cwd })))();
+			const parsed = parseArgs(argv.slice(1), "watch");
+			if (!parsed.ok) {
+				return fail(`${parsed.error}\n\nRun \`mikan help watch\` for usage.`);
+			}
+			const quiet = parsed.value.flags.has("quiet");
+			(options.launchWatch ?? (() => watchProject({ cwd, quiet })))();
 			return ok("");
 		}
 	}
@@ -179,13 +184,14 @@ function runMcp(
 	}
 }
 
-function runWatch(cwd: string): CliResult {
-	const result = runWatchOnce({ cwd });
-	return ok(
-		result.skipped
-			? "watch skipped: mikan write lock is held\n"
-			: `watch observed ${result.observed} issue(s), ${result.transitions} transition(s)\n`,
-	);
+function runWatch(cwd: string, parsed: ParsedArgs): CliResult {
+	const lines: string[] = [];
+	runWatchOnce({
+		cwd,
+		quiet: parsed.flags.has("quiet"),
+		logger: (line) => lines.push(line),
+	});
+	return ok(lines.length > 0 ? `${lines.join("\n")}\n` : "");
 }
 
 function runInit(cwd: string, parsed: ParsedArgs): CliResult {
@@ -381,7 +387,7 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 		{ name: "no-global", value: false },
 	],
 	tui: [],
-	watch: [],
+	watch: [{ name: "quiet", short: "q", value: false }],
 };
 
 function parseArgs(args: string[], command: CommandName): ParseArgsResult {
@@ -621,9 +627,10 @@ Options:
 			return `Run the polling watcher.
 
 Usage:
-  mikan watch
+  mikan watch [options]
 
 Options:
+  -q, --quiet           Suppress watch log output
   -h, --help            Show this help
 `;
 		case "mcp":
