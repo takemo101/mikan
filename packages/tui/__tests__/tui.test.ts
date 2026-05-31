@@ -288,6 +288,48 @@ describe("TUI model and navigation", () => {
 		});
 	});
 
+	test("windows overflowing Column cards around the selected Issue", () => {
+		const model = {
+			columns: [
+				{
+					id: "ready",
+					title: "Ready",
+					cards: Array.from({ length: 8 }, (_, index) => ({
+						id: `MIK-${String(index + 1).padStart(3, "0")}`,
+						title: `Issue ${index + 1}`,
+						labels: [],
+						status: "ready",
+						path: `/tmp/MIK-${String(index + 1).padStart(3, "0")}.md`,
+					})),
+				},
+			],
+			warnings: [],
+		};
+
+		const view = buildBoardViewModel(
+			model,
+			{ columnIndex: 0, cardIndex: 5, detailOpen: false },
+			{ visibleCardCount: 4 },
+		);
+		const column = view.columns[0];
+
+		expect(column?.visibleCards.map((card) => card.id)).toEqual([
+			"MIK-004",
+			"MIK-005",
+			"MIK-006",
+			"MIK-007",
+		]);
+		expect(column).toMatchObject({
+			hiddenCardsBefore: 3,
+			hiddenCardsAfter: 1,
+			cardRangeText: "4-7/8",
+		});
+		expect(column?.visibleCards[2]).toMatchObject({
+			id: "MIK-006",
+			selected: true,
+		});
+	});
+
 	test("builds an OpenTUI component tree with named board layout boundaries", () => {
 		const model = loadTuiModel(tempProject());
 		const selection: TuiSelection = {
@@ -307,6 +349,12 @@ describe("TUI model and navigation", () => {
 		expect(collectElementTypes(tree)).toContain(ColumnPane);
 		expect(collectElementTypes(tree)).toContain(IssueCard);
 		expect(collectElementTypes(tree)).toContain(Footer);
+		expect(findElementById(tree, "mikan-main")?.props?.style).toMatchObject({
+			flexGrow: 1,
+		});
+		expect(findElementById(tree, "mikan-footer")?.props?.style).toMatchObject({
+			marginTop: "auto",
+		});
 		expect(collectElementTypes(tree)).toContain(MovePrompt);
 		expect(collectElementTypes(tree)).toContain(NotePrompt);
 		expect(collectTextContent(tree)).toContain("malformed_issue");

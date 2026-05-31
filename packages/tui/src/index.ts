@@ -60,6 +60,10 @@ export type BoardColumnView = {
 	empty: boolean;
 	emptyText: string;
 	cards: BoardCardView[];
+	visibleCards: BoardCardView[];
+	hiddenCardsBefore: number;
+	hiddenCardsAfter: number;
+	cardRangeText: string;
 };
 
 export type BoardViewModel = {
@@ -72,6 +76,7 @@ export type BoardViewModel = {
 
 export type BoardViewOptions = {
 	visibleColumnCount?: number;
+	visibleCardCount?: number;
 };
 
 export type DetailViewModel = {
@@ -393,9 +398,16 @@ export function TuiAppView({
 			},
 		},
 		React.createElement("text", { content: "mikan" }),
-		details
-			? React.createElement(DetailPage, { model, selection, theme })
-			: React.createElement(BoardView, { model, selection, theme }),
+		React.createElement(
+			"box",
+			{
+				id: "mikan-main",
+				style: { flexDirection: "column", flexGrow: 1, minHeight: 0 },
+			},
+			details
+				? React.createElement(DetailPage, { model, selection, theme })
+				: React.createElement(BoardView, { model, selection, theme }),
+		),
 		selection.moveOpen
 			? React.createElement(MovePrompt, { model, selection, theme })
 			: undefined,
@@ -474,21 +486,45 @@ export function buildBoardViewModel(
 	selection: TuiSelection,
 	options: BoardViewOptions = {},
 ): BoardViewModel {
-	const columns = model.columns.map((column, columnIndex) => ({
-		id: column.id,
-		title: column.title,
-		count: column.cards.length,
-		active: columnIndex === selection.columnIndex,
-		empty: column.cards.length === 0,
-		emptyText: "No Issues",
-		cards: column.cards.map((card, cardIndex) => ({
+	const visibleCardCount = Math.max(1, options.visibleCardCount ?? 6);
+	const columns = model.columns.map((column, columnIndex) => {
+		const cards = column.cards.map((card, cardIndex) => ({
 			...card,
 			selected:
 				columnIndex === selection.columnIndex &&
 				cardIndex === selection.cardIndex,
 			labelsText: card.labels.join(", "),
-		})),
-	}));
+		}));
+		const maxCardStart = Math.max(0, cards.length - visibleCardCount);
+		const cardStart =
+			cards.length <= visibleCardCount
+				? 0
+				: columnIndex === selection.columnIndex
+					? clamp(
+							selection.cardIndex - Math.floor(visibleCardCount / 2),
+							0,
+							maxCardStart,
+						)
+					: 0;
+		const visibleCards = cards.slice(cardStart, cardStart + visibleCardCount);
+		const cardEnd = cardStart + visibleCards.length;
+		return {
+			id: column.id,
+			title: column.title,
+			count: column.cards.length,
+			active: columnIndex === selection.columnIndex,
+			empty: column.cards.length === 0,
+			emptyText: "No Issues",
+			cards,
+			visibleCards,
+			hiddenCardsBefore: cardStart,
+			hiddenCardsAfter: Math.max(0, cards.length - cardEnd),
+			cardRangeText:
+				cards.length > visibleCardCount
+					? `${cardStart + 1}-${cardEnd}/${cards.length}`
+					: "",
+		};
+	});
 	const visibleColumnCount = Math.max(1, options.visibleColumnCount ?? 3);
 	const maxStart = Math.max(0, columns.length - visibleColumnCount);
 	const start = clamp(
@@ -514,7 +550,10 @@ export function BoardView({
 	const view = buildBoardViewModel(model, selection);
 	return React.createElement(
 		"box",
-		{ id: "mikan-board", style: { flexDirection: "column" } },
+		{
+			id: "mikan-board",
+			style: { flexDirection: "column", flexGrow: 1, minHeight: 0 },
+		},
 		...view.groups.map((group, groupIndex) =>
 			React.createElement(
 				"box",
@@ -548,6 +587,35 @@ export function ColumnPane(props: {
 	theme?: TuiTheme;
 }): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
+	const children = [
+		props.column.cardRangeText
+			? React.createElement("text", { content: props.column.cardRangeText })
+			: undefined,
+		...(props.column.empty
+			? [React.createElement("text", { content: props.column.emptyText })]
+			: [
+					props.column.hiddenCardsBefore > 0
+						? React.createElement("text", {
+								key: "hidden-before",
+								content: `↑ ${props.column.hiddenCardsBefore} more`,
+							})
+						: undefined,
+					...props.column.visibleCards.map((card) =>
+						React.createElement(IssueCard, {
+							key: card.id,
+							card,
+							selected: card.selected,
+							theme,
+						}),
+					),
+					props.column.hiddenCardsAfter > 0
+						? React.createElement("text", {
+								key: "hidden-after",
+								content: `↓ ${props.column.hiddenCardsAfter} more`,
+							})
+						: undefined,
+				]),
+	];
 	return React.createElement(
 		"box",
 		{
@@ -566,16 +634,7 @@ export function ColumnPane(props: {
 				flexGrow: 1,
 			},
 		},
-		props.column.empty
-			? React.createElement("text", { content: props.column.emptyText })
-			: props.column.cards.map((card) =>
-					React.createElement(IssueCard, {
-						key: card.id,
-						card,
-						selected: card.selected,
-						theme,
-					}),
-				),
+		...children,
 	);
 }
 
@@ -819,7 +878,8 @@ export type FooterProps = { theme?: TuiTheme };
 export function Footer(props: FooterProps): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
 	return React.createElement("text", {
-		style: { color: theme.base.muted },
+		id: "mikan-footer",
+		style: { color: theme.base.muted, marginTop: "auto" },
 		content:
 			"j/k select  h/l column  H/L move  enter details  r reload  m move  a note  q quit",
 	});
@@ -1111,25 +1171,30 @@ function renderDetails(details: TuiDetails): string[] {
 
 function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 	const width = 26;
-	const columns = model.columns.map((column, columnIndex) => {
-		const cards = column.cards.length > 0 ? column.cards : undefined;
-		const rows = cards
-			? cards.flatMap((card, cardIndex) => {
-					const selected =
-						columnIndex === selection.columnIndex &&
-						cardIndex === selection.cardIndex;
-					const labels =
-						card.labels.length > 0 ? [`  [${card.labels.join(", ")}]`] : [];
-					return [
-						`${selected ? "▶" : " "} ${card.id} ${card.title}`,
-						...labels,
-					];
-				})
-			: ["  (empty)"];
-		const active = columnIndex === selection.columnIndex;
+	const view = buildBoardViewModel(model, selection);
+	const columns = view.visibleColumns.map((column) => {
+		const rows = column.empty
+			? ["  (empty)"]
+			: [
+					...(column.cardRangeText ? [`  ${column.cardRangeText}`] : []),
+					...(column.hiddenCardsBefore > 0
+						? [`  ↑ ${column.hiddenCardsBefore} more`]
+						: []),
+					...column.visibleCards.flatMap((card) => {
+						const labels =
+							card.labels.length > 0 ? [`  [${card.labels.join(", ")}]`] : [];
+						return [
+							`${card.selected ? "▶" : " "} ${card.id} ${card.title}`,
+							...labels,
+						];
+					}),
+					...(column.hiddenCardsAfter > 0
+						? [`  ↓ ${column.hiddenCardsAfter} more`]
+						: []),
+				];
 		return {
 			header: boxLine(
-				`─ ${active ? "▶ " : ""}${column.title} `,
+				`─ ${column.active ? "▶ " : ""}${column.title} `,
 				width,
 				"┌",
 				"┐",
@@ -1138,29 +1203,18 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 			footer: boxLine("", width, "└", "┘"),
 		};
 	});
-	const columnGroups = chunk(columns, 4);
+	const maxRows = Math.max(0, ...columns.map((column) => column.rows.length));
 	const lines: string[] = [];
-	for (const group of columnGroups) {
-		const maxRows = Math.max(0, ...group.map((column) => column.rows.length));
-		lines.push(group.map((column) => column.header).join(" "));
-		for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
-			lines.push(
-				group
-					.map((column) => column.rows[rowIndex] ?? contentLine("", width))
-					.join(" "),
-			);
-		}
-		lines.push(group.map((column) => column.footer).join(" "));
+	lines.push(columns.map((column) => column.header).join(" "));
+	for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
+		lines.push(
+			columns
+				.map((column) => column.rows[rowIndex] ?? contentLine("", width))
+				.join(" "),
+		);
 	}
+	lines.push(columns.map((column) => column.footer).join(" "));
 	return lines;
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-	const groups: T[][] = [];
-	for (let index = 0; index < items.length; index += size) {
-		groups.push(items.slice(index, index + size));
-	}
-	return groups;
 }
 
 function boxLine(
