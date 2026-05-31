@@ -67,6 +67,58 @@ describe("watch hooks", () => {
 		expect(markdown.match(/Observed direct file move/g)?.length).toBe(1);
 	});
 
+	test("adds placeholder when Status Log only has unrelated history", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "First"]);
+		const issuePath = join(cwd, ".mikan", "backlog", "MIK-001.md");
+		writeFileSync(
+			issuePath,
+			readFileSync(issuePath, "utf8").replace(
+				"## Status Log\n\n## Reports",
+				"## Status Log\n\n- 2026-05-29T00:00:00Z\n\nOld unrelated status note\n\n## Reports",
+			),
+		);
+		runWatchOnce({ cwd });
+
+		renameSync(
+			join(cwd, ".mikan", "backlog", "MIK-001.md"),
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+		);
+		runWatchOnce({ cwd });
+
+		const markdown = readFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			"utf8",
+		);
+		expect(markdown).toContain(
+			"Observed direct file move from backlog to ready",
+		);
+	});
+
+	test("ignores corrupted watcher snapshots and rewrites a fresh snapshot", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "First"]);
+		writeFileSync(
+			join(cwd, ".mikan", ".state", "watcher-snapshot.json"),
+			"{not json",
+		);
+
+		const result = runWatchOnce({ cwd });
+
+		expect(result.observed).toBe(1);
+		expect(result.transitions).toBe(0);
+		expect(
+			JSON.parse(
+				readFileSync(
+					join(cwd, ".mikan", ".state", "watcher-snapshot.json"),
+					"utf8",
+				),
+			),
+		).toHaveProperty("MIK-001");
+	});
+
 	test("does not add placeholder when a matching Status Log already exists", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);

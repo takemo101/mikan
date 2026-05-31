@@ -116,6 +116,40 @@ describe("project config", () => {
 		expect(result.error.message).toContain("columns");
 	});
 
+	test("returns a typed error for invalid column IDs", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: In Progress\n      title: In Progress\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid config");
+		expect(result.error.kind).toBe("invalid_config");
+		expect(result.error.message).toContain(
+			"status id must be lowercase kebab-case",
+		);
+	});
+
+	test("returns a typed error for invalid label IDs", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\nlabels:\n  - id: Needs Review\n    title: Needs Review\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid config");
+		expect(result.error.kind).toBe("invalid_config");
+		expect(result.error.message).toContain(
+			"label id must be lowercase kebab-case",
+		);
+	});
+
 	test("returns a typed error for duplicate column IDs", () => {
 		const root = tempProject();
 		writeConfig(

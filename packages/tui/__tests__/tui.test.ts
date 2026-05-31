@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createIssue } from "@mikan/core";
@@ -54,6 +54,25 @@ describe("TUI model and navigation", () => {
 			labels: ["automation"],
 		});
 		expect(model.warnings.join("\n")).toContain("malformed_issue");
+	});
+
+	test("loads hook failure warnings", () => {
+		const root = tempProject();
+		mkdirSync(join(root, ".mikan", ".state"), { recursive: true });
+		writeFileSync(
+			join(root, ".mikan", ".state", "hook-log.ndjson"),
+			`${JSON.stringify({
+				issue_id: "MIK-001",
+				command: "false",
+				exit_code: 1,
+				error: "nope",
+			})}\n`,
+		);
+
+		const model = loadTuiModel(root);
+
+		expect(model.warnings.join("\n")).toContain("hook_failure");
+		expect(model.warnings.join("\n")).toContain("nope");
 	});
 
 	test("moves selection and opens detail pane", () => {

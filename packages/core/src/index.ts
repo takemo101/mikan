@@ -56,7 +56,8 @@ export type BoardWarning = {
 		| "duplicate_issue_id"
 		| "unknown_label"
 		| "unknown_directory"
-		| "malformed_issue";
+		| "malformed_issue"
+		| "hook_failure";
 	message: string;
 	path?: string;
 	issueId?: string;
@@ -292,6 +293,8 @@ export function scanBoard(
 		}
 	}
 
+	warnings.push(...readHookFailureWarnings(options.projectRoot));
+
 	return { ok: true, value: { columns, warnings } };
 }
 
@@ -526,7 +529,15 @@ export function moveIssue(
 			body = appendToSection(
 				body,
 				"Status Log",
-				formatAppendEntry(options.log, undefined, options.now),
+				formatAppendEntry(
+					formatStatusTransitionLog(
+						String(target.value.status),
+						options.status,
+						options.log,
+					),
+					undefined,
+					options.now,
+				),
 			);
 		}
 		const updated = serializeIssue({
@@ -824,6 +835,51 @@ function sortedMarkdownFiles(directory: string): string[] {
 		.sort();
 }
 
+function readHookFailureWarnings(projectRoot: string): BoardWarning[] {
+	const path = join(projectRoot, ".mikan", ".state", "hook-log.ndjson");
+	if (!existsSync(path)) return [];
+	return readFileSync(path, "utf8")
+		.split("\n")
+		.filter((line) => line.trim().length > 0)
+		.flatMap((line): BoardWarning[] => {
+			let entry: unknown;
+			try {
+				entry = JSON.parse(line);
+			} catch {
+				return [];
+			}
+			if (!isHookFailureEntry(entry)) return [];
+			const issueId = entry.issue_id;
+			const command = entry.command;
+			const exitCode = entry.exit_code;
+			const detail = entry.error ? `: ${entry.error}` : "";
+			return [
+				{
+					kind: "hook_failure",
+					message: `Hook failed for ${issueId}: ${command} exited ${exitCode}${detail}`,
+					path,
+					issueId,
+				},
+			];
+		});
+}
+
+function isHookFailureEntry(entry: unknown): entry is {
+	issue_id: string;
+	command: string;
+	exit_code: number;
+	error?: string;
+} {
+	if (!entry || typeof entry !== "object") return false;
+	const value = entry as Record<string, unknown>;
+	return (
+		typeof value.issue_id === "string" &&
+		typeof value.command === "string" &&
+		typeof value.exit_code === "number" &&
+		(value.error === undefined || typeof value.error === "string")
+	);
+}
+
 function defaultIssueBody(title: string): string {
 	return `# ${title}\n\n## Summary\n\n## Context\n\n## Acceptance Criteria\n\n## Status Log\n\n## Reports\n\n## Notes\n`;
 }
@@ -835,6 +891,14 @@ function formatAppendEntry(
 ): string {
 	const prefix = source ? `- ${utcNow(now)} (${source})` : `- ${utcNow(now)}`;
 	return `${prefix}\n\n${body}`;
+}
+
+function formatStatusTransitionLog(
+	fromStatus: string,
+	toStatus: string,
+	message: string,
+): string {
+	return `Moved from ${fromStatus} to ${toStatus}\n\n${message}`;
 }
 
 function utcNow(now?: () => Date): string {
