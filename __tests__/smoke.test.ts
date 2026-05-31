@@ -17,10 +17,12 @@ import {
 } from "../packages/mcp/src/index.ts";
 import {
 	appendSelectedIssueNote,
+	createTuiAppElement,
 	getSelectedDetails,
 	loadTuiModel,
 	moveSelectedIssue,
 	renderTuiText,
+	TuiAppView,
 } from "../packages/tui/src/index.ts";
 
 const now = () => new Date("2026-05-30T00:00:00Z");
@@ -87,13 +89,17 @@ describe("end-to-end smoke flow", () => {
 		const tuiModel = loadTuiModel(cwd);
 		expect(JSON.stringify(tuiModel)).toContain("Updated");
 		expect(JSON.stringify(tuiModel)).toContain("From MCP");
+		const tuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+		expect(renderTuiText(tuiModel, tuiSelection)).toContain(
+			"m move  a append note",
+		);
 		expect(
-			renderTuiText(tuiModel, {
-				columnIndex: 1,
-				cardIndex: 0,
-				detailOpen: false,
-			}),
-		).toContain("m move  a append note");
+			createTuiAppElement({ model: tuiModel, selection: tuiSelection }).type,
+		).toBe(TuiAppView);
 		const tuiMove = moveSelectedIssue({
 			cwd,
 			model: tuiModel,

@@ -28,6 +28,78 @@ export type TuiModel = {
 	warnings: string[];
 };
 
+export type TuiTheme = {
+	base: {
+		canvas: string;
+		surface: string;
+		text: string;
+		muted: string;
+	};
+	interactive: {
+		accent: string;
+		focus: string;
+		selectedSurface: string;
+	};
+	feedback: {
+		warning: string;
+		error: string;
+		success: string;
+	};
+};
+
+export type BoardCardView = TuiCard & {
+	selected: boolean;
+	labelsText: string;
+};
+
+export type BoardColumnView = {
+	id: string;
+	title: string;
+	count: number;
+	active: boolean;
+	empty: boolean;
+	emptyText: string;
+	cards: BoardCardView[];
+};
+
+export type BoardViewModel = {
+	columns: BoardColumnView[];
+	groups: { columns: BoardColumnView[] }[];
+};
+
+export type DetailViewModel = {
+	selected: TuiCard & {
+		labelsText: string;
+	};
+	groups: {
+		status: string;
+		title: string;
+		cards: BoardCardView[];
+	}[];
+	sections: {
+		summary: string;
+		statusLog: string;
+		reports: string;
+		notes: string;
+		herdr: string;
+	};
+};
+
+export type MovePromptViewModel = {
+	title: string;
+	focused: boolean;
+	targets: (MoveTarget & { selected: boolean })[];
+	hint: string;
+};
+
+export type NotePromptViewModel = {
+	title: string;
+	focused: boolean;
+	draft: string;
+	feedback?: string;
+	hint: string;
+};
+
 export type TuiSelection = {
 	columnIndex: number;
 	cardIndex: number;
@@ -67,6 +139,27 @@ export type TuiDetails = {
 	notes: string;
 	herdr: string;
 };
+
+export function buildTuiTheme(): TuiTheme {
+	return {
+		base: {
+			canvas: "#1f1f1f",
+			surface: "#2a2a2a",
+			text: "#d4d4d4",
+			muted: "#6f6f6f",
+		},
+		interactive: {
+			accent: "#7aa2f7",
+			focus: "#e0af68",
+			selectedSurface: "#333847",
+		},
+		feedback: {
+			warning: "#e0af68",
+			error: "#f7768e",
+			success: "#9ece6a",
+		},
+	};
+}
 
 export function loadTuiModel(cwd = process.cwd()): TuiModel {
 	const loaded = loadProjectConfig(cwd);
@@ -231,6 +324,336 @@ export function renderTuiText(
 	return `${lines.join("\n")}\n`;
 }
 
+export type TuiAppViewProps = {
+	model: TuiModel;
+	selection: TuiSelection;
+	theme?: TuiTheme;
+};
+
+export function createTuiAppElement(
+	props: TuiAppViewProps,
+): React.ReactElement {
+	return React.createElement(TuiAppView, props);
+}
+
+export function TuiAppView({
+	model,
+	selection,
+	theme = buildTuiTheme(),
+}: TuiAppViewProps): React.ReactElement {
+	const details = selection.detailOpen
+		? getSelectedDetails(model, selection)
+		: undefined;
+	return React.createElement(
+		"box",
+		{
+			id: "mikan-app",
+			style: {
+				backgroundColor: theme.base.canvas,
+				color: theme.base.text,
+				flexDirection: "column",
+				height: "100%",
+			},
+		},
+		React.createElement("text", { content: "mikan" }),
+		details
+			? React.createElement(DetailView, { model, selection, theme })
+			: React.createElement(BoardView, { model, selection, theme }),
+		selection.moveOpen
+			? React.createElement(MovePrompt, { model, selection, theme })
+			: undefined,
+		selection.noteOpen
+			? React.createElement(NotePrompt, { model, selection, theme })
+			: undefined,
+		selection.message
+			? React.createElement("text", { content: selection.message })
+			: undefined,
+		React.createElement(Footer, { theme }),
+	);
+}
+
+export function buildDetailViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+): DetailViewModel | undefined {
+	const details = getSelectedDetails(model, selection);
+	if (!details) return undefined;
+	return {
+		selected: {
+			...details.card,
+			labelsText: details.card.labels.join(", "),
+		},
+		groups: model.columns.map((column, columnIndex) => ({
+			status: column.id,
+			title: column.title,
+			cards: column.cards.map((card, cardIndex) => ({
+				...card,
+				selected:
+					columnIndex === selection.columnIndex &&
+					cardIndex === selection.cardIndex,
+				labelsText: card.labels.join(", "),
+			})),
+		})),
+		sections: {
+			summary: details.summary,
+			statusLog: details.statusLog,
+			reports: details.reports,
+			notes: details.notes,
+			herdr: details.herdr,
+		},
+	};
+}
+
+export function buildBoardViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+): BoardViewModel {
+	const columns = model.columns.map((column, columnIndex) => ({
+		id: column.id,
+		title: column.title,
+		count: column.cards.length,
+		active: columnIndex === selection.columnIndex,
+		empty: column.cards.length === 0,
+		emptyText: "No Issues",
+		cards: column.cards.map((card, cardIndex) => ({
+			...card,
+			selected:
+				columnIndex === selection.columnIndex &&
+				cardIndex === selection.cardIndex,
+			labelsText: card.labels.join(", "),
+		})),
+	}));
+	return {
+		columns,
+		groups: chunk(columns, 4).map((group) => ({ columns: group })),
+	};
+}
+
+export function BoardView({
+	model,
+	selection,
+}: TuiAppViewProps): React.ReactElement {
+	const view = buildBoardViewModel(model, selection);
+	return React.createElement(
+		"box",
+		{ id: "mikan-board", style: { flexDirection: "column" } },
+		...view.groups.map((group, groupIndex) =>
+			React.createElement(
+				"box",
+				{
+					key: `group-${groupIndex}`,
+					id: `board-row-${groupIndex}`,
+					style: { flexDirection: "row" },
+				},
+				...group.columns.map((column) =>
+					React.createElement(ColumnPane, {
+						key: column.id,
+						column,
+					}),
+				),
+			),
+		),
+		model.warnings.length > 0
+			? React.createElement("text", {
+					content: [
+						`Warnings: ${model.warnings.length}`,
+						...model.warnings,
+					].join("\n"),
+				})
+			: undefined,
+	);
+}
+
+export function ColumnPane(props: {
+	column: BoardColumnView;
+}): React.ReactElement {
+	return React.createElement(
+		"box",
+		{
+			id: `column-${props.column.id}`,
+			title: `${props.column.title} (${props.column.count})`,
+			focused: props.column.active,
+			style: { flexDirection: "column", flexGrow: 1 },
+		},
+		props.column.empty
+			? React.createElement("text", { content: props.column.emptyText })
+			: props.column.cards.map((card) =>
+					React.createElement(IssueCard, {
+						key: card.id,
+						card,
+						selected: card.selected,
+					}),
+				),
+	);
+}
+
+export function IssueCard(props: {
+	card: TuiCard;
+	selected: boolean;
+}): React.ReactElement {
+	return React.createElement(
+		"box",
+		{
+			id: `card-${props.card.id}`,
+			focused: props.selected,
+			style: { flexDirection: "column" },
+		},
+		React.createElement("text", {
+			content: `${props.card.id} ${props.card.title}`,
+		}),
+		props.card.labels.length > 0
+			? React.createElement("text", {
+					content: props.card.labels.join(", "),
+				})
+			: undefined,
+	);
+}
+
+export function DetailView(props: TuiAppViewProps): React.ReactElement {
+	const view = buildDetailViewModel(props.model, props.selection);
+	const details = getSelectedDetails(props.model, props.selection);
+	const theme = props.theme ?? buildTuiTheme();
+	if (!view || !details) {
+		return React.createElement("text", { content: "No Issue selected" });
+	}
+	const issueList = React.createElement(
+		"box",
+		{
+			id: "detail-issue-list",
+			title: "Issues",
+			style: { flexDirection: "column", flexGrow: 1 },
+		},
+		...view.groups.map((group) =>
+			React.createElement("text", {
+				key: group.status,
+				content: [
+					`${group.title} (${group.cards.length})`,
+					...group.cards.map(
+						(card) => `${card.selected ? ">" : " "} ${card.id} ${card.title}`,
+					),
+				].join("\n"),
+			}),
+		),
+	);
+	return React.createElement(
+		"box",
+		{ id: "mikan-detail-layout", style: { flexDirection: "row" } },
+		issueList,
+		React.createElement(
+			"box",
+			{
+				id: "detail-right-panes",
+				style: { flexDirection: "column", flexGrow: 3 },
+			},
+			React.createElement(DetailPane, { details, theme }),
+			React.createElement(LogPane, { details, theme }),
+		),
+	);
+}
+
+export function DetailPane(props: {
+	details: TuiDetails;
+	theme?: TuiTheme;
+}): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "detail-pane",
+			title: "Details",
+			style: {
+				backgroundColor: theme.base.surface,
+				borderColor: theme.interactive.accent,
+				flexDirection: "column",
+				flexGrow: 2,
+			},
+		},
+		React.createElement("text", {
+			content: `${props.details.card.id} ${props.details.card.title}`,
+		}),
+		React.createElement("text", {
+			content: `Status: ${props.details.card.status}`,
+		}),
+		React.createElement("text", {
+			content: `Labels: ${props.details.card.labels.join(", ") || "(none)"}`,
+		}),
+		React.createElement("markdown", { content: props.details.summary }),
+	);
+}
+
+export function LogPane(props: {
+	details: TuiDetails;
+	theme?: TuiTheme;
+}): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "log-pane",
+			title: "Status Log / Reports / Notes",
+			style: {
+				backgroundColor: theme.base.surface,
+				borderColor: theme.base.muted,
+				flexDirection: "column",
+				flexGrow: 1,
+			},
+		},
+		React.createElement("markdown", {
+			content: [
+				"## Status Log",
+				props.details.statusLog || "(empty)",
+				"## Reports",
+				props.details.reports || "(empty)",
+				"## Notes",
+				props.details.notes || "(empty)",
+				"## Herdr",
+				props.details.herdr || "(empty)",
+			].join("\n\n"),
+		}),
+	);
+}
+
+export function MovePrompt(props: TuiAppViewProps): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "move-prompt",
+			title: "Move Issue",
+			style: { borderColor: theme.interactive.focus },
+		},
+		React.createElement("text", {
+			content: renderMoveInteraction(props.model, props.selection).join("\n"),
+		}),
+	);
+}
+
+export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "note-prompt",
+			title: "Append Note",
+			style: { borderColor: theme.interactive.focus },
+		},
+		React.createElement("text", {
+			content: renderNoteInteraction(props.model, props.selection).join("\n"),
+		}),
+	);
+}
+
+export type FooterProps = { theme?: TuiTheme };
+
+export function Footer(props: FooterProps): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement("text", {
+		style: { color: theme.base.muted },
+		content:
+			"↑/↓ select  ←/→ column  enter details  m move  a append note  q quit",
+	});
+}
+
 export function getMoveTargets(
 	model: TuiModel,
 	selection: TuiSelection,
@@ -391,21 +814,52 @@ export function appendSelectedIssueNote(options: {
 	};
 }
 
+export function buildMovePromptViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+): MovePromptViewModel | undefined {
+	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+	if (!card) return undefined;
+	const targetIndex = selection.moveTargetIndex ?? 0;
+	return {
+		title: `Move ${card.id}`,
+		focused: Boolean(selection.moveOpen),
+		targets: getMoveTargets(model, selection).map((target, index) => ({
+			...target,
+			selected: index === targetIndex,
+		})),
+		hint: "enter move  esc cancel",
+	};
+}
+
+export function buildNotePromptViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+): NotePromptViewModel | undefined {
+	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+	if (!card) return undefined;
+	return {
+		title: `Append note to ${card.id}`,
+		focused: Boolean(selection.noteOpen),
+		draft: selection.noteDraft ?? "",
+		feedback: selection.message,
+		hint: "enter append  esc cancel",
+	};
+}
+
 function renderMoveInteraction(
 	model: TuiModel,
 	selection: TuiSelection,
 ): string[] {
-	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
-	if (!card) return ["Move", "No Issue selected"];
-	const targetIndex = selection.moveTargetIndex ?? 0;
-	const targets = getMoveTargets(model, selection);
+	const view = buildMovePromptViewModel(model, selection);
+	if (!view) return ["Move", "No Issue selected"];
 	return [
-		`Move ${card.id} to Status`,
-		...targets.map(
-			(target, index) =>
-				`${index === targetIndex ? ">" : " "} ${target.id} (${target.title})`,
+		`${view.title} to Status`,
+		...view.targets.map(
+			(target) =>
+				`${target.selected ? ">" : " "} ${target.id} (${target.title})`,
 		),
-		"enter move  esc cancel",
+		view.hint,
 	];
 }
 
@@ -413,12 +867,13 @@ function renderNoteInteraction(
 	model: TuiModel,
 	selection: TuiSelection,
 ): string[] {
-	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
-	if (!card) return ["Append note", "No Issue selected"];
+	const view = buildNotePromptViewModel(model, selection);
+	if (!view) return ["Append note", "No Issue selected"];
 	return [
-		`Append note to ${card.id}`,
-		`Note: ${selection.noteDraft ?? ""}`,
-		"enter append  esc cancel",
+		view.title,
+		`Note: ${view.draft}`,
+		...(view.feedback ? [view.feedback] : []),
+		view.hint,
 	];
 }
 
@@ -604,7 +1059,7 @@ export async function launchTui(
 			setSelection((current) => moveSelection(model, current, action));
 		});
 
-		return React.createElement("text", null, renderTuiText(model, selection));
+		return createTuiAppElement({ model, selection });
 	}
 
 	root.render(React.createElement(App));
