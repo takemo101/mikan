@@ -15,6 +15,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.0.0",
 		"@types/bun": "latest",
+		"@types/react": "latest",
 		"typescript": "^5.8.0"
 	},
 	"engines": {

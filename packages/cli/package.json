@@ -16,6 +16,7 @@
 	"dependencies": {
 		"@mikan/core": "workspace:*",
 		"@mikan/mcp": "workspace:*",
-		"@mikan/project-config": "workspace:*"
+		"@mikan/project-config": "workspace:*",
+		"@mikan/tui": "workspace:*"
 	}
 }

@@ -12,6 +12,9 @@
 	},
 	"dependencies": {
 		"@mikan/core": "workspace:*",
-		"@mikan/project-config": "workspace:*"
+		"@mikan/project-config": "workspace:*",
+		"@opentui/core": "latest",
+		"@opentui/react": "latest",
+		"react": "latest"
 	}
 }

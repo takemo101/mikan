@@ -13,6 +13,7 @@ import {
 } from "@mikan/core";
 import { startMcpServer } from "@mikan/mcp";
 import { initProject, loadProjectConfig } from "@mikan/project-config";
+import { launchTui } from "@mikan/tui";
 
 export type CliResult = {
 	exitCode: number;
@@ -56,6 +57,8 @@ export async function runCli(
 				return runAppend(cwd, parsed, options);
 			case "mcp":
 				return ok("Starting mikan MCP server on stdio\n");
+			case "tui":
+				return ok("Starting mikan OpenTUI board\n");
 			case "help":
 			case undefined:
 				return ok(helpText());
@@ -70,6 +73,10 @@ export async function runCli(
 export async function main(argv = process.argv.slice(2)): Promise<void> {
 	if (argv[0] === "mcp") {
 		await startMcpServer({ cwd: process.cwd() });
+		return;
+	}
+	if (argv[0] === "tui") {
+		await launchTui({ cwd: process.cwd() });
 		return;
 	}
 	const result = await runCli(argv);
@@ -286,5 +293,5 @@ function fail(stderr: string): CliResult {
 }
 
 function helpText(): string {
-	return "mikan init|add|list|show|update|move|append|mcp\n";
+	return "mikan init|add|list|show|update|move|append|mcp|tui\n";
 }
