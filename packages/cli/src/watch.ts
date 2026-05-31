@@ -26,15 +26,20 @@ export type WatchResult = {
 	skipped: boolean;
 };
 
+export type WatchLogger = (line: string) => void;
+
 export type WatchOptions = {
 	cwd?: string;
 	now?: () => Date;
+	quiet?: boolean;
+	logger?: WatchLogger;
 };
 
 export function runWatchOnce(options: WatchOptions = {}): WatchResult {
 	const loaded = loadProjectConfig(options.cwd ?? process.cwd());
 	if (!loaded.ok) throw new Error(loaded.error.message);
 	if (isWriteLocked(loaded.value.projectRoot)) {
+		emit(options, "skipped: mikan write lock is held");
 		return { observed: 0, transitions: 0, skipped: true };
 	}
 	const snapshotPath = watcherSnapshotPath(loaded.value.projectRoot);
@@ -60,31 +65,52 @@ export function runWatchOnce(options: WatchOptions = {}): WatchResult {
 			const before = previous[id];
 			if (!before || before.status === String(issue.status)) continue;
 			transitions++;
-			appendPlaceholderStatusLog(
+			emit(
+				options,
+				`transition ${id} ${before.status} -> ${String(issue.status)}`,
+			);
+			const appended = appendPlaceholderStatusLog(
 				loaded.value,
 				issue,
 				before.status,
 				options.now,
 			);
+			if (appended) {
+				emit(options, `status-log appended: ${id} direct move placeholder`);
+			}
 			fireHooks(
 				loaded.value,
 				issue,
 				before.status,
 				String(issue.status),
-				options.now,
+				options,
 			);
 		}
 	}
 
 	writeSnapshot(snapshotPath, current);
+	emit(
+		options,
+		`watch observed ${issues.length} issue(s), ${transitions} transition(s)`,
+	);
 	return { observed: issues.length, transitions, skipped: false };
 }
 
 export function watchProject(
 	options: WatchOptions & { intervalMs?: number } = {},
 ): ReturnType<typeof setInterval> {
-	runWatchOnce(options);
-	return setInterval(() => runWatchOnce(options), options.intervalMs ?? 1000);
+	const logger = options.quiet ? undefined : (options.logger ?? console.log);
+	const watchOptions = { ...options, logger };
+	if (!options.quiet) {
+		const loaded = loadProjectConfig(options.cwd ?? process.cwd());
+		if (!loaded.ok) throw new Error(loaded.error.message);
+		logger?.(`watch started: ${loaded.value.projectRoot}`);
+	}
+	runWatchOnce(watchOptions);
+	return setInterval(
+		() => runWatchOnce(watchOptions),
+		options.intervalMs ?? 1000,
+	);
 }
 
 function appendPlaceholderStatusLog(
@@ -92,7 +118,7 @@ function appendPlaceholderStatusLog(
 	issue: BoardIssue,
 	fromStatus: string,
 	now?: () => Date,
-): void {
+): boolean {
 	if (
 		hasMatchingStatusLogEntry(
 			issue.issue.body,
@@ -100,9 +126,9 @@ function appendPlaceholderStatusLog(
 			String(issue.status),
 		)
 	) {
-		return;
+		return false;
 	}
-	appendIssue({
+	const result = appendIssue({
 		projectRoot: loaded.projectRoot,
 		config: loaded.config,
 		id: String(issue.issue.id),
@@ -111,6 +137,7 @@ function appendPlaceholderStatusLog(
 		source: "mikan-watch",
 		now,
 	});
+	return result.ok;
 }
 
 function fireHooks(
@@ -118,7 +145,7 @@ function fireHooks(
 	issue: BoardIssue,
 	fromStatus: string,
 	toStatus: string,
-	now?: () => Date,
+	options: WatchOptions,
 ): void {
 	const hooks = loaded.config.hooks;
 	const commands = [
@@ -139,7 +166,7 @@ function fireHooks(
 		});
 		if (result.exitCode !== 0) {
 			appendHookFailure(loaded.projectRoot, {
-				timestamp: utcNow(now),
+				timestamp: utcNow(options.now),
 				issue_id: String(issue.issue.id),
 				from_status: fromStatus,
 				to_status: toStatus,
@@ -147,6 +174,10 @@ function fireHooks(
 				exit_code: result.exitCode,
 				error: new TextDecoder().decode(result.stderr).trim(),
 			});
+			emit(
+				options,
+				`hook failed: ${String(issue.issue.id)} ${fromStatus} -> ${toStatus} exit ${result.exitCode}`,
+			);
 		}
 	}
 }
@@ -180,6 +211,11 @@ function extractStatusLog(body: string): string {
 		}
 	}
 	return lines.slice(start + 1, end).join("\n");
+}
+
+function emit(options: WatchOptions, line: string): void {
+	if (options.quiet) return;
+	options.logger?.(line);
 }
 
 function renderHookCommand(
