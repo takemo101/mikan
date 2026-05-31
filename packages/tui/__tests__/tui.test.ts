@@ -14,19 +14,71 @@ import { initProject, loadProjectConfig } from "@mikan/project-config";
 import {
 	appendSelectedIssueNote,
 	applyNoteInput,
+	BoardView,
+	buildBoardViewModel,
+	buildDetailViewModel,
+	buildMovePromptViewModel,
+	buildNotePromptViewModel,
 	buildTuiModel,
+	buildTuiTheme,
+	ColumnPane,
+	createTuiAppElement,
+	DetailPane,
+	DetailView,
+	Footer,
 	getMoveTargets,
 	getSelectedDetails,
+	IssueCard,
 	keyToDirection,
+	LogPane,
 	loadTuiModel,
+	MovePrompt,
 	moveSelectedIssue,
 	moveSelection,
+	NotePrompt,
 	refreshTuiModel,
 	renderTuiText,
+	TuiAppView,
 	type TuiSelection,
 } from "../src/index.ts";
 
 const now = () => new Date("2026-05-30T00:00:00Z");
+
+function collectElementTypes(element: unknown): unknown[] {
+	if (!element || typeof element !== "object") return [];
+	const node = element as {
+		type?: unknown;
+		props?: { children?: unknown };
+	};
+	const children = Array.isArray(node.props?.children)
+		? node.props.children
+		: [node.props?.children];
+	const rendered =
+		typeof node.type === "function" ? node.type(node.props) : undefined;
+	return [
+		node.type,
+		...children.flatMap(collectElementTypes),
+		...collectElementTypes(rendered),
+	];
+}
+
+function collectTextContent(element: unknown): string {
+	if (!element || typeof element !== "object") return "";
+	const node = element as {
+		type?: unknown;
+		props?: { children?: unknown; content?: unknown };
+	};
+	const children = Array.isArray(node.props?.children)
+		? node.props.children
+		: [node.props?.children];
+	const rendered =
+		typeof node.type === "function" ? node.type(node.props) : undefined;
+	return [
+		typeof node.props?.content === "string" ? node.props.content : "",
+		...children.map(collectTextContent),
+		collectTextContent(rendered),
+	].join("\n");
+}
 
 function tempProject(): string {
 	const root = mkdtempSync(join(tmpdir(), "mikan-tui-"));
@@ -109,6 +161,97 @@ describe("TUI model and navigation", () => {
 		expect(text).toContain("q quit");
 	});
 
+	test("defines semantic theme tokens for TUI surfaces and states", () => {
+		const theme = buildTuiTheme();
+
+		expect(theme.base).toMatchObject({
+			canvas: expect.any(String),
+			surface: expect.any(String),
+			text: expect.any(String),
+			muted: expect.any(String),
+		});
+		expect(theme.interactive).toMatchObject({
+			accent: expect.any(String),
+			focus: expect.any(String),
+		});
+		expect(theme.feedback).toMatchObject({
+			warning: expect.any(String),
+			error: expect.any(String),
+			success: expect.any(String),
+		});
+	});
+
+	test("builds a board view model with counts, focus, empty states, and adaptive groups", () => {
+		const model = loadTuiModel(tempProject());
+		const view = buildBoardViewModel(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		});
+
+		expect(view.groups.length).toBe(2);
+		expect(view.groups[0]?.columns.length).toBe(4);
+		expect(view.groups[1]?.columns.length).toBe(1);
+		expect(view.columns[1]).toMatchObject({
+			id: "ready",
+			title: "Ready",
+			count: 1,
+			active: true,
+			empty: false,
+		});
+		expect(view.columns[1]?.cards[0]).toMatchObject({
+			id: "MIK-001",
+			selected: true,
+			labelsText: "automation",
+		});
+		expect(view.columns[0]).toMatchObject({
+			empty: true,
+			emptyText: "No Issues",
+		});
+	});
+
+	test("builds an OpenTUI component tree with named board layout boundaries", () => {
+		const model = loadTuiModel(tempProject());
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			moveOpen: true,
+			noteOpen: true,
+		};
+
+		const element = createTuiAppElement({ model, selection });
+		const tree = TuiAppView({ model, selection });
+
+		expect(element.type).toBe(TuiAppView);
+		expect(tree.type).toBe("box");
+		expect(collectElementTypes(tree)).toContain(BoardView);
+		expect(collectElementTypes(tree)).toContain(ColumnPane);
+		expect(collectElementTypes(tree)).toContain(IssueCard);
+		expect(collectElementTypes(tree)).toContain(Footer);
+		expect(collectElementTypes(tree)).toContain(MovePrompt);
+		expect(collectElementTypes(tree)).toContain(NotePrompt);
+		expect(collectTextContent(tree)).toContain("malformed_issue");
+	});
+
+	test("detail mode switches to split-pane detail boundaries", () => {
+		const model = loadTuiModel(tempProject());
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const tree = TuiAppView({ model, selection });
+
+		expect(collectElementTypes(tree)).not.toContain(BoardView);
+		expect(collectElementTypes(tree)).toContain(DetailView);
+		expect(collectElementTypes(tree)).toContain(DetailPane);
+		expect(collectElementTypes(tree)).toContain(LogPane);
+		expect(collectTextContent(tree)).toContain("Labels: automation");
+		expect(collectTextContent(tree)).toContain("Herdr body");
+	});
+
 	test("moves selection, opens detail pane, and closes it with escape", () => {
 		const model = loadTuiModel(tempProject());
 		let selection: TuiSelection = {
@@ -124,6 +267,32 @@ describe("TUI model and navigation", () => {
 		expect(selection.columnIndex).toBe(1);
 		expect(selection.cardIndex).toBe(0);
 		expect(selection.detailOpen).toBe(false);
+	});
+
+	test("builds a split-pane detail view model with grouped Issues and separated sections", () => {
+		const model = loadTuiModel(tempProject());
+		const view = buildDetailViewModel(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		});
+
+		expect(view?.selected).toMatchObject({
+			id: "MIK-001",
+			title: "Ready issue",
+			status: "ready",
+			labelsText: "automation",
+		});
+		expect(view?.groups.map((group) => group.status)).toContain("ready");
+		expect(view?.groups[1]?.cards[0]).toMatchObject({
+			id: "MIK-001",
+			selected: true,
+		});
+		expect(view?.sections.summary).toContain("Ready issue");
+		expect(view?.sections.statusLog).toContain("Moved to ready");
+		expect(view?.sections.reports).toContain("Report body");
+		expect(view?.sections.notes).toContain("Note body");
+		expect(view?.sections.herdr).toContain("Herdr body");
 	});
 
 	test("renders detail sections including Summary, Status Log, Reports, Notes, and herdr", () => {
@@ -150,6 +319,28 @@ describe("TUI model and navigation", () => {
 		expect(text).toContain("esc back");
 	});
 
+	test("detail view handles missing optional sections", () => {
+		const cwd = tempProject();
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Ready issue\nlabels: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Ready issue\n`,
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+		const view = buildDetailViewModel(model, selection);
+		const text = collectTextContent(TuiAppView({ model, selection }));
+
+		expect(view?.sections.statusLog).toBe("");
+		expect(view?.sections.reports).toBe("");
+		expect(view?.sections.notes).toBe("");
+		expect(view?.sections.herdr).toBe("");
+		expect(text).toContain("(empty)");
+	});
+
 	test("maps OpenTUI return and escape keys to detail actions", async () => {
 		const { keyToTuiAction } = await import("../src/index.ts");
 
@@ -162,6 +353,41 @@ describe("TUI model and navigation", () => {
 		const { keyToTuiAction } = await import("../src/index.ts");
 
 		expect(keyToTuiAction("q")).toBe("quit");
+	});
+
+	test("builds focused move and note prompt view models", () => {
+		const model = loadTuiModel(tempProject());
+		const moveSelectionState: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			moveOpen: true,
+			moveTargetIndex: 1,
+		};
+		const noteSelectionState: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			noteOpen: true,
+			noteDraft: "Draft",
+			message: "Note cannot be empty",
+		};
+
+		expect(buildMovePromptViewModel(model, moveSelectionState)).toMatchObject({
+			title: "Move MIK-001",
+			focused: true,
+			hint: "enter move  esc cancel",
+		});
+		expect(
+			buildMovePromptViewModel(model, moveSelectionState)?.targets[1],
+		).toMatchObject({ id: "active", selected: true });
+		expect(buildNotePromptViewModel(model, noteSelectionState)).toMatchObject({
+			title: "Append note to MIK-001",
+			focused: true,
+			draft: "Draft",
+			feedback: "Note cannot be empty",
+			hint: "enter append  esc cancel",
+		});
 	});
 
 	test("opens a move interaction with configured target Statuses", async () => {

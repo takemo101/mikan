@@ -347,21 +347,23 @@ Notes:
 
 ## TUI design
 
-`mikan tui` uses OpenTUI for a keyboard-first Kanban board over the same Markdown source of truth.
+`mikan tui` uses OpenTUI for a keyboard-first Kanban board over the same Markdown source of truth. The UI should be pane-based, closer to `opencode-kanban` than to a plain text dump: a title/header, bordered board panes, a split-pane detail mode, focused prompts, and a persistent footer keymap.
 
 Must support:
 
 - discover project by walking upward for `.mikan/config.yaml`;
-- display configured columns, excluding `archived` by default;
-- show Cards from corresponding directories with compact Issue ID, title, and labels;
-- highlight the selected Card and keep empty Columns visible;
-- select a Card and press Enter/Return to view Markdown details;
+- display configured columns, excluding `archived` by default, as Status panes with Issue counts;
+- show Cards from corresponding directories with compact Issue ID, title, labels, and focused Card styling;
+- highlight the selected Card/Column and keep empty Columns visible with a muted empty state;
+- select a Card and press Enter/Return to switch into split-pane detail mode;
+- in detail mode, keep a grouped Issue list on the left and details/log panes on the right;
 - press Esc to return from detail, move, or note-entry modes;
 - show Summary, Status Log, Reports, Notes, blocked reason, completion details, and any herdr-related Markdown section if present;
 - periodically rescan files while preserving the selected Issue by Issue ID when possible;
 - move the selected Issue to another configured Status through the same core mutation used by CLI/MCP;
 - append a short Note to the selected Issue through the same append mutation used by CLI/MCP;
-- show concise success/error feedback for TUI actions.
+- show concise success/error feedback for TUI actions;
+- use a small internal semantic theme for canvas, surface, text, muted text, focus, accent, warning, error, and success states.
 
 Must not support initially:
 
