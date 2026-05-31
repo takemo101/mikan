@@ -80,6 +80,30 @@ describe("CLI read path", () => {
 		expect(result.stderr).toContain("malformed_issue");
 	});
 
+	test("list includes hook failure warnings", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "First"]);
+		writeFileSync(
+			join(cwd, ".mikan", ".state", "hook-log.ndjson"),
+			`${JSON.stringify({
+				issue_id: "MIK-001",
+				from_status: "backlog",
+				to_status: "ready",
+				command: "false",
+				exit_code: 1,
+				error: "nope",
+			})}\n`,
+		);
+
+		const result = await cli(cwd, ["list"]);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stderr).toContain("hook_failure");
+		expect(result.stderr).toContain("MIK-001");
+		expect(result.stderr).toContain("nope");
+	});
+
 	test("add rejects unknown labels and statuses", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);

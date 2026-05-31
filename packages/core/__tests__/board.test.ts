@@ -139,6 +139,37 @@ describe("board scanner", () => {
 		).not.toContain("MIK-003");
 	});
 
+	test("includes hook failure log entries as board warnings", () => {
+		const root = tempProject();
+		writeIssue(root, "backlog", "MIK-001");
+		mkdirSync(join(root, ".mikan", ".state"), { recursive: true });
+		writeFileSync(
+			join(root, ".mikan", ".state", "hook-log.ndjson"),
+			`${JSON.stringify({
+				timestamp: "2026-05-30T00:00:00Z",
+				issue_id: "MIK-001",
+				from_status: "backlog",
+				to_status: "ready",
+				command: "exit 7",
+				exit_code: 7,
+				error: "boom",
+			})}\n`,
+		);
+
+		const result = scanBoard({ projectRoot: root, config });
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected board");
+		expect(result.value.warnings).toContainEqual(
+			expect.objectContaining({
+				kind: "hook_failure",
+				issueId: "MIK-001",
+			}),
+		);
+		expect(result.value.warnings[0]?.message).toContain("exit 7");
+		expect(result.value.warnings[0]?.message).toContain("boom");
+	});
+
 	test("finds max Issue sequence across configured directories including archived", () => {
 		const root = tempProject();
 		writeIssue(root, "backlog", "MIK-001");

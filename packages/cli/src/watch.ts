@@ -3,6 +3,7 @@ import {
 	existsSync,
 	mkdirSync,
 	readFileSync,
+	renameSync,
 	writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
@@ -92,10 +93,11 @@ function appendPlaceholderStatusLog(
 	fromStatus: string,
 	now?: () => Date,
 ): void {
-	if (hasStatusLogEntry(issue.issue.body)) return;
 	if (
-		issue.issue.body.includes(
-			`Observed direct file move from ${fromStatus} to ${String(issue.status)}`,
+		hasMatchingStatusLogEntry(
+			issue.issue.body,
+			fromStatus,
+			String(issue.status),
 		)
 	) {
 		return;
@@ -149,10 +151,27 @@ function fireHooks(
 	}
 }
 
-function hasStatusLogEntry(body: string): boolean {
+function hasMatchingStatusLogEntry(
+	body: string,
+	fromStatus: string,
+	toStatus: string,
+): boolean {
+	const section = extractStatusLog(body);
+	if (!section) return false;
+	if (
+		section.includes(
+			`Observed direct file move from ${fromStatus} to ${toStatus}`,
+		)
+	) {
+		return true;
+	}
+	return section.includes(`Moved from ${fromStatus} to ${toStatus}`);
+}
+
+function extractStatusLog(body: string): string {
 	const lines = body.split("\n");
 	const start = lines.findIndex((line) => line.trim() === "## Status Log");
-	if (start === -1) return false;
+	if (start === -1) return "";
 	let end = lines.length;
 	for (let index = start + 1; index < lines.length; index++) {
 		if (/^##\s+/.test(lines[index] ?? "")) {
@@ -160,7 +179,7 @@ function hasStatusLogEntry(body: string): boolean {
 			break;
 		}
 	}
-	return lines.slice(start + 1, end).some((line) => line.trim().length > 0);
+	return lines.slice(start + 1, end).join("\n");
 }
 
 function renderHookCommand(
@@ -184,12 +203,18 @@ function appendHookFailure(
 
 function readSnapshot(path: string): WatchSnapshot | undefined {
 	if (!existsSync(path)) return undefined;
-	return JSON.parse(readFileSync(path, "utf8")) as WatchSnapshot;
+	try {
+		return JSON.parse(readFileSync(path, "utf8")) as WatchSnapshot;
+	} catch {
+		return undefined;
+	}
 }
 
 function writeSnapshot(path: string, snapshot: WatchSnapshot): void {
 	mkdirSync(dirname(path), { recursive: true });
-	writeFileSync(path, JSON.stringify(snapshot, null, 2));
+	const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
+	writeFileSync(tmp, JSON.stringify(snapshot, null, 2));
+	renameSync(tmp, path);
 }
 
 function watcherSnapshotPath(projectRoot: string): string {

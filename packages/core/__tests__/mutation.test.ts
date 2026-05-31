@@ -148,6 +148,7 @@ describe("core mutations", () => {
 		);
 		const markdown = readIssue(root, "blocked");
 		expect(markdown).toContain("## Status Log");
+		expect(markdown).toContain("Moved from backlog to blocked");
 		expect(markdown).toContain("Waiting on reviewer");
 		expect(markdown).toContain("updated_at: 2026-05-30T01:02:03Z");
 	});

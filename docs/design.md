@@ -224,9 +224,10 @@ The parent agent remains the decision maker.
 
 ## Status Log
 
-### 2026-05-30T00:00:00Z backlog -> ready
+- 2026-05-30T00:00:00Z
 
-Reason:
+Moved from backlog to ready
+
 Ready for implementation.
 
 ## Reports
@@ -377,7 +378,7 @@ Behavior:
 - Never fire hooks for body edits.
 - Never roll back Issue status when hook commands fail.
 - Do not retroactively infer or repair moves that happened while watch was not running.
-- If watch observes a direct file move without a matching Status Log entry, append a placeholder once.
+- If watch observes a direct file move without a matching `Moved from <from> to <to>` or watcher placeholder Status Log entry, append a placeholder once.
 - Do not process transitions while the mikan write lock is held.
 
 Hook template variables in v0:

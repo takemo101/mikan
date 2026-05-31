@@ -6,7 +6,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { parseProjectKey } from "@mikan/core";
+import { parseLabelId, parseProjectKey, parseStatusId } from "@mikan/core";
 import { parse, stringify } from "yaml";
 import { z } from "zod";
 
@@ -108,24 +108,40 @@ const projectConfigSchema = z
 		}
 
 		const columnIds = new Set<string>();
-		for (const column of config.board.columns) {
+		for (const [index, column] of config.board.columns.entries()) {
+			const parsedStatus = parseStatusId(column.id);
+			if (!parsedStatus.ok) {
+				context.addIssue({
+					code: "custom",
+					message: parsedStatus.error.message,
+					path: ["board", "columns", index, "id"],
+				});
+			}
 			if (columnIds.has(column.id)) {
 				context.addIssue({
 					code: "custom",
 					message: `duplicate column id: ${column.id}`,
-					path: ["board", "columns"],
+					path: ["board", "columns", index, "id"],
 				});
 			}
 			columnIds.add(column.id);
 		}
 
 		const labelIds = new Set<string>();
-		for (const label of config.labels) {
+		for (const [index, label] of config.labels.entries()) {
+			const parsedLabel = parseLabelId(label.id);
+			if (!parsedLabel.ok) {
+				context.addIssue({
+					code: "custom",
+					message: parsedLabel.error.message,
+					path: ["labels", index, "id"],
+				});
+			}
 			if (labelIds.has(label.id)) {
 				context.addIssue({
 					code: "custom",
 					message: `duplicate label id: ${label.id}`,
-					path: ["labels"],
+					path: ["labels", index, "id"],
 				});
 			}
 			labelIds.add(label.id);
