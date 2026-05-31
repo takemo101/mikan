@@ -15,7 +15,13 @@ import {
 	getBoardTool,
 	moveIssueTool,
 } from "../packages/mcp/src/index.ts";
-import { loadTuiModel } from "../packages/tui/src/index.ts";
+import {
+	appendSelectedIssueNote,
+	getSelectedDetails,
+	loadTuiModel,
+	moveSelectedIssue,
+	renderTuiText,
+} from "../packages/tui/src/index.ts";
 
 const now = () => new Date("2026-05-30T00:00:00Z");
 
@@ -81,6 +87,32 @@ describe("end-to-end smoke flow", () => {
 		const tuiModel = loadTuiModel(cwd);
 		expect(JSON.stringify(tuiModel)).toContain("Updated");
 		expect(JSON.stringify(tuiModel)).toContain("From MCP");
+		expect(
+			renderTuiText(tuiModel, {
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: false,
+			}),
+		).toContain("m move  a append note");
+		const tuiMove = moveSelectedIssue({
+			cwd,
+			model: tuiModel,
+			selection: { columnIndex: 3, cardIndex: 0, detailOpen: false },
+			targetStatus: "active",
+			now,
+		});
+		expect(tuiMove.ok).toBe(true);
+		const tuiAppend = appendSelectedIssueNote({
+			cwd,
+			model: tuiMove.model,
+			selection: tuiMove.selection,
+			body: "TUI smoke note",
+			now,
+		});
+		expect(tuiAppend.ok).toBe(true);
+		expect(
+			getSelectedDetails(tuiAppend.model, tuiAppend.selection)?.notes,
+		).toContain("TUI smoke note");
 
 		writeFileSync(
 			join(cwd, ".mikan", "config.yaml"),
