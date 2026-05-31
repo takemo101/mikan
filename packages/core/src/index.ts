@@ -902,7 +902,7 @@ function formatStatusTransitionLog(
 }
 
 function utcNow(now?: () => Date): string {
-	return (now?.() ?? new Date()).toISOString().replace(".000Z", "Z");
+	return (now?.() ?? new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 function lockPath(projectRoot: string): string {

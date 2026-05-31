@@ -13,6 +13,17 @@ import {
 import { loadProjectConfig } from "@mikan/project-config";
 import { Cli, z } from "incur";
 
+export type {
+	McpAgent,
+	McpAgentInstaller,
+	McpAgentInstallOptions,
+	McpAgentInstallResult,
+} from "./installers.ts";
+export {
+	installMcpServerForAgent,
+	mcpAgentInstallers,
+} from "./installers.ts";
+
 export type McpRuntime = {
 	cwd?: string;
 	now?: () => Date;

@@ -88,6 +88,23 @@ describe("core mutations", () => {
 		).toBe(false);
 	});
 
+	test("create normalizes generated timestamps to whole-second UTC", () => {
+		const root = tempProject();
+
+		const result = createIssue({
+			projectRoot: root,
+			config,
+			title: "Generated time",
+			now: () => new Date("2026-05-30T00:00:00.123Z"),
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected create");
+		expect(readIssue(root, "backlog")).toContain(
+			"created_at: 2026-05-30T00:00:00Z",
+		);
+	});
+
 	test("update changes title, labels, body, and updated_at", () => {
 		const root = tempProject();
 		seed(root);
