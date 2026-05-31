@@ -219,6 +219,16 @@ describe("CLI read path", () => {
 		).toContain("Flow sequence");
 	});
 
+	test("mcp command advertises stdio server startup", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+
+		const result = await cli(cwd, ["mcp"]);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toContain("MCP server on stdio");
+	});
+
 	test("show returns clear not-found error", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);
