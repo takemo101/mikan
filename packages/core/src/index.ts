@@ -350,16 +350,42 @@ export function findIssueById(options: {
 export function createIssue(
 	options: CreateIssueOptions,
 ): Result<IssueLocation, MutationError> {
+	const status = options.status ?? "backlog";
+	const statusValidation = validateStatus(options.config, status);
+	if (!statusValidation.ok) return statusValidation;
+	const labelsValidation = validateLabels(options.config, options.labels ?? []);
+	if (!labelsValidation.ok) return labelsValidation;
+	const projectKey = options.config.project?.key ?? "MIK";
+	const parsedProjectKey = parseProjectKey(projectKey);
+	if (!parsedProjectKey.ok) {
+		return {
+			ok: false,
+			error: {
+				kind: "malformed_issue",
+				message: parsedProjectKey.error.message,
+			},
+		};
+	}
 	return withWriteLock(options.projectRoot, () => {
-		const status = options.status ?? "backlog";
-		const statusValidation = validateStatus(options.config, status);
-		if (!statusValidation.ok) return statusValidation;
-		const labelsValidation = validateLabels(
-			options.config,
-			options.labels ?? [],
+		const board = scanBoard({
+			projectRoot: options.projectRoot,
+			config: options.config,
+			includeArchived: true,
+		});
+		if (!board.ok) return board;
+		const duplicate = board.value.warnings.find(
+			(warning) => warning.kind === "duplicate_issue_id",
 		);
-		if (!labelsValidation.ok) return labelsValidation;
-		const projectKey = options.config.project?.key ?? "MIK";
+		if (duplicate) {
+			return {
+				ok: false,
+				error: {
+					kind: "duplicate_issue_id",
+					message: duplicate.message,
+					path: duplicate.path,
+				},
+			};
+		}
 		const sequence =
 			findMaxIssueSequence({
 				projectRoot: options.projectRoot,

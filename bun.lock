@@ -13,7 +13,7 @@
     "packages/cli": {
       "name": "mikan",
       "bin": {
-        "mikan": "./bin/mikan.js",
+        "mikan": "./src/bin.ts",
       },
       "dependencies": {
         "@mikan/core": "workspace:*",
