@@ -1,0 +1,14 @@
+{
+	"name": "@mikan/core",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"build": "tsc -p ../../tsconfig.json --noEmit",
+		"typecheck": "tsc -p ../../tsconfig.json --noEmit",
+		"test": "bun test"
+	},
+	"dependencies": {}
+}
