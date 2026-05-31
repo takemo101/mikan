@@ -82,6 +82,42 @@ function collectTextContent(element: unknown): string {
 	].join("\n");
 }
 
+function findElementById(
+	element: unknown,
+	id: string,
+):
+	| {
+			props?: {
+				children?: unknown;
+				id?: unknown;
+				style?: Record<string, unknown>;
+				title?: unknown;
+			};
+	  }
+	| undefined {
+	if (!element || typeof element !== "object") return undefined;
+	const node = element as {
+		type?: unknown;
+		props?: {
+			children?: unknown;
+			id?: unknown;
+			style?: Record<string, unknown>;
+			title?: unknown;
+		};
+	};
+	if (node.props?.id === id) return node;
+	const children = Array.isArray(node.props?.children)
+		? node.props.children
+		: [node.props?.children];
+	const childMatch = children
+		.map((child) => findElementById(child, id))
+		.find(Boolean);
+	if (childMatch) return childMatch;
+	const rendered =
+		typeof node.type === "function" ? node.type(node.props) : undefined;
+	return findElementById(rendered, id);
+}
+
 function tempProject(): string {
 	const root = mkdtempSync(join(tmpdir(), "mikan-tui-"));
 	const init = initProject(root, { key: "MIK", name: "mikan" });
@@ -152,8 +188,8 @@ describe("TUI model and navigation", () => {
 		const text = renderTuiText(model, selection);
 
 		expect(text).toContain("┌─ Backlog ─");
-		expect(text).toContain("┌─ Ready ─");
-		expect(text).toContain("│ > MIK-001 Ready issue");
+		expect(text).toContain("┌─ ▶ Ready ─");
+		expect(text).toContain("│ ▶ MIK-001 Ready issue");
 		expect(text).toContain("│   [automation]");
 		expect(text).toContain("│   (empty)");
 		expect(text).toContain("Warnings");
@@ -272,6 +308,34 @@ describe("TUI model and navigation", () => {
 		expect(collectElementTypes(tree)).toContain(MovePrompt);
 		expect(collectElementTypes(tree)).toContain(NotePrompt);
 		expect(collectTextContent(tree)).toContain("malformed_issue");
+	});
+
+	test("makes active Column and selected Issue visually obvious", () => {
+		const model = loadTuiModel(tempProject());
+		const theme = buildTuiTheme();
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+
+		const tree = TuiAppView({ model, selection, theme });
+		const column = findElementById(tree, "column-ready");
+		const card = findElementById(tree, "card-MIK-001");
+
+		expect(column?.props?.title).toBe("▶ Ready (1)");
+		expect(column?.props).toMatchObject({ border: true });
+		expect(column?.props?.style).toMatchObject({
+			backgroundColor: theme.interactive.selectedSurface,
+			borderColor: theme.interactive.accent,
+		});
+		expect(card?.props).toMatchObject({ border: true });
+		expect(card?.props?.style).toMatchObject({
+			backgroundColor: theme.interactive.selectedSurface,
+			borderColor: theme.interactive.focus,
+			color: theme.feedback.success,
+		});
+		expect(collectTextContent(tree)).toContain("▶ MIK-001 Ready issue");
 	});
 
 	test("detail mode switches to a full-page Markdown detail page", () => {

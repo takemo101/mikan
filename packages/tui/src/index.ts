@@ -509,6 +509,7 @@ export function buildBoardViewModel(
 export function BoardView({
 	model,
 	selection,
+	theme = buildTuiTheme(),
 }: TuiAppViewProps): React.ReactElement {
 	const view = buildBoardViewModel(model, selection);
 	return React.createElement(
@@ -526,6 +527,7 @@ export function BoardView({
 					React.createElement(ColumnPane, {
 						key: column.id,
 						column,
+						theme,
 					}),
 				),
 			),
@@ -543,14 +545,26 @@ export function BoardView({
 
 export function ColumnPane(props: {
 	column: BoardColumnView;
+	theme?: TuiTheme;
 }): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
 	return React.createElement(
 		"box",
 		{
 			id: `column-${props.column.id}`,
-			title: `${props.column.title} (${props.column.count})`,
+			title: `${props.column.active ? "▶ " : ""}${props.column.title} (${props.column.count})`,
+			border: true,
 			focused: props.column.active,
-			style: { flexDirection: "column", flexGrow: 1 },
+			style: {
+				backgroundColor: props.column.active
+					? theme.interactive.selectedSurface
+					: theme.base.surface,
+				borderColor: props.column.active
+					? theme.interactive.accent
+					: theme.base.muted,
+				flexDirection: "column",
+				flexGrow: 1,
+			},
 		},
 		props.column.empty
 			? React.createElement("text", { content: props.column.emptyText })
@@ -559,6 +573,7 @@ export function ColumnPane(props: {
 						key: card.id,
 						card,
 						selected: card.selected,
+						theme,
 					}),
 				),
 	);
@@ -567,16 +582,28 @@ export function ColumnPane(props: {
 export function IssueCard(props: {
 	card: TuiCard;
 	selected: boolean;
+	theme?: TuiTheme;
 }): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
 	return React.createElement(
 		"box",
 		{
 			id: `card-${props.card.id}`,
+			border: true,
 			focused: props.selected,
-			style: { flexDirection: "column" },
+			style: {
+				backgroundColor: props.selected
+					? theme.interactive.selectedSurface
+					: theme.base.surface,
+				borderColor: props.selected
+					? theme.interactive.focus
+					: theme.base.muted,
+				color: props.selected ? theme.feedback.success : theme.base.text,
+				flexDirection: "column",
+			},
 		},
 		React.createElement("text", {
-			content: `${props.card.id} ${props.card.title}`,
+			content: `${props.selected ? "▶ " : ""}${props.card.id} ${props.card.title}`,
 		}),
 		props.card.labels.length > 0
 			? React.createElement("text", {
@@ -1054,13 +1081,19 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 					const labels =
 						card.labels.length > 0 ? [`  [${card.labels.join(", ")}]`] : [];
 					return [
-						`${selected ? ">" : " "} ${card.id} ${card.title}`,
+						`${selected ? "▶" : " "} ${card.id} ${card.title}`,
 						...labels,
 					];
 				})
 			: ["  (empty)"];
+		const active = columnIndex === selection.columnIndex;
 		return {
-			header: boxLine(`─ ${column.title} `, width, "┌", "┐"),
+			header: boxLine(
+				`─ ${active ? "▶ " : ""}${column.title} `,
+				width,
+				"┌",
+				"┐",
+			),
 			rows: rows.map((row) => contentLine(row, width)),
 			footer: boxLine("", width, "└", "┘"),
 		};
