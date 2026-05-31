@@ -347,20 +347,25 @@ Notes:
 
 ## TUI design
 
-`mikan tui` is read-only in v0 and uses OpenTUI.
+`mikan tui` uses OpenTUI for a keyboard-first Kanban board over the same Markdown source of truth.
 
 Must support:
 
 - discover project by walking upward for `.mikan/config.yaml`;
 - display configured columns, excluding `archived` by default;
-- show Cards from corresponding directories;
-- select/click a Card to view Markdown details;
-- periodically rescan files;
-- show Status Log, Reports, blocked reason, completion details, and any herdr-related Markdown section if present.
+- show Cards from corresponding directories with compact Issue ID, title, and labels;
+- highlight the selected Card and keep empty Columns visible;
+- select a Card and press Enter/Return to view Markdown details;
+- press Esc to return from detail, move, or note-entry modes;
+- show Summary, Status Log, Reports, Notes, blocked reason, completion details, and any herdr-related Markdown section if present;
+- periodically rescan files while preserving the selected Issue by Issue ID when possible;
+- move the selected Issue to another configured Status through the same core mutation used by CLI/MCP;
+- append a short Note to the selected Issue through the same append mutation used by CLI/MCP;
+- show concise success/error feedback for TUI actions.
 
 Must not support initially:
 
-- editing Cards;
+- full Markdown body editing;
 - drag/drop transitions;
 - user accounts;
 - remote sync;
