@@ -16,6 +16,7 @@ import {
 	applyNoteInput,
 	BoardView,
 	buildBoardViewModel,
+	buildDetailPageViewModel,
 	buildDetailViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
@@ -23,17 +24,18 @@ import {
 	buildTuiTheme,
 	ColumnPane,
 	createTuiAppElement,
-	DetailPane,
+	DetailPage,
 	DetailView,
 	Footer,
+	getAdjacentMoveTarget,
 	getMoveTargets,
 	getSelectedDetails,
 	IssueCard,
 	keyToDirection,
-	LogPane,
 	loadTuiModel,
 	MovePrompt,
 	moveSelectedIssue,
+	moveSelectedIssueByDirection,
 	moveSelection,
 	NotePrompt,
 	refreshTuiModel,
@@ -155,8 +157,10 @@ describe("TUI model and navigation", () => {
 		expect(text).toContain("│   [automation]");
 		expect(text).toContain("│   (empty)");
 		expect(text).toContain("Warnings");
-		expect(text).toContain("↑/↓ select");
-		expect(text).toContain("←/→ column");
+		expect(text).toContain("j/k select");
+		expect(text).toContain("h/l column");
+		expect(text).toContain("H/L move");
+		expect(text).toContain("r reload");
 		expect(text).toContain("enter details");
 		expect(text).toContain("q quit");
 	});
@@ -181,30 +185,66 @@ describe("TUI model and navigation", () => {
 		});
 	});
 
-	test("builds a board view model with counts, focus, empty states, and adaptive groups", () => {
+	test("builds a board viewport with counts, focus, empty states, and three visible columns", () => {
 		const model = loadTuiModel(tempProject());
-		const view = buildBoardViewModel(model, {
-			columnIndex: 1,
-			cardIndex: 0,
-			detailOpen: false,
-		});
+		const backlogView = buildBoardViewModel(
+			model,
+			{ columnIndex: 0, cardIndex: 0, detailOpen: false },
+			{ visibleColumnCount: 3 },
+		);
+		const readyView = buildBoardViewModel(
+			model,
+			{ columnIndex: 1, cardIndex: 0, detailOpen: false },
+			{ visibleColumnCount: 3 },
+		);
+		const blockedView = buildBoardViewModel(
+			model,
+			{ columnIndex: 3, cardIndex: 0, detailOpen: false },
+			{ visibleColumnCount: 3 },
+		);
+		const completedView = buildBoardViewModel(
+			model,
+			{ columnIndex: 4, cardIndex: 0, detailOpen: false },
+			{ visibleColumnCount: 3 },
+		);
 
-		expect(view.groups.length).toBe(2);
-		expect(view.groups[0]?.columns.length).toBe(4);
-		expect(view.groups[1]?.columns.length).toBe(1);
-		expect(view.columns[1]).toMatchObject({
+		expect(backlogView.visibleColumns.map((column) => column.id)).toEqual([
+			"backlog",
+			"ready",
+			"active",
+		]);
+		expect(readyView.visibleColumns.map((column) => column.id)).toEqual([
+			"backlog",
+			"ready",
+			"active",
+		]);
+		expect(blockedView.visibleColumns.map((column) => column.id)).toEqual([
+			"ready",
+			"active",
+			"blocked",
+		]);
+		expect(completedView.visibleColumns.map((column) => column.id)).toEqual([
+			"active",
+			"blocked",
+			"completed",
+		]);
+		expect(readyView.hasColumnsBefore).toBe(false);
+		expect(readyView.hasColumnsAfter).toBe(true);
+		expect(completedView.hasColumnsBefore).toBe(true);
+		expect(completedView.hasColumnsAfter).toBe(false);
+		expect(readyView.columns[1]).toMatchObject({
 			id: "ready",
 			title: "Ready",
 			count: 1,
 			active: true,
 			empty: false,
 		});
-		expect(view.columns[1]?.cards[0]).toMatchObject({
+		expect(readyView.columns[1]?.cards[0]).toMatchObject({
 			id: "MIK-001",
 			selected: true,
 			labelsText: "automation",
 		});
-		expect(view.columns[0]).toMatchObject({
+		expect(readyView.columns[0]).toMatchObject({
 			empty: true,
 			emptyText: "No Issues",
 		});
@@ -234,7 +274,7 @@ describe("TUI model and navigation", () => {
 		expect(collectTextContent(tree)).toContain("malformed_issue");
 	});
 
-	test("detail mode switches to split-pane detail boundaries", () => {
+	test("detail mode switches to a full-page Markdown detail page", () => {
 		const model = loadTuiModel(tempProject());
 		const selection: TuiSelection = {
 			columnIndex: 1,
@@ -243,13 +283,20 @@ describe("TUI model and navigation", () => {
 		};
 
 		const tree = TuiAppView({ model, selection });
+		const page = buildDetailPageViewModel(model, selection);
 
 		expect(collectElementTypes(tree)).not.toContain(BoardView);
-		expect(collectElementTypes(tree)).toContain(DetailView);
-		expect(collectElementTypes(tree)).toContain(DetailPane);
-		expect(collectElementTypes(tree)).toContain(LogPane);
+		expect(collectElementTypes(tree)).toContain(DetailPage);
+		expect(collectElementTypes(tree)).not.toContain(DetailView);
+		expect(page).toMatchObject({
+			id: "MIK-001",
+			title: "Ready issue",
+			status: "ready",
+			labelsText: "automation",
+		});
+		expect(page?.markdown).toContain("# Ready issue");
 		expect(collectTextContent(tree)).toContain("Labels: automation");
-		expect(collectTextContent(tree)).toContain("Herdr body");
+		expect(collectTextContent(tree)).toContain("# Ready issue");
 	});
 
 	test("moves selection, opens detail pane, and closes it with escape", () => {
@@ -319,6 +366,41 @@ describe("TUI model and navigation", () => {
 		expect(text).toContain("esc back");
 	});
 
+	test("detail page scrolls Markdown independently from board selection", () => {
+		const cwd = tempProject();
+		const bodyLines = Array.from(
+			{ length: 45 },
+			(_, index) => `line ${index + 1}`,
+		).join("\n");
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Ready issue\nlabels: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Ready issue\n\n${bodyLines}\n`,
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+		const down = moveSelection(model, selection, "down");
+		const downAgain = moveSelection(model, down, "down");
+		let downClamped = downAgain;
+		for (let index = 0; index < 100; index++) {
+			downClamped = moveSelection(model, downClamped, "down");
+		}
+		const up = moveSelection(model, downClamped, "up");
+		const page = buildDetailPageViewModel(model, downAgain, {
+			visibleLineCount: 2,
+		});
+
+		expect(down.columnIndex).toBe(1);
+		expect(down.cardIndex).toBe(0);
+		expect(down.detailScrollOffset).toBe(1);
+		expect(downClamped.detailScrollOffset).toBe(8);
+		expect(up.detailScrollOffset).toBe(7);
+		expect(page?.visibleMarkdownLines).toEqual(["line 1", "line 2"]);
+	});
+
 	test("detail view handles missing optional sections", () => {
 		const cwd = tempProject();
 		writeFileSync(
@@ -338,15 +420,52 @@ describe("TUI model and navigation", () => {
 		expect(view?.sections.reports).toBe("");
 		expect(view?.sections.notes).toBe("");
 		expect(view?.sections.herdr).toBe("");
-		expect(text).toContain("(empty)");
+		expect(text).toContain("# Ready issue");
 	});
 
 	test("maps OpenTUI return and escape keys to detail actions", async () => {
 		const { keyToTuiAction } = await import("../src/index.ts");
 
 		expect(keyToDirection("return")).toBe("enter");
+		expect(keyToDirection("h")).toBe("left");
+		expect(keyToDirection("l")).toBe("right");
+		expect(keyToDirection("j")).toBe("down");
+		expect(keyToDirection("k")).toBe("up");
 		expect(keyToDirection("m")).toBeUndefined();
+		expect(keyToTuiAction("r")).toBe("reload");
+		expect(keyToTuiAction("h", true)).toBe("move-left");
+		expect(keyToTuiAction("l", true)).toBe("move-right");
+		expect(keyToTuiAction("H")).toBe("move-left");
+		expect(keyToTuiAction("L")).toBe("move-right");
 		expect(keyToTuiAction("escape")).toBe("escape");
+	});
+
+	test("moves selected Issue left and right by Status order", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+
+		expect(getAdjacentMoveTarget(model, selection, "left")).toMatchObject({
+			id: "backlog",
+		});
+		expect(getAdjacentMoveTarget(model, selection, "right")).toMatchObject({
+			id: "active",
+		});
+		const moved = moveSelectedIssueByDirection({
+			cwd,
+			model,
+			selection,
+			direction: "left",
+			now,
+		});
+
+		expect(moved.ok).toBe(true);
+		expect(moved.message).toContain("MIK-001 moved to backlog");
+		expect(moved.selection.columnIndex).toBe(0);
 	});
 
 	test("maps q to the quit action", async () => {

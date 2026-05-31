@@ -6,7 +6,7 @@ mikan is a tiny, local-first micro-kanban for AI-assisted development. It gives 
 
 - Use plain Markdown files as the source of truth.
 - Let agents update Issues through safe CLI/MCP operations.
-- Let humans observe the board through a read-only TUI.
+- Let humans observe and perform small Issue mutations through the TUI.
 - Keep the public command surface small and primitive.
 - Support optional status-transition hooks without making hooks authoritative.
 - Stay lightweight: no SQLite, no server, no GitHub sync, no agent/profile model in v0.
@@ -130,7 +130,7 @@ packages/core            # Issue model, scanners, Markdown/frontmatter operation
 packages/project-config  # .mikan/config.yaml discovery, schema, init
 packages/cli             # mikan binary and primitive commands
 packages/mcp             # stdio mikan mcp server over core operations
-packages/tui             # OpenTUI read-only board/detail UI
+packages/tui             # OpenTUI board/detail UI with small Issue mutations
 ```
 
 Dependency direction:
@@ -347,18 +347,20 @@ Notes:
 
 ## TUI design
 
-`mikan tui` uses OpenTUI for a keyboard-first Kanban board over the same Markdown source of truth. The UI should be pane-based, closer to `opencode-kanban` than to a plain text dump: a title/header, bordered board panes, a split-pane detail mode, focused prompts, and a persistent footer keymap.
+`mikan tui` uses OpenTUI for a keyboard-first Kanban board over the same Markdown source of truth. The board page is primary and follows a flow-style interaction model: a focused Status Column and Card, a sliding horizontal Column viewport, full-page Markdown detail, focused prompts, and a persistent footer keymap.
 
 Must support:
 
 - discover project by walking upward for `.mikan/config.yaml`;
 - display configured columns, excluding `archived` by default, as Status panes with Issue counts;
+- show a sliding horizontal Column viewport rather than forcing every configured Status onscreen at once;
+- shift the visible Column viewport as focus moves, for example `Backlog / Ready / Active` → `Ready / Active / Blocked` → `Active / Blocked / Completed`;
 - show Cards from corresponding directories with compact Issue ID, title, labels, and focused Card styling;
 - highlight the selected Card/Column and keep empty Columns visible with a muted empty state;
-- select a Card and press Enter/Return to switch into split-pane detail mode;
-- in detail mode, keep a grouped Issue list on the left and details/log panes on the right;
-- press Esc to return from detail, move, or note-entry modes;
-- show Summary, Status Log, Reports, Notes, blocked reason, completion details, and any herdr-related Markdown section if present;
+- use `h`/`l` or arrow keys for Column focus, `j`/`k` or arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `r` for reload, Esc for close/back, and `q` for quit;
+- select a Card and press Enter/Return to switch from the board page to a full-page Markdown detail page;
+- in detail mode, render body Markdown without frontmatter and scroll it independently from board selection;
+- press Esc to return from detail, move, or note-entry modes while preserving board selection when possible;
 - periodically rescan files while preserving the selected Issue by Issue ID when possible;
 - move the selected Issue to another configured Status through the same core mutation used by CLI/MCP;
 - append a short Note to the selected Issue through the same append mutation used by CLI/MCP;
@@ -473,7 +475,7 @@ Do not implement bidirectional sync until there is a clear need.
 5. `mikan mcp`
    - expose the primitive MCP tools over the same core operations.
 6. `mikan tui`
-   - read-only board and detail pane.
+   - board page, full-page Markdown detail, adjacent Status moves, notes, and reload.
 7. `mikan watch`
    - polling hooks and direct-move placeholder Status Logs.
 

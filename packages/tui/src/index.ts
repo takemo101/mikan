@@ -64,7 +64,14 @@ export type BoardColumnView = {
 
 export type BoardViewModel = {
 	columns: BoardColumnView[];
+	visibleColumns: BoardColumnView[];
 	groups: { columns: BoardColumnView[] }[];
+	hasColumnsBefore: boolean;
+	hasColumnsAfter: boolean;
+};
+
+export type BoardViewOptions = {
+	visibleColumnCount?: number;
 };
 
 export type DetailViewModel = {
@@ -83,6 +90,19 @@ export type DetailViewModel = {
 		notes: string;
 		herdr: string;
 	};
+};
+
+export type DetailPageViewModel = {
+	id: string;
+	title: string;
+	status: string;
+	labelsText: string;
+	markdown: string;
+	visibleMarkdownLines: string[];
+};
+
+export type DetailPageOptions = {
+	visibleLineCount?: number;
 };
 
 export type MovePromptViewModel = {
@@ -108,6 +128,8 @@ export type TuiSelection = {
 	moveTargetIndex?: number;
 	noteOpen?: boolean;
 	noteDraft?: string;
+	detailScrollOffset?: number;
+	detailScrollMax?: number;
 	message?: string;
 };
 
@@ -191,7 +213,22 @@ export function moveSelection(
 	direction: TuiSelectionAction,
 ): TuiSelection {
 	if (direction === "enter") {
-		return { ...selection, detailOpen: true };
+		return { ...selection, detailOpen: true, detailScrollOffset: 0 };
+	}
+	if (
+		selection.detailOpen &&
+		!selection.moveOpen &&
+		!selection.noteOpen &&
+		(direction === "up" || direction === "down")
+	) {
+		return {
+			...selection,
+			detailScrollOffset: clamp(
+				(selection.detailScrollOffset ?? 0) + (direction === "down" ? 1 : -1),
+				0,
+				detailScrollMax(model, selection),
+			),
+		};
 	}
 	if (direction === "escape") {
 		return {
@@ -313,7 +350,7 @@ export function renderTuiText(
 	}
 	lines.push(
 		"",
-		"↑/↓ select  ←/→ column  enter details  m move  a append note  q quit",
+		"j/k select  h/l column  H/L move  enter details  r reload  m move  a note  q quit",
 	);
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
@@ -357,7 +394,7 @@ export function TuiAppView({
 		},
 		React.createElement("text", { content: "mikan" }),
 		details
-			? React.createElement(DetailView, { model, selection, theme })
+			? React.createElement(DetailPage, { model, selection, theme })
 			: React.createElement(BoardView, { model, selection, theme }),
 		selection.moveOpen
 			? React.createElement(MovePrompt, { model, selection, theme })
@@ -370,6 +407,34 @@ export function TuiAppView({
 			: undefined,
 		React.createElement(Footer, { theme }),
 	);
+}
+
+export function buildDetailPageViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+	options: DetailPageOptions = {},
+): DetailPageViewModel | undefined {
+	const details = getSelectedDetails(model, selection);
+	if (!details) return undefined;
+	const markdown = stripFrontmatter(details.markdown);
+	const markdownLines = markdown.split("\n");
+	const visibleLineCount = options.visibleLineCount ?? 40;
+	const offset = clamp(
+		selection.detailScrollOffset ?? 0,
+		0,
+		Math.max(0, markdownLines.length - visibleLineCount),
+	);
+	return {
+		id: details.card.id,
+		title: details.card.title,
+		status: details.card.status,
+		labelsText: details.card.labels.join(", "),
+		markdown,
+		visibleMarkdownLines: markdownLines.slice(
+			offset,
+			offset + visibleLineCount,
+		),
+	};
 }
 
 export function buildDetailViewModel(
@@ -407,6 +472,7 @@ export function buildDetailViewModel(
 export function buildBoardViewModel(
 	model: TuiModel,
 	selection: TuiSelection,
+	options: BoardViewOptions = {},
 ): BoardViewModel {
 	const columns = model.columns.map((column, columnIndex) => ({
 		id: column.id,
@@ -423,9 +489,20 @@ export function buildBoardViewModel(
 			labelsText: card.labels.join(", "),
 		})),
 	}));
+	const visibleColumnCount = Math.max(1, options.visibleColumnCount ?? 3);
+	const maxStart = Math.max(0, columns.length - visibleColumnCount);
+	const start = clamp(
+		selection.columnIndex - (visibleColumnCount - 1),
+		0,
+		maxStart,
+	);
+	const visibleColumns = columns.slice(start, start + visibleColumnCount);
 	return {
 		columns,
-		groups: chunk(columns, 4).map((group) => ({ columns: group })),
+		visibleColumns,
+		groups: [{ columns: visibleColumns }],
+		hasColumnsBefore: start > 0,
+		hasColumnsAfter: start + visibleColumnCount < columns.length,
 	};
 }
 
@@ -506,6 +583,33 @@ export function IssueCard(props: {
 					content: props.card.labels.join(", "),
 				})
 			: undefined,
+	);
+}
+
+export function DetailPage(props: TuiAppViewProps): React.ReactElement {
+	const page = buildDetailPageViewModel(props.model, props.selection);
+	const theme = props.theme ?? buildTuiTheme();
+	if (!page)
+		return React.createElement("text", { content: "No Issue selected" });
+	return React.createElement(
+		"box",
+		{
+			id: "detail-page",
+			title: `${page.id} ${page.title}`,
+			style: {
+				backgroundColor: theme.base.surface,
+				borderColor: theme.interactive.focus,
+				flexDirection: "column",
+				flexGrow: 1,
+			},
+		},
+		React.createElement("text", { content: `Status: ${page.status}` }),
+		React.createElement("text", {
+			content: `Labels: ${page.labelsText || "(none)"}`,
+		}),
+		React.createElement("markdown", {
+			content: page.visibleMarkdownLines.join("\n"),
+		}),
 	);
 }
 
@@ -650,7 +754,7 @@ export function Footer(props: FooterProps): React.ReactElement {
 	return React.createElement("text", {
 		style: { color: theme.base.muted },
 		content:
-			"↑/↓ select  ←/→ column  enter details  m move  a append note  q quit",
+			"j/k select  h/l column  H/L move  enter details  r reload  m move  a note  q quit",
 	});
 }
 
@@ -662,6 +766,16 @@ export function getMoveTargets(
 	return model.columns
 		.filter((column) => column.id !== currentStatus)
 		.map((column) => ({ id: column.id, title: column.title }));
+}
+
+export function getAdjacentMoveTarget(
+	model: TuiModel,
+	selection: TuiSelection,
+	direction: "left" | "right",
+): MoveTarget | undefined {
+	const offset = direction === "left" ? -1 : 1;
+	const column = model.columns[selection.columnIndex + offset];
+	return column ? { id: column.id, title: column.title } : undefined;
 }
 
 export function applyNoteInput(
@@ -681,6 +795,35 @@ export function applyNoteInput(
 	const value =
 		shift && /[a-z]/.test(character) ? character.toUpperCase() : character;
 	return { ...selection, noteDraft: `${selection.noteDraft ?? ""}${value}` };
+}
+
+export function moveSelectedIssueByDirection(options: {
+	cwd?: string;
+	model: TuiModel;
+	selection: TuiSelection;
+	direction: "left" | "right";
+	now?: () => Date;
+}): MoveSelectedIssueResult {
+	const target = getAdjacentMoveTarget(
+		options.model,
+		options.selection,
+		options.direction,
+	);
+	if (!target) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: options.selection,
+			message: `No Status to the ${options.direction}`,
+		};
+	}
+	return moveSelectedIssue({
+		cwd: options.cwd,
+		model: options.model,
+		selection: options.selection,
+		targetStatus: target.id,
+		now: options.now,
+	});
 }
 
 export function moveSelectedIssue(options: {
@@ -1006,7 +1149,7 @@ export async function launchTui(
 		}, []);
 
 		useKeyboard((key: { name?: string; shift?: boolean }) => {
-			const action = keyToTuiAction(key.name);
+			const action = keyToTuiAction(key.name, key.shift);
 			if (selection.noteOpen) {
 				if (action === "escape") {
 					setSelection((current) => moveSelection(model, current, action));
@@ -1056,6 +1199,23 @@ export async function launchTui(
 				setSelection({ ...result.selection, message: result.message });
 				return;
 			}
+			if (action === "reload") {
+				const result = refreshTuiModel({ cwd: options.cwd, model, selection });
+				setModel(result.model);
+				setSelection(result.selection);
+				return;
+			}
+			if (action === "move-left" || action === "move-right") {
+				const result = moveSelectedIssueByDirection({
+					cwd: options.cwd,
+					model,
+					selection,
+					direction: action === "move-left" ? "left" : "right",
+				});
+				setModel(result.model);
+				setSelection({ ...result.selection, message: result.message });
+				return;
+			}
 			setSelection((current) => moveSelection(model, current, action));
 		});
 
@@ -1074,7 +1234,10 @@ type TuiAction =
 	| "enter"
 	| "escape"
 	| "move"
+	| "move-left"
+	| "move-right"
 	| "append-note"
+	| "reload"
 	| "quit";
 
 type TuiDirection = "left" | "right" | "up" | "down" | "enter" | "escape";
@@ -1083,7 +1246,10 @@ type TuiSelectionAction = TuiDirection | "move" | "append-note";
 
 export function keyToTuiAction(
 	keyName: string | undefined,
+	shift = false,
 ): TuiAction | undefined {
+	if (shift && keyName === "h") return "move-left";
+	if (shift && keyName === "l") return "move-right";
 	switch (keyName) {
 		case "left":
 		case "right":
@@ -1092,8 +1258,22 @@ export function keyToTuiAction(
 		case "enter":
 		case "escape":
 			return keyName;
+		case "h":
+			return "left";
+		case "l":
+			return "right";
+		case "j":
+			return "down";
+		case "k":
+			return "up";
 		case "return":
 			return "enter";
+		case "H":
+			return "move-left";
+		case "L":
+			return "move-right";
+		case "r":
+			return "reload";
 		case "m":
 			return "move";
 		case "a":
@@ -1109,7 +1289,14 @@ export function keyToDirection(
 	keyName: string | undefined,
 ): TuiDirection | undefined {
 	const action = keyToTuiAction(keyName);
-	if (action === "move" || action === "append-note" || action === "quit") {
+	if (
+		action === "move" ||
+		action === "move-left" ||
+		action === "move-right" ||
+		action === "append-note" ||
+		action === "reload" ||
+		action === "quit"
+	) {
 		return undefined;
 	}
 	return action;
@@ -1156,6 +1343,22 @@ function formatCard(issue: BoardIssue): TuiCard {
 		status: String(issue.status),
 		path: issue.path,
 	};
+}
+
+function detailScrollMax(model: TuiModel, selection: TuiSelection): number {
+	const details = getSelectedDetails(model, selection);
+	if (!details) return 0;
+	return Math.max(
+		0,
+		stripFrontmatter(details.markdown).split("\n").length - 40,
+	);
+}
+
+function stripFrontmatter(markdown: string): string {
+	if (!markdown.startsWith("---\n")) return markdown;
+	const end = markdown.indexOf("\n---\n", 4);
+	if (end === -1) return markdown;
+	return markdown.slice(end + "\n---\n".length).trimStart();
 }
 
 function extractSection(markdown: string, section: string): string {

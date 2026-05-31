@@ -22,12 +22,14 @@ Notes:
 - `mikan mcp` starts the stdio MCP server exposing read and mutation tools.
 - `mikan mcp add --agent <pi|antigravity|jcode>` registers the stdio server in supported agent MCP config files; add `--no-global` for workspace-local config.
 - `mikan tui` starts the OpenTUI board. Manual TUI smoke path:
-  1. confirm the board opens with a title, bordered Status panes, Issue counts, compact Cards, and a footer keymap;
-  2. use arrow keys to move between Cards and Columns and confirm focus styling follows the selected Card;
-  3. press Enter/Return to switch to split-pane detail mode with the grouped Issue list on the left and detail/log panes on the right;
-  4. press Esc to return to the board;
-  5. press `m`, choose a target Status, and press Enter to move the selected Issue;
-  6. press `a`, type a short Note, and press Enter to append it to `## Notes`;
-  7. press `q` to quit.
+  1. confirm the board opens as the main page with a title, bordered Status panes, Issue counts, compact Cards, and a footer keymap;
+  2. use `h`/`l` or arrow keys to move between Columns and confirm the visible Column viewport slides as focus moves across more Statuses than fit at once;
+  3. use `j`/`k` or arrow keys to move between Cards and confirm focus styling follows the selected Card;
+  4. press Enter/Return to switch to the full-page Markdown detail page for the selected Issue;
+  5. use `j`/`k` or arrow keys to scroll detail Markdown, then press Esc to return to the board with selection preserved;
+  6. press `H`/`L` to move the selected Issue to the adjacent Status, or press `m`, choose any target Status, and press Enter;
+  7. press `r` to reload from disk;
+  8. press `a`, type a short Note, and press Enter to append it to `## Notes`;
+  9. press `q` to quit.
 - `mikan watch` runs continuously in normal CLI use; tests exercise the same watcher logic with one scan at a time.
 - The automated smoke test covers non-interactive CLI commands, MCP read/mutation tools, TUI data loading, and watch hook execution in a temporary `.mikan` project.

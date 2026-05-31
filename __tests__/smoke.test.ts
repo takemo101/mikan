@@ -95,7 +95,7 @@ describe("end-to-end smoke flow", () => {
 			detailOpen: false,
 		};
 		expect(renderTuiText(tuiModel, tuiSelection)).toContain(
-			"m move  a append note",
+			"H/L move  enter details  r reload  m move  a note",
 		);
 		expect(
 			createTuiAppElement({ model: tuiModel, selection: tuiSelection }).type,
