@@ -11,6 +11,7 @@ import {
 	scanBoard,
 	updateIssue,
 } from "@mikan/core";
+import { startMcpServer } from "@mikan/mcp";
 import { initProject, loadProjectConfig } from "@mikan/project-config";
 
 export type CliResult = {
@@ -53,6 +54,8 @@ export async function runCli(
 				return runMove(cwd, parsed, options);
 			case "append":
 				return runAppend(cwd, parsed, options);
+			case "mcp":
+				return ok("Starting mikan MCP server on stdio\n");
 			case "help":
 			case undefined:
 				return ok(helpText());
@@ -65,6 +68,10 @@ export async function runCli(
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
+	if (argv[0] === "mcp") {
+		await startMcpServer({ cwd: process.cwd() });
+		return;
+	}
 	const result = await runCli(argv);
 	if (result.stdout) process.stdout.write(result.stdout);
 	if (result.stderr) process.stderr.write(result.stderr);
@@ -279,5 +286,5 @@ function fail(stderr: string): CliResult {
 }
 
 function helpText(): string {
-	return "mikan init|add|list|show|update|move|append\n";
+	return "mikan init|add|list|show|update|move|append|mcp\n";
 }
