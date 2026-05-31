@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runCli } from "../src/index.ts";
+import { runCli, runInteractiveCommand } from "../src/index.ts";
 
 function tempProject(): string {
 	return mkdtempSync(join(tmpdir(), "mikan-cli-"));
@@ -15,6 +21,81 @@ async function cli(cwd: string, argv: string[]) {
 }
 
 describe("CLI read path", () => {
+	test("shows global and command help", async () => {
+		const cwd = tempProject();
+
+		const globalHelp = await cli(cwd, ["--help"]);
+		const addHelp = await cli(cwd, ["add", "--help"]);
+		const helpAdd = await cli(cwd, ["help", "add"]);
+
+		expect(globalHelp.exitCode).toBe(0);
+		expect(globalHelp.stdout).toContain("mikan — local-first Issue board");
+		expect(globalHelp.stdout).toContain("Usage:");
+		expect(globalHelp.stdout).toContain("Commands:");
+		expect(addHelp.exitCode).toBe(0);
+		expect(addHelp.stdout).toContain("Usage:\n  mikan add <title>");
+		expect(addHelp.stdout).toContain("-s, --status <status>");
+		expect(helpAdd.stdout).toBe(addHelp.stdout);
+	});
+
+	test("supports short options and equals syntax", async () => {
+		const cwd = tempProject();
+
+		const init = await cli(cwd, ["init", "-k", "MIK", "--name=mikan"]);
+		const add = await cli(cwd, [
+			"add",
+			"First issue",
+			"-s",
+			"ready",
+			"-l",
+			"automation",
+		]);
+		const list = await cli(cwd, ["list", "-s=ready"]);
+		const update = await cli(cwd, [
+			"update",
+			"MIK-001",
+			"-t",
+			"Updated issue",
+			"-l",
+			"herdr",
+		]);
+		const move = await cli(cwd, ["move", "MIK-001", "completed", "-l=Done"]);
+		const append = await cli(cwd, [
+			"append",
+			"MIK-001",
+			"-S",
+			"Notes",
+			"-b",
+			"Remember this",
+		]);
+		const show = await cli(cwd, ["show", "MIK-001"]);
+
+		expect(init.exitCode).toBe(0);
+		expect(add.exitCode).toBe(0);
+		expect(list.stdout).toContain("MIK-001 First issue [automation]");
+		expect(update.exitCode).toBe(0);
+		expect(move.exitCode).toBe(0);
+		expect(append.exitCode).toBe(0);
+		expect(show.stdout).toContain("title: Updated issue");
+		expect(show.stdout).toContain("- herdr");
+		expect(show.stdout).toContain("Done");
+		expect(show.stdout).toContain("Remember this");
+	});
+
+	test("returns clear parse errors for unknown options and missing values", async () => {
+		const cwd = tempProject();
+
+		const unknown = await cli(cwd, ["list", "--wat"]);
+		const missing = await cli(cwd, ["add", "Title", "--status"]);
+
+		expect(unknown.exitCode).toBe(1);
+		expect(unknown.stderr).toContain("Unknown option: --wat");
+		expect(unknown.stderr).toContain("Run `mikan help list`");
+		expect(missing.exitCode).toBe(1);
+		expect(missing.stderr).toContain("Missing value for --status");
+		expect(missing.stderr).toContain("Run `mikan help add`");
+	});
+
 	test("init creates project files", async () => {
 		const cwd = tempProject();
 
@@ -253,6 +334,33 @@ describe("CLI read path", () => {
 		expect(result.stdout).toContain("OpenTUI board");
 	});
 
+	test("tui startup checks config before launching", async () => {
+		const cwd = tempProject();
+		let launched = false;
+
+		const missing = await runInteractiveCommand(["tui"], {
+			cwd,
+			launchTui: async () => {
+				launched = true;
+			},
+		});
+		await cli(cwd, ["init"]);
+		const present = await runInteractiveCommand(["tui"], {
+			cwd,
+			launchTui: async () => {
+				launched = true;
+			},
+		});
+
+		expect(missing).toEqual({
+			exitCode: 1,
+			stdout: "",
+			stderr: "Could not find .mikan/config.yaml\n",
+		});
+		expect(present).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+		expect(launched).toBe(true);
+	});
+
 	test("mcp command advertises stdio server startup", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);
@@ -261,6 +369,83 @@ describe("CLI read path", () => {
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout).toContain("MCP server on stdio");
+	});
+
+	test("mcp add registers supported agents and rejects unsupported agents", async () => {
+		const cwd = tempProject();
+		const home = mkdtempSync(join(tmpdir(), "mikan-cli-mcp-home-"));
+		try {
+			const pi = await runCli(["mcp", "add", "--agent", "pi"], {
+				cwd,
+				home,
+			});
+			const antigravity = await runCli(
+				["mcp", "add", "--agent=antigravity", "--no-global"],
+				{ cwd, home },
+			);
+			const jcode = await runCli(["mcp", "add", "-a", "jcode"], {
+				cwd,
+				home,
+			});
+			const unsupported = await runCli(["mcp", "add", "--agent", "claude"], {
+				cwd,
+				home,
+			});
+
+			expect(pi.exitCode).toBe(0);
+			expect(pi.stdout).toContain("Registered MCP server 'mikan' for pi");
+			expect(antigravity.exitCode).toBe(0);
+			expect(antigravity.stdout).toContain("for antigravity (workspace)");
+			expect(jcode.exitCode).toBe(0);
+			expect(jcode.stdout).toContain("Registered MCP server 'mikan' for jcode");
+			expect(unsupported.exitCode).toBe(1);
+			expect(unsupported.stderr).toContain("Unsupported MCP agent: claude");
+			expect(
+				JSON.parse(
+					readFileSync(join(home, ".config", "mcp", "mcp.json"), "utf8"),
+				).mcpServers.mikan.command,
+			).toBe("mikan");
+			expect(
+				JSON.parse(
+					readFileSync(join(cwd, ".agents", "mcp_config.json"), "utf8"),
+				).mcpServers.mikan.args,
+			).toEqual(["mcp"]);
+			expect(
+				JSON.parse(readFileSync(join(home, ".jcode", "mcp.json"), "utf8"))
+					.servers.mikan.shared,
+			).toBe(true);
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
+	test("interactive mcp add registers config instead of launching server", async () => {
+		const cwd = tempProject();
+		const home = mkdtempSync(join(tmpdir(), "mikan-cli-mcp-interactive-home-"));
+		let launched = false;
+		try {
+			const result = await runInteractiveCommand(
+				["mcp", "add", "--agent", "pi"],
+				{
+					cwd,
+					home,
+					launchMcp: async () => {
+						launched = true;
+					},
+				},
+			);
+
+			expect(result.exitCode).toBe(0);
+			expect(result.stdout).toContain("Registered MCP server 'mikan' for pi");
+			expect(launched).toBe(false);
+			expect(
+				JSON.parse(
+					readFileSync(join(home, ".config", "mcp", "mcp.json"), "utf8"),
+				).mcpServers.mikan.args,
+			).toEqual(["mcp"]);
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
 	});
 
 	test("show returns clear not-found error", async () => {
