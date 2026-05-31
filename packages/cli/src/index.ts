@@ -14,6 +14,9 @@ import {
 import { startMcpServer } from "@mikan/mcp";
 import { initProject, loadProjectConfig } from "@mikan/project-config";
 import { launchTui } from "@mikan/tui";
+import { runWatchOnce, watchProject } from "./watch.ts";
+
+export { runWatchOnce, watchProject } from "./watch.ts";
 
 export type CliResult = {
 	exitCode: number;
@@ -59,6 +62,8 @@ export async function runCli(
 				return ok("Starting mikan MCP server on stdio\n");
 			case "tui":
 				return ok("Starting mikan OpenTUI board\n");
+			case "watch":
+				return runWatch(cwd);
 			case "help":
 			case undefined:
 				return ok(helpText());
@@ -79,10 +84,23 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 		await launchTui({ cwd: process.cwd() });
 		return;
 	}
+	if (argv[0] === "watch") {
+		watchProject({ cwd: process.cwd() });
+		return;
+	}
 	const result = await runCli(argv);
 	if (result.stdout) process.stdout.write(result.stdout);
 	if (result.stderr) process.stderr.write(result.stderr);
 	process.exitCode = result.exitCode;
+}
+
+function runWatch(cwd: string): CliResult {
+	const result = runWatchOnce({ cwd });
+	return ok(
+		result.skipped
+			? "watch skipped: mikan write lock is held\n"
+			: `watch observed ${result.observed} issue(s), ${result.transitions} transition(s)\n`,
+	);
 }
 
 function runInit(cwd: string, parsed: ParsedArgs): CliResult {
@@ -293,5 +311,5 @@ function fail(stderr: string): CliResult {
 }
 
 function helpText(): string {
-	return "mikan init|add|list|show|update|move|append|mcp|tui\n";
+	return "mikan init|add|list|show|update|move|append|mcp|tui|watch\n";
 }
