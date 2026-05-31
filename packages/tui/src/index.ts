@@ -790,10 +790,9 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 	);
 }
 
-function modalBackdropStyle(theme: TuiTheme): Record<string, string | number> {
+function modalBackdropStyle(_theme: TuiTheme): Record<string, string | number> {
 	return {
 		alignItems: "center",
-		backgroundColor: theme.base.canvas,
 		flexDirection: "column",
 		height: "100%",
 		justifyContent: "center",

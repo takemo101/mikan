@@ -611,6 +611,7 @@ describe("TUI model and navigation", () => {
 			alignItems: "center",
 			justifyContent: "center",
 		});
+		expect(moveBackdrop?.props?.style).not.toHaveProperty("backgroundColor");
 		expect(moveModal?.props).toMatchObject({ border: true });
 		expect(moveModal?.props?.style).toMatchObject({
 			backgroundColor: theme.base.surface,
@@ -620,6 +621,7 @@ describe("TUI model and navigation", () => {
 			alignItems: "center",
 			justifyContent: "center",
 		});
+		expect(noteBackdrop?.props?.style).not.toHaveProperty("backgroundColor");
 		expect(noteModal?.props).toMatchObject({ border: true });
 		expect(noteModal?.props?.style).toMatchObject({
 			backgroundColor: theme.base.surface,
