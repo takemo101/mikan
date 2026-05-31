@@ -88,7 +88,7 @@ describe("watch hooks", () => {
 		).toContain('"exit_code":7');
 	});
 
-	test("watchProject logs startup and observes scans unless quiet", async () => {
+	test("watchProject logs startup without no-op scan summaries", async () => {
 		const cwd = tempProject();
 		const logs: string[] = [];
 		const quietLogs: string[] = [];
@@ -109,8 +109,7 @@ describe("watch hooks", () => {
 		});
 		clearInterval(quietInterval);
 
-		expect(logs[0]).toBe(`watch started: ${cwd}`);
-		expect(logs).toContain("watch observed 1 issue(s), 0 transition(s)");
+		expect(logs).toEqual([`watch started: ${cwd}`]);
 		expect(quietLogs).toEqual([]);
 	});
 
