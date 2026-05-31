@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runCli, runWatchOnce } from "../src/index.ts";
+import { runCli, runWatchOnce, watchProject } from "../src/index.ts";
 
 async function cli(cwd: string, argv: string[]) {
 	return runCli(argv, { cwd, now: () => new Date("2026-05-30T00:00:00Z") });
@@ -26,6 +26,94 @@ function configureHooks(cwd: string): void {
 }
 
 describe("watch hooks", () => {
+	test("logs observed transitions, placeholder appends, hook failures, and lock skips when requested", async () => {
+		const cwd = tempProject();
+		const logs: string[] = [];
+		await cli(cwd, ["init"]);
+		configureHooks(cwd);
+		await cli(cwd, ["add", "First"]);
+		runWatchOnce({ cwd, logger: (line) => logs.push(line) });
+
+		renameSync(
+			join(cwd, ".mikan", "backlog", "MIK-001.md"),
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+		);
+		runWatchOnce({
+			cwd,
+			now: () => new Date("2026-05-30T00:00:00Z"),
+			logger: (line) => logs.push(line),
+		});
+		writeFileSync(join(cwd, ".mikan", ".state", "write.lock"), "held");
+		runWatchOnce({ cwd, logger: (line) => logs.push(line) });
+
+		expect(logs).toContain("watch observed 1 issue(s), 0 transition(s)");
+		expect(logs).toContain("transition MIK-001 backlog -> ready");
+		expect(logs).toContain(
+			"status-log appended: MIK-001 direct move placeholder",
+		);
+		expect(logs.join("\n")).toContain(
+			"hook failed: MIK-001 backlog -> ready exit 7",
+		);
+		expect(logs).toContain("skipped: mikan write lock is held");
+	});
+
+	test("quiet watch suppresses logs", async () => {
+		const cwd = tempProject();
+		const logs: string[] = [];
+		await cli(cwd, ["init"]);
+		configureHooks(cwd);
+		await cli(cwd, ["add", "First"]);
+		runWatchOnce({ cwd, quiet: true, logger: (line) => logs.push(line) });
+		renameSync(
+			join(cwd, ".mikan", "backlog", "MIK-001.md"),
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+		);
+		const result = runWatchOnce({
+			cwd,
+			quiet: true,
+			logger: (line) => logs.push(line),
+		});
+		const markdown = readFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			"utf8",
+		);
+
+		expect(logs).toEqual([]);
+		expect(result.transitions).toBe(1);
+		expect(markdown).toContain(
+			"Observed direct file move from backlog to ready",
+		);
+		expect(
+			readFileSync(join(cwd, ".mikan", ".state", "hook-log.ndjson"), "utf8"),
+		).toContain('"exit_code":7');
+	});
+
+	test("watchProject logs startup and observes scans unless quiet", async () => {
+		const cwd = tempProject();
+		const logs: string[] = [];
+		const quietLogs: string[] = [];
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "First"]);
+
+		const interval = watchProject({
+			cwd,
+			intervalMs: 60_000,
+			logger: (line) => logs.push(line),
+		});
+		clearInterval(interval);
+		const quietInterval = watchProject({
+			cwd,
+			quiet: true,
+			intervalMs: 60_000,
+			logger: (line) => quietLogs.push(line),
+		});
+		clearInterval(quietInterval);
+
+		expect(logs[0]).toBe(`watch started: ${cwd}`);
+		expect(logs).toContain("watch observed 1 issue(s), 0 transition(s)");
+		expect(quietLogs).toEqual([]);
+	});
+
 	test("observes transitions, records snapshot, fires hooks, logs failures, and appends placeholder once", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);
@@ -170,13 +258,16 @@ describe("watch hooks", () => {
 		expect(markdown).not.toContain("Observed direct file move");
 	});
 
-	test("watch command runs one foreground scan", async () => {
+	test("watch command runs one foreground scan with default logs and quiet opt-out", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);
 
 		const result = await cli(cwd, ["watch"]);
+		const quiet = await cli(cwd, ["watch", "--quiet"]);
 
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout).toContain("watch observed");
+		expect(quiet.exitCode).toBe(0);
+		expect(quiet.stdout).toBe("");
 	});
 });
