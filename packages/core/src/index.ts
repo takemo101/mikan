@@ -132,13 +132,15 @@ const statusOrLabelPattern = /^[a-z][a-z0-9-]*$/;
 const projectKeyPattern = /^[A-Z][A-Z0-9]*$/;
 const utcTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
-const frontmatterSchema = z.object({
-	id: z.string().min(1),
-	title: z.string().min(1),
-	labels: z.array(z.string()).optional().default([]),
-	created_at: z.string().min(1),
-	updated_at: z.string().min(1),
-});
+const frontmatterSchema = z
+	.object({
+		id: z.string().min(1),
+		title: z.string().min(1),
+		labels: z.array(z.string()).optional().default([]),
+		created_at: z.string().min(1),
+		updated_at: z.string().min(1),
+	})
+	.passthrough();
 
 type IssueFrontmatter = z.infer<typeof frontmatterSchema>;
 
@@ -330,6 +332,26 @@ export function findIssueById(options: {
 		.flatMap((column) => column.issues)
 		.filter((item) => String(item.issue.id) === options.id);
 	if (matches.length === 0) {
+		for (const column of options.config.board.columns) {
+			const path = join(
+				options.projectRoot,
+				".mikan",
+				column.id,
+				`${options.id}.md`,
+			);
+			if (!existsSync(path)) continue;
+			const parsed = parseIssueMarkdown(readFileSync(path, "utf8"));
+			if (!parsed.ok) {
+				return {
+					ok: false,
+					error: {
+						kind: "malformed_issue",
+						message: parsed.error.message,
+						path,
+					},
+				};
+			}
+		}
 		return {
 			ok: false,
 			error: { kind: "not_found", message: `Issue not found: ${options.id}` },
@@ -475,6 +497,28 @@ export function moveIssue(
 		if (!statusValidation.ok) return statusValidation;
 		const target = findIssueById(options);
 		if (!target.ok) return target;
+		const existingLabels = validateLabels(
+			options.config,
+			target.value.issue.labels.map(String),
+		);
+		if (!existingLabels.ok) return existingLabels;
+		const destination = join(
+			options.projectRoot,
+			".mikan",
+			options.status,
+			basename(target.value.path),
+		);
+		if (destination !== target.value.path && existsSync(destination)) {
+			return {
+				ok: false,
+				error: {
+					kind: "duplicate_issue_id",
+					message: `Destination already exists: ${destination}`,
+					path: destination,
+				},
+			};
+		}
+		mkdirSync(dirname(destination), { recursive: true });
 		const document = readIssueDocument(target.value.path);
 		if (!document.ok) return document;
 		let body = target.value.issue.body;
@@ -493,12 +537,6 @@ export function moveIssue(
 			body,
 		});
 		atomicWriteFile(target.value.path, updated);
-		const destination = join(
-			options.projectRoot,
-			".mikan",
-			options.status,
-			basename(target.value.path),
-		);
 		if (destination !== target.value.path)
 			renameSync(target.value.path, destination);
 		const parsed = parseIssueMarkdown(readFileSync(destination, "utf8"));
@@ -529,6 +567,11 @@ export function appendIssue(
 	return withWriteLock(options.projectRoot, () => {
 		const target = findIssueById(options);
 		if (!target.ok) return target;
+		const existingLabels = validateLabels(
+			options.config,
+			target.value.issue.labels.map(String),
+		);
+		if (!existingLabels.ok) return existingLabels;
 		const document = readIssueDocument(target.value.path);
 		if (!document.ok) return document;
 		const updated = serializeIssue({
