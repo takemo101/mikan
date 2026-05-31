@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "../src/index.ts";
@@ -112,6 +112,111 @@ describe("CLI read path", () => {
 		expect(existsSync(join(cwd, ".mikan", "backlog", "MIK-002.md"))).toBe(
 			false,
 		);
+	});
+
+	test("update, move, and append mutate Issues", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "First", "--label", "automation"]);
+
+		const update = await cli(cwd, [
+			"update",
+			"MIK-001",
+			"--title",
+			"Updated",
+			"--label",
+			"herdr",
+		]);
+		const body = await cli(cwd, [
+			"update",
+			"MIK-001",
+			"--body",
+			"# Body only\n",
+		]);
+		const move = await cli(cwd, [
+			"move",
+			"MIK-001",
+			"completed",
+			"--log",
+			"Done",
+		]);
+		const report = await cli(cwd, [
+			"append",
+			"MIK-001",
+			"--section",
+			"Reports",
+			"--source",
+			"docs-scout",
+			"--body",
+			"Looks good",
+		]);
+		const note = await cli(cwd, [
+			"append",
+			"MIK-001",
+			"--section",
+			"Notes",
+			"--body",
+			"Remember this",
+		]);
+		const show = await cli(cwd, ["show", "MIK-001"]);
+
+		expect(update.exitCode).toBe(0);
+		expect(body.exitCode).toBe(0);
+		expect(move.exitCode).toBe(0);
+		expect(report.exitCode).toBe(0);
+		expect(note.exitCode).toBe(0);
+		expect(existsSync(join(cwd, ".mikan", "completed", "MIK-001.md"))).toBe(
+			true,
+		);
+		expect(show.stdout).toContain("title: Updated");
+		expect(show.stdout).toContain("- herdr");
+		expect(show.stdout).toContain("Done");
+		expect(show.stdout).toContain("2026-05-30T00:00:00Z (docs-scout)");
+		expect(show.stdout).toContain("## Notes\n\nRemember this");
+		expect(show.stdout).not.toContain("2026-05-30T00:00:00Z\n\nRemember this");
+	});
+
+	test("mutation commands return clear errors", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "First"]);
+
+		expect(
+			(await cli(cwd, ["update", "MIK-404", "--title", "Nope"])).stderr,
+		).toContain("Issue not found");
+		expect((await cli(cwd, ["move", "MIK-001", "missing"])).stderr).toContain(
+			"Unknown Status",
+		);
+		expect(
+			(await cli(cwd, ["update", "MIK-001", "--label", "missing"])).stderr,
+		).toContain("Unknown label");
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			readFileSync(join(cwd, ".mikan", "backlog", "MIK-001.md"), "utf8"),
+		);
+		expect(
+			(await cli(cwd, ["update", "MIK-001", "--label", "missing"])).stderr,
+		).toContain("Duplicate Issue ID");
+		writeFileSync(
+			join(cwd, ".mikan", "backlog", "MIK-001.md"),
+			"---\nid: [\n---\n",
+		);
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			"---\nid: [\n---\n",
+		);
+		expect(
+			(
+				await cli(cwd, [
+					"append",
+					"MIK-001",
+					"--section",
+					"Notes",
+					"--body",
+					"Nope",
+				])
+			).stderr,
+		).toContain("Flow sequence");
 	});
 
 	test("show returns clear not-found error", async () => {

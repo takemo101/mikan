@@ -574,16 +574,16 @@ export function appendIssue(
 		if (!existingLabels.ok) return existingLabels;
 		const document = readIssueDocument(target.value.path);
 		if (!document.ok) return document;
+		const entry =
+			options.section === "Notes" && !options.source
+				? options.body
+				: formatAppendEntry(options.body, options.source, options.now);
 		const updated = serializeIssue({
 			frontmatter: {
 				...document.value.frontmatter,
 				updated_at: utcNow(options.now),
 			},
-			body: appendToSection(
-				target.value.issue.body,
-				options.section,
-				formatAppendEntry(options.body, options.source, options.now),
-			),
+			body: appendToSection(target.value.issue.body, options.section, entry),
 		});
 		atomicWriteFile(target.value.path, updated);
 		const parsed = parseIssueMarkdown(updated);

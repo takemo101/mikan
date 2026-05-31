@@ -1,12 +1,15 @@
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import {
+	appendIssue,
 	type BoardConfig,
 	type BoardIssue,
 	type BoardWarning,
 	createIssue,
 	findIssueById,
+	moveIssue,
 	scanBoard,
+	updateIssue,
 } from "@mikan/core";
 import { initProject, loadProjectConfig } from "@mikan/project-config";
 
@@ -44,6 +47,12 @@ export async function runCli(
 				return runList(cwd, parsed);
 			case "show":
 				return runShow(cwd, parsed);
+			case "update":
+				return runUpdate(cwd, parsed, options);
+			case "move":
+				return runMove(cwd, parsed, options);
+			case "append":
+				return runAppend(cwd, parsed, options);
 			case "help":
 			case undefined:
 				return ok(helpText());
@@ -135,6 +144,83 @@ function runShow(cwd: string, parsed: ParsedArgs): CliResult {
 	return ok(readFileSync(found.value.path, "utf8"));
 }
 
+function runUpdate(
+	cwd: string,
+	parsed: ParsedArgs,
+	options: CliOptions,
+): CliResult {
+	const id = parsed.positionals[0];
+	if (!id)
+		return fail(
+			"Usage: mikan update <issue-id> [--title title] [--label label] [--body body]",
+		);
+	const loaded = loadProjectConfig(cwd);
+	if (!loaded.ok) return fail(loaded.error.message);
+	const result = updateIssue({
+		projectRoot: loaded.value.projectRoot,
+		config: loaded.value.config,
+		id,
+		title: parsed.flags.get("title")?.at(-1),
+		labels: parsed.flags.has("label")
+			? (parsed.flags.get("label") ?? [])
+			: undefined,
+		body: parsed.flags.get("body")?.at(-1),
+		now: options.now,
+	});
+	if (!result.ok) return fail(result.error.message);
+	return ok(`${String(result.value.issue.id)} updated\n`);
+}
+
+function runMove(
+	cwd: string,
+	parsed: ParsedArgs,
+	options: CliOptions,
+): CliResult {
+	const id = parsed.positionals[0];
+	const status = parsed.positionals[1];
+	if (!id || !status)
+		return fail("Usage: mikan move <issue-id> <status> [--log text]");
+	const loaded = loadProjectConfig(cwd);
+	if (!loaded.ok) return fail(loaded.error.message);
+	const result = moveIssue({
+		projectRoot: loaded.value.projectRoot,
+		config: loaded.value.config,
+		id,
+		status,
+		log: parsed.flags.get("log")?.at(-1),
+		now: options.now,
+	});
+	if (!result.ok) return fail(result.error.message);
+	return ok(`${String(result.value.issue.id)} moved to ${status}\n`);
+}
+
+function runAppend(
+	cwd: string,
+	parsed: ParsedArgs,
+	options: CliOptions,
+): CliResult {
+	const id = parsed.positionals[0];
+	const section = parsed.flags.get("section")?.at(-1);
+	const body = parsed.flags.get("body")?.at(-1);
+	if (!id || !section || !body)
+		return fail(
+			"Usage: mikan append <issue-id> --section section --body body [--source source]",
+		);
+	const loaded = loadProjectConfig(cwd);
+	if (!loaded.ok) return fail(loaded.error.message);
+	const result = appendIssue({
+		projectRoot: loaded.value.projectRoot,
+		config: loaded.value.config,
+		id,
+		section,
+		body,
+		source: parsed.flags.get("source")?.at(-1),
+		now: options.now,
+	});
+	if (!result.ok) return fail(result.error.message);
+	return ok(`${String(result.value.issue.id)} appended ${section}\n`);
+}
+
 function parseArgs(args: string[]): ParsedArgs {
 	const positionals: string[] = [];
 	const flags = new Map<string, string[]>();
@@ -193,5 +279,5 @@ function fail(stderr: string): CliResult {
 }
 
 function helpText(): string {
-	return "mikan init|add|list|show\n";
+	return "mikan init|add|list|show|update|move|append\n";
 }
