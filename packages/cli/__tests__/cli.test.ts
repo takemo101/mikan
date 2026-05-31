@@ -219,6 +219,16 @@ describe("CLI read path", () => {
 		).toContain("Flow sequence");
 	});
 
+	test("tui command advertises OpenTUI startup", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+
+		const result = await cli(cwd, ["tui"]);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toContain("OpenTUI board");
+	});
+
 	test("mcp command advertises stdio server startup", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);
