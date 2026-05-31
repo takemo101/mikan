@@ -6,6 +6,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { parseProjectKey } from "@mikan/core";
 import { parse, stringify } from "yaml";
 import { z } from "zod";
 
@@ -97,6 +98,15 @@ const projectConfigSchema = z
 		hooks: hookSchema.optional(),
 	})
 	.superRefine((config, context) => {
+		const projectKey = parseProjectKey(config.project.key);
+		if (!projectKey.ok) {
+			context.addIssue({
+				code: "custom",
+				message: projectKey.error.message,
+				path: ["project", "key"],
+			});
+		}
+
 		const columnIds = new Set<string>();
 		for (const column of config.board.columns) {
 			if (columnIds.has(column.id)) {
