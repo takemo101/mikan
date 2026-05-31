@@ -90,6 +90,7 @@ function findElementById(
 			props?: {
 				children?: unknown;
 				id?: unknown;
+				border?: unknown;
 				style?: Record<string, unknown>;
 				title?: unknown;
 			};
@@ -100,6 +101,7 @@ function findElementById(
 		type?: unknown;
 		props?: {
 			children?: unknown;
+			border?: unknown;
 			id?: unknown;
 			style?: Record<string, unknown>;
 			title?: unknown;
@@ -571,6 +573,59 @@ describe("TUI model and navigation", () => {
 			feedback: "Note cannot be empty",
 			hint: "enter append  esc cancel",
 		});
+	});
+
+	test("renders move and note interactions as centered modal overlays", () => {
+		const model = loadTuiModel(tempProject());
+		const theme = buildTuiTheme();
+		const moveSelectionState: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			moveOpen: true,
+		};
+		const noteSelectionState: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			noteOpen: true,
+			noteDraft: "Draft",
+		};
+
+		const moveTree = TuiAppView({
+			model,
+			selection: moveSelectionState,
+			theme,
+		});
+		const noteTree = TuiAppView({
+			model,
+			selection: noteSelectionState,
+			theme,
+		});
+		const moveBackdrop = findElementById(moveTree, "move-modal-backdrop");
+		const moveModal = findElementById(moveTree, "move-prompt");
+		const noteBackdrop = findElementById(noteTree, "note-modal-backdrop");
+		const noteModal = findElementById(noteTree, "note-prompt");
+
+		expect(moveBackdrop?.props?.style).toMatchObject({
+			alignItems: "center",
+			justifyContent: "center",
+		});
+		expect(moveModal?.props).toMatchObject({ border: true });
+		expect(moveModal?.props?.style).toMatchObject({
+			backgroundColor: theme.base.surface,
+			borderColor: theme.interactive.focus,
+		});
+		expect(noteBackdrop?.props?.style).toMatchObject({
+			alignItems: "center",
+			justifyContent: "center",
+		});
+		expect(noteModal?.props).toMatchObject({ border: true });
+		expect(noteModal?.props?.style).toMatchObject({
+			backgroundColor: theme.base.surface,
+			borderColor: theme.interactive.focus,
+		});
+		expect(collectTextContent(noteTree)).toContain("Note: Draft");
 	});
 
 	test("opens a move interaction with configured target Statuses", async () => {

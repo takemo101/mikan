@@ -749,13 +749,21 @@ export function MovePrompt(props: TuiAppViewProps): React.ReactElement {
 	return React.createElement(
 		"box",
 		{
-			id: "move-prompt",
-			title: "Move Issue",
-			style: { borderColor: theme.interactive.focus },
+			id: "move-modal-backdrop",
+			style: modalBackdropStyle(theme),
 		},
-		React.createElement("text", {
-			content: renderMoveInteraction(props.model, props.selection).join("\n"),
-		}),
+		React.createElement(
+			"box",
+			{
+				id: "move-prompt",
+				title: "Move Issue",
+				border: true,
+				style: modalStyle(theme),
+			},
+			React.createElement("text", {
+				content: renderMoveInteraction(props.model, props.selection).join("\n"),
+			}),
+		),
 	);
 }
 
@@ -764,14 +772,47 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 	return React.createElement(
 		"box",
 		{
-			id: "note-prompt",
-			title: "Append Note",
-			style: { borderColor: theme.interactive.focus },
+			id: "note-modal-backdrop",
+			style: modalBackdropStyle(theme),
 		},
-		React.createElement("text", {
-			content: renderNoteInteraction(props.model, props.selection).join("\n"),
-		}),
+		React.createElement(
+			"box",
+			{
+				id: "note-prompt",
+				title: "Append Note",
+				border: true,
+				style: modalStyle(theme),
+			},
+			React.createElement("text", {
+				content: renderNoteInteraction(props.model, props.selection).join("\n"),
+			}),
+		),
 	);
+}
+
+function modalBackdropStyle(theme: TuiTheme): Record<string, string | number> {
+	return {
+		alignItems: "center",
+		backgroundColor: theme.base.canvas,
+		flexDirection: "column",
+		height: "100%",
+		justifyContent: "center",
+		left: 0,
+		position: "absolute",
+		top: 0,
+		width: "100%",
+		zIndex: 10,
+	};
+}
+
+function modalStyle(theme: TuiTheme): Record<string, string | number> {
+	return {
+		backgroundColor: theme.base.surface,
+		borderColor: theme.interactive.focus,
+		flexDirection: "column",
+		padding: 1,
+		width: "70%",
+	};
 }
 
 export type FooterProps = { theme?: TuiTheme };
