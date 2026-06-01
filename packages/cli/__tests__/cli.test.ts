@@ -27,7 +27,7 @@ describe("CLI read path", () => {
 		expect(packageJson.name).toBe("@takemo101/mikan");
 		expect(packageJson.version).toBe("0.0.1");
 		expect(packageJson.private).toBe(false);
-		expect(packageJson.bin).toEqual({ mikan: "./dist/bin.js" });
+		expect(packageJson.bin).toEqual({ mikan: "dist/bin.js" });
 		expect(packageJson.files).toEqual(["dist"]);
 	});
 

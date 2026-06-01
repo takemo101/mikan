@@ -4,7 +4,7 @@
 	"private": false,
 	"type": "module",
 	"bin": {
-		"mikan": "./dist/bin.js"
+		"mikan": "dist/bin.js"
 	},
 	"files": [
 		"dist"
