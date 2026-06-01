@@ -703,19 +703,16 @@ export function IssueCard(props: {
 					: theme.base.surface,
 				borderColor: props.selected
 					? theme.interactive.focus
-					: theme.base.surface,
+					: theme.base.muted,
 				color: props.selected ? theme.interactive.focus : theme.base.text,
 				flexDirection: "column",
 			},
 		},
 		React.createElement("text", {
-			content: `${props.selected ? "▶ " : ""}${props.card.id} ${props.card.title}`,
+			content: `${props.selected ? "▶ " : ""}${props.card.id} ${props.card.title}${
+				props.card.labels.length > 0 ? ` [${props.card.labels.join(", ")}]` : ""
+			}`,
 		}),
-		props.card.labels.length > 0
-			? React.createElement("text", {
-					content: props.card.labels.join(", "),
-				})
-			: undefined,
 	);
 }
 
@@ -1558,7 +1555,7 @@ function formatCard(issue: BoardIssue): TuiCard {
 }
 
 function visibleCardCountForViewport(viewportHeight: number): number {
-	return Math.max(1, Math.floor((viewportHeight - 10) / 3));
+	return Math.max(1, Math.floor((viewportHeight - 9) / 2));
 }
 
 function visibleDetailLineCount(viewportHeight: number): number {

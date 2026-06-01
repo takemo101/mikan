@@ -387,10 +387,10 @@ describe("TUI model and navigation", () => {
 			{ viewportHeight: 36 },
 		);
 
-		expect(shortView.columns[0]?.visibleCards).toHaveLength(2);
-		expect(tallView.columns[0]?.visibleCards).toHaveLength(4);
-		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(8);
-		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe("4-11/20");
+		expect(shortView.columns[0]?.visibleCards).toHaveLength(3);
+		expect(tallView.columns[0]?.visibleCards).toHaveLength(7);
+		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(13);
+		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe("2-14/20");
 	});
 
 	test("renders detail Markdown window from viewport height", () => {
@@ -509,11 +509,12 @@ describe("TUI model and navigation", () => {
 		expect(cardProps).toMatchObject({ border: true });
 		expect(cardProps.style).toMatchObject({
 			backgroundColor: theme.base.surface,
-			borderColor: theme.base.surface,
+			borderColor: theme.base.muted,
 			color: theme.base.text,
 		});
-		expect(collectTextContent(card)).toContain("MIK-002 Quiet issue");
-		expect(collectTextContent(card)).toContain("automation");
+		expect(collectTextContent(card)).toContain(
+			"MIK-002 Quiet issue [automation]",
+		);
 	});
 
 	test("renders mode-specific footer hints", () => {
