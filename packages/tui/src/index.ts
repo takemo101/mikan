@@ -740,6 +740,7 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 				borderColor: theme.interactive.accent,
 				flexDirection: "column",
 				flexGrow: 1,
+				overflow: "hidden",
 			},
 		},
 		React.createElement(
@@ -770,10 +771,17 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 					flexDirection: "column",
 					flexGrow: 1,
 					minHeight: 0,
+					overflow: "hidden",
 				},
 			},
 			React.createElement("markdown", {
+				id: "detail-markdown",
 				content: page.visibleMarkdownLines.join("\n"),
+				style: {
+					flexGrow: 1,
+					minHeight: 0,
+					overflow: "hidden",
+				},
 			}),
 		),
 	);

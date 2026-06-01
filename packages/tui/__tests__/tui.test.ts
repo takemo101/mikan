@@ -450,9 +450,19 @@ describe("TUI model and navigation", () => {
 		const tree = TuiAppView({ model, selection, viewportHeight: 14 });
 		const header = findElementById(tree, "detail-header");
 		const body = findElementById(tree, "detail-markdown-body");
+		const markdown = findElementById(tree, "detail-markdown");
 
 		expect(header?.props?.style).toMatchObject({ flexShrink: 0 });
-		expect(body?.props?.style).toMatchObject({ flexGrow: 1, minHeight: 0 });
+		expect(body?.props?.style).toMatchObject({
+			flexGrow: 1,
+			minHeight: 0,
+			overflow: "hidden",
+		});
+		expect(markdown?.props?.style).toMatchObject({
+			flexGrow: 1,
+			minHeight: 0,
+			overflow: "hidden",
+		});
 		expect(collectTextContent(header)).toContain("MIK-001  Ready issue");
 		expect(collectTextContent(header)).toContain(
 			"Status: ready | Labels: #automation | Lines: 11-13/30 | ↑10 ↓17",
