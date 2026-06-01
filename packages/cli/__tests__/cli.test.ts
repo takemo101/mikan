@@ -82,6 +82,7 @@ describe("CLI read path", () => {
 		expect(addHelp.exitCode).toBe(0);
 		expect(addHelp.stdout).toContain("Usage:\n  mikan add <title>");
 		expect(addHelp.stdout).toContain("-s, --status <status>");
+		expect(addHelp.stdout).toContain("--depends-on <issue-id>");
 		expect(helpAdd.stdout).toBe(addHelp.stdout);
 	});
 
@@ -127,6 +128,29 @@ describe("CLI read path", () => {
 		expect(show.stdout).toContain("- herdr");
 		expect(show.stdout).toContain("Done");
 		expect(show.stdout).toContain("Remember this");
+	});
+
+	test("add and update write Issue dependencies", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init", "--key", "MIK", "--name", "mikan"]);
+		await cli(cwd, ["add", "Foundation"]);
+
+		const add = await cli(cwd, ["add", "Dependent", "--depends-on", "MIK-001"]);
+		const update = await cli(cwd, [
+			"update",
+			"MIK-002",
+			"--depends-on",
+			"MIK-001",
+			"--depends-on",
+			"MIK-003",
+		]);
+		const show = await cli(cwd, ["show", "MIK-002"]);
+
+		expect(add.exitCode).toBe(0);
+		expect(update.exitCode).toBe(0);
+		expect(show.stdout).toContain("depends_on:");
+		expect(show.stdout).toContain("- MIK-001");
+		expect(show.stdout).toContain("- MIK-003");
 	});
 
 	test("returns clear parse errors for unknown options and missing values", async () => {

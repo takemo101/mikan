@@ -31,6 +31,7 @@ export type ParsedIssue = {
 	id: IssueId;
 	title: string;
 	labels: LabelId[];
+	dependencies: IssueId[];
 	createdAt: UtcTimestamp;
 	updatedAt: UtcTimestamp;
 	body: string;
@@ -96,6 +97,7 @@ export type CreateIssueOptions = {
 	body?: string;
 	status?: string;
 	labels?: string[];
+	dependencies?: string[];
 	now?: () => Date;
 };
 
@@ -105,6 +107,7 @@ export type UpdateIssueOptions = {
 	id: string;
 	title?: string;
 	labels?: string[];
+	dependencies?: string[];
 	body?: string;
 	now?: () => Date;
 };
@@ -138,6 +141,7 @@ const frontmatterSchema = z
 		id: z.string().min(1),
 		title: z.string().min(1),
 		labels: z.array(z.string()).optional().default([]),
+		depends_on: z.array(z.string()).optional().default([]),
 		created_at: z.string().min(1),
 		updated_at: z.string().min(1),
 	})
@@ -380,6 +384,10 @@ export function createIssue(
 	if (!statusValidation.ok) return statusValidation;
 	const labelsValidation = validateLabels(options.config, options.labels ?? []);
 	if (!labelsValidation.ok) return labelsValidation;
+	const dependenciesValidation = validateDependencies(
+		options.dependencies ?? [],
+	);
+	if (!dependenciesValidation.ok) return dependenciesValidation;
 	const projectKey = options.config.project?.key ?? "MIK";
 	const parsedProjectKey = parseProjectKey(projectKey);
 	if (!parsedProjectKey.ok) {
@@ -425,6 +433,7 @@ export function createIssue(
 				id,
 				title: options.title,
 				labels: options.labels ?? [],
+				depends_on: dependenciesValidation.value.map(String),
 				created_at: now,
 				updated_at: now,
 			},
@@ -465,6 +474,11 @@ export function updateIssue(
 		const labels = options.labels ?? target.value.issue.labels.map(String);
 		const labelsValidation = validateLabels(options.config, labels);
 		if (!labelsValidation.ok) return labelsValidation;
+		const dependenciesValidation = options.dependencies
+			? validateDependencies(options.dependencies)
+			: undefined;
+		if (dependenciesValidation && !dependenciesValidation.ok)
+			return dependenciesValidation;
 		const document = readIssueDocument(target.value.path);
 		if (!document.ok) return document;
 		const updated = serializeIssue({
@@ -472,6 +486,9 @@ export function updateIssue(
 				...document.value.frontmatter,
 				title: options.title ?? target.value.issue.title,
 				labels,
+				...(dependenciesValidation
+					? { depends_on: dependenciesValidation.value.map(String) }
+					: {}),
 				updated_at: utcNow(options.now),
 			},
 			body: options.body ?? target.value.issue.body,
@@ -686,6 +703,13 @@ function parseIssueDocument(
 		else errors.push(label.error.message);
 	}
 
+	const dependencies: IssueId[] = [];
+	for (const rawDependency of parsedFrontmatter.data.depends_on) {
+		const dependency = parseIssueId(rawDependency);
+		if (dependency.ok) dependencies.push(dependency.value);
+		else errors.push(`depends_on: ${dependency.error.message}`);
+	}
+
 	let createdAt: UtcTimestamp | undefined;
 	const parsedCreatedAt = parseUtcTimestamp(parsedFrontmatter.data.created_at);
 	if (parsedCreatedAt.ok) createdAt = parsedCreatedAt.value;
@@ -708,6 +732,7 @@ function parseIssueDocument(
 				id: issueId,
 				title: parsedFrontmatter.data.title,
 				labels,
+				dependencies,
 				createdAt,
 				updatedAt,
 				body: markdown.slice(frontmatter[0].length),
@@ -779,6 +804,23 @@ function validateLabels(
 			};
 		}
 		parsed.push(labelId.value);
+	}
+	return { ok: true, value: parsed };
+}
+
+function validateDependencies(
+	dependencies: string[],
+): Result<IssueId[], MutationError> {
+	const parsed: IssueId[] = [];
+	for (const dependency of dependencies) {
+		const dependencyId = parseIssueId(dependency);
+		if (!dependencyId.ok) {
+			return {
+				ok: false,
+				error: { kind: "malformed_issue", message: dependencyId.error.message },
+			};
+		}
+		parsed.push(dependencyId.value);
 	}
 	return { ok: true, value: parsed };
 }

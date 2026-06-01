@@ -209,7 +209,9 @@ function runAdd(
 ): CliResult {
 	const title = parsed.positionals[0];
 	if (!title)
-		return fail("Usage: mikan add <title> [--status status] [--label label]");
+		return fail(
+			"Usage: mikan add <title> [--status status] [--label label] [--depends-on issue-id]",
+		);
 	const loaded = loadProjectConfig(cwd);
 	if (!loaded.ok) return fail(loaded.error.message);
 	const result = createIssue({
@@ -218,6 +220,7 @@ function runAdd(
 		title,
 		status: parsed.flags.get("status")?.at(-1),
 		labels: parsed.flags.get("label") ?? [],
+		dependencies: parsed.flags.get("depends-on") ?? [],
 		now: options.now,
 	});
 	if (!result.ok) return fail(result.error.message);
@@ -275,7 +278,7 @@ function runUpdate(
 	const id = parsed.positionals[0];
 	if (!id)
 		return fail(
-			"Usage: mikan update <issue-id> [--title title] [--label label] [--body body]",
+			"Usage: mikan update <issue-id> [--title title] [--label label] [--depends-on issue-id] [--body body]",
 		);
 	const loaded = loadProjectConfig(cwd);
 	if (!loaded.ok) return fail(loaded.error.message);
@@ -286,6 +289,9 @@ function runUpdate(
 		title: parsed.flags.get("title")?.at(-1),
 		labels: parsed.flags.has("label")
 			? (parsed.flags.get("label") ?? [])
+			: undefined,
+		dependencies: parsed.flags.has("depends-on")
+			? (parsed.flags.get("depends-on") ?? [])
 			: undefined,
 		body: parsed.flags.get("body")?.at(-1),
 		now: options.now,
@@ -365,6 +371,7 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 	add: [
 		{ name: "status", short: "s", value: true },
 		{ name: "label", short: "l", value: true },
+		{ name: "depends-on", value: true },
 	],
 	list: [
 		{ name: "status", short: "s", value: true },
@@ -374,6 +381,7 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 	update: [
 		{ name: "title", short: "t", value: true },
 		{ name: "label", short: "l", value: true },
+		{ name: "depends-on", value: true },
 		{ name: "body", short: "b", value: true },
 	],
 	move: [{ name: "log", short: "l", value: true }],
@@ -555,6 +563,7 @@ Usage:
 Options:
   -s, --status <status> Add to Status (default: backlog)
   -l, --label <label>   Add label; repeat for multiple labels
+  --depends-on <issue-id> Add dependency; repeat for multiple dependencies
   -h, --help            Show this help
 
 Examples:
@@ -589,6 +598,7 @@ Usage:
 Options:
   -t, --title <title>   Replace title
   -l, --label <label>   Replace labels; repeat for multiple labels
+  --depends-on <issue-id> Replace dependencies; repeat for multiple dependencies
   -b, --body <body>     Replace body Markdown
   -h, --help            Show this help
 `;
