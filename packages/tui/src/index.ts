@@ -26,6 +26,9 @@ export type TuiCard = {
 	labels: string[];
 	status: string;
 	path: string;
+	dependsOn?: string[];
+	unmetDependencies?: string[];
+	dependencyStatus?: "ready" | "blocked";
 };
 
 export type TuiColumn = {
@@ -117,6 +120,9 @@ export type DetailPageViewModel = {
 	title: string;
 	status: string;
 	labelsText: string;
+	dependsOnText: string;
+	unmetDependenciesText: string;
+	dependencyStatus: "ready" | "blocked";
 	markdown: string;
 	visibleMarkdownLines: string[];
 	hiddenLinesBefore: number;
@@ -525,6 +531,9 @@ export function buildDetailPageViewModel(
 		title: details.card.title,
 		status: details.card.status,
 		labelsText: details.card.labels.join(", "),
+		dependsOnText: cardDependsOn(details.card).join(", "),
+		unmetDependenciesText: cardUnmetDependencies(details.card).join(", "),
+		dependencyStatus: cardDependencyStatus(details.card),
 		markdown,
 		visibleMarkdownLines,
 		hiddenLinesBefore: offset,
@@ -753,11 +762,9 @@ export function IssueCard(props: {
 			},
 		},
 		React.createElement("text", {
-			content: `${props.selected ? "▶ " : ""}${props.card.id} ${props.card.title}${
-				props.card.labels.length > 0
-					? ` ${formatLabels(props.card.labels)}`
-					: ""
-			}`,
+			content: `${props.selected ? "▶ " : ""}${props.card.id}${
+				cardDependencyStatus(props.card) === "blocked" ? " 🔒" : ""
+			} ${props.card.title}${props.card.labels.length > 0 ? ` ${formatLabels(props.card.labels)}` : ""}`,
 		}),
 	);
 }
@@ -799,6 +806,11 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 			React.createElement("text", {
 				content: `Status: ${page.status} | Labels: ${page.labelsText ? formatLabels(page.labelsText.split(", ").filter(Boolean)) : "none"}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
 			}),
+			page.dependsOnText || page.unmetDependenciesText
+				? React.createElement("text", {
+						content: `Dependencies: ${page.dependsOnText || "none"} | Unmet: ${page.unmetDependenciesText || "none"} | ${page.dependencyStatus}`,
+					})
+				: undefined,
 			React.createElement("text", {
 				content: "────────────────────────────────────────────────",
 			}),
@@ -1369,6 +1381,11 @@ function renderDetails(details: TuiDetails): string[] {
 		`Detail: ${details.card.id} ${details.card.title}`,
 		"esc back",
 		"",
+		"## Dependencies",
+		`Depends On: ${cardDependsOn(details.card).length > 0 ? cardDependsOn(details.card).join(", ") : "none"}`,
+		`Unmet: ${cardUnmetDependencies(details.card).length > 0 ? cardUnmetDependencies(details.card).join(", ") : "none"}`,
+		`Status: ${cardDependencyStatus(details.card)}`,
+		"",
 		"## Summary",
 		details.summary || "(empty)",
 		"",
@@ -1396,9 +1413,9 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 					...(column.cardRangeText ? [`  ${column.cardRangeText}`] : []),
 					...column.visibleCards.map(
 						(card) =>
-							`${card.selected ? "▶" : " "} ${card.id} ${card.title}${
-								card.labels.length > 0 ? ` ${formatLabels(card.labels)}` : ""
-							}`,
+							`${card.selected ? "▶" : " "} ${card.id}${
+								cardDependencyStatus(card) === "blocked" ? " 🔒" : ""
+							} ${card.title}${card.labels.length > 0 ? ` ${formatLabels(card.labels)}` : ""}`,
 					),
 				];
 		return {
@@ -1687,6 +1704,18 @@ function findSelectionByCardId(
 	return undefined;
 }
 
+function cardDependsOn(card: TuiCard): string[] {
+	return card.dependsOn ?? [];
+}
+
+function cardUnmetDependencies(card: TuiCard): string[] {
+	return card.unmetDependencies ?? [];
+}
+
+function cardDependencyStatus(card: TuiCard): "ready" | "blocked" {
+	return card.dependencyStatus ?? "ready";
+}
+
 function formatCard(issue: BoardIssue): TuiCard {
 	return {
 		id: String(issue.issue.id),
@@ -1694,6 +1723,9 @@ function formatCard(issue: BoardIssue): TuiCard {
 		labels: issue.issue.labels.map(String),
 		status: String(issue.status),
 		path: issue.path,
+		dependsOn: issue.issue.dependencies.map(String),
+		unmetDependencies: issue.unmetDependencies.map(String),
+		dependencyStatus: issue.dependencyStatus,
 	};
 }
 

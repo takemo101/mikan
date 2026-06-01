@@ -166,6 +166,42 @@ describe("TUI model and navigation", () => {
 		expect(model.warnings.join("\n")).toContain("malformed_issue");
 	});
 
+	test("loads and renders dependency read model in cards and detail", () => {
+		const root = tempProject();
+		writeFileSync(
+			join(root, ".mikan", "ready", "MIK-002.md"),
+			`---\nid: MIK-002\ntitle: Dependent issue\ndepends_on:\n  - MIK-001\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Dependent issue\n`,
+		);
+		const model = loadTuiModel(root);
+		const dependent = model.columns[1]?.cards.find(
+			(card) => card.id === "MIK-002",
+		);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 1,
+			detailOpen: true,
+		};
+		const page = buildDetailPageViewModel(model, selection);
+		const text = renderTuiText(model, { ...selection, detailOpen: false });
+		const tree = TuiAppView({ model, selection });
+
+		expect(dependent).toMatchObject({
+			dependsOn: ["MIK-001"],
+			unmetDependencies: ["MIK-001"],
+			dependencyStatus: "blocked",
+		});
+		expect(text).toContain("MIK-002");
+		expect(text).toContain("🔒");
+		expect(page).toMatchObject({
+			dependsOnText: "MIK-001",
+			unmetDependenciesText: "MIK-001",
+			dependencyStatus: "blocked",
+		});
+		expect(collectTextContent(tree)).toContain(
+			"Dependencies: MIK-001 | Unmet: MIK-001 | blocked",
+		);
+	});
+
 	test("loads hook failure warnings", () => {
 		const root = tempProject();
 		mkdirSync(join(root, ".mikan", ".state"), { recursive: true });
