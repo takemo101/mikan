@@ -330,6 +330,74 @@ describe("TUI model and navigation", () => {
 		});
 	});
 
+	test("derives visible Column cards from viewport height", () => {
+		const model = {
+			columns: [
+				{
+					id: "ready",
+					title: "Ready",
+					cards: Array.from({ length: 10 }, (_, index) => ({
+						id: `MIK-${String(index + 1).padStart(3, "0")}`,
+						title: `Issue ${index + 1}`,
+						labels: [],
+						status: "ready",
+						path: `/tmp/MIK-${String(index + 1).padStart(3, "0")}.md`,
+					})),
+				},
+			],
+			warnings: [],
+		};
+
+		const shortView = buildBoardViewModel(
+			model,
+			{ columnIndex: 0, cardIndex: 4, detailOpen: false },
+			{ viewportHeight: 16 },
+		);
+		const tallView = buildBoardViewModel(
+			model,
+			{ columnIndex: 0, cardIndex: 4, detailOpen: false },
+			{ viewportHeight: 24 },
+		);
+
+		expect(shortView.columns[0]?.visibleCards).toHaveLength(4);
+		expect(tallView.columns[0]?.visibleCards).toHaveLength(8);
+	});
+
+	test("renders detail Markdown window from viewport height", () => {
+		const cwd = tempProject();
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Ready issue\nlabels: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n${Array.from({ length: 30 }, (_, index) => `line ${index + 1}`).join("\n")}\n`,
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+			detailScrollOffset: 3,
+		};
+
+		const shortPage = buildDetailPageViewModel(model, selection, {
+			viewportHeight: 12,
+		});
+		const tallPage = buildDetailPageViewModel(model, selection, {
+			viewportHeight: 18,
+		});
+		const tree = TuiAppView({ model, selection, viewportHeight: 12 });
+		const text = collectTextContent(tree);
+
+		expect(shortPage?.visibleMarkdownLines).toHaveLength(6);
+		expect(tallPage?.visibleMarkdownLines).toHaveLength(12);
+		expect(shortPage).toMatchObject({
+			hiddenLinesBefore: 3,
+			hiddenLinesAfter: 21,
+			lineRangeText: "4-9/30",
+		});
+		expect(text).toContain("4-9/30");
+		expect(text).toContain("↓ 21 more");
+		expect(text).not.toContain("line 30");
+	});
+
 	test("builds an OpenTUI component tree with named board layout boundaries", () => {
 		const model = loadTuiModel(tempProject());
 		const selection: TuiSelection = {
@@ -510,8 +578,8 @@ describe("TUI model and navigation", () => {
 		expect(down.columnIndex).toBe(1);
 		expect(down.cardIndex).toBe(0);
 		expect(down.detailScrollOffset).toBe(1);
-		expect(downClamped.detailScrollOffset).toBe(8);
-		expect(up.detailScrollOffset).toBe(7);
+		expect(downClamped.detailScrollOffset).toBe(7);
+		expect(up.detailScrollOffset).toBe(6);
 		expect(page?.visibleMarkdownLines).toEqual(["line 1", "line 2"]);
 	});
 

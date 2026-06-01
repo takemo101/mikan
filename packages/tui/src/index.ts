@@ -77,6 +77,7 @@ export type BoardViewModel = {
 export type BoardViewOptions = {
 	visibleColumnCount?: number;
 	visibleCardCount?: number;
+	viewportHeight?: number;
 };
 
 export type DetailViewModel = {
@@ -104,10 +105,14 @@ export type DetailPageViewModel = {
 	labelsText: string;
 	markdown: string;
 	visibleMarkdownLines: string[];
+	hiddenLinesBefore: number;
+	hiddenLinesAfter: number;
+	lineRangeText: string;
 };
 
 export type DetailPageOptions = {
 	visibleLineCount?: number;
+	viewportHeight?: number;
 };
 
 export type MovePromptViewModel = {
@@ -216,6 +221,7 @@ export function moveSelection(
 	model: TuiModel,
 	selection: TuiSelection,
 	direction: TuiSelectionAction,
+	options: { viewportHeight?: number } = {},
 ): TuiSelection {
 	if (direction === "enter") {
 		return { ...selection, detailOpen: true, detailScrollOffset: 0 };
@@ -231,7 +237,7 @@ export function moveSelection(
 			detailScrollOffset: clamp(
 				(selection.detailScrollOffset ?? 0) + (direction === "down" ? 1 : -1),
 				0,
-				detailScrollMax(model, selection),
+				detailScrollMax(model, selection, options),
 			),
 		};
 	}
@@ -370,6 +376,7 @@ export type TuiAppViewProps = {
 	model: TuiModel;
 	selection: TuiSelection;
 	theme?: TuiTheme;
+	viewportHeight?: number;
 };
 
 export function createTuiAppElement(
@@ -382,6 +389,7 @@ export function TuiAppView({
 	model,
 	selection,
 	theme = buildTuiTheme(),
+	viewportHeight,
 }: TuiAppViewProps): React.ReactElement {
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
@@ -405,8 +413,18 @@ export function TuiAppView({
 				style: { flexDirection: "column", flexGrow: 1, minHeight: 0 },
 			},
 			details
-				? React.createElement(DetailPage, { model, selection, theme })
-				: React.createElement(BoardView, { model, selection, theme }),
+				? React.createElement(DetailPage, {
+						model,
+						selection,
+						theme,
+						viewportHeight,
+					})
+				: React.createElement(BoardView, {
+						model,
+						selection,
+						theme,
+						viewportHeight,
+					}),
 		),
 		selection.moveOpen
 			? React.createElement(MovePrompt, { model, selection, theme })
@@ -428,24 +446,36 @@ export function buildDetailPageViewModel(
 ): DetailPageViewModel | undefined {
 	const details = getSelectedDetails(model, selection);
 	if (!details) return undefined;
-	const markdown = stripFrontmatter(details.markdown);
+	const markdown = stripFrontmatter(details.markdown).trimEnd();
 	const markdownLines = markdown.split("\n");
-	const visibleLineCount = options.visibleLineCount ?? 40;
+	const visibleLineCount =
+		options.visibleLineCount ??
+		(options.viewportHeight
+			? visibleDetailLineCount(options.viewportHeight)
+			: 40);
 	const offset = clamp(
 		selection.detailScrollOffset ?? 0,
 		0,
 		Math.max(0, markdownLines.length - visibleLineCount),
 	);
+	const visibleMarkdownLines = markdownLines.slice(
+		offset,
+		offset + visibleLineCount,
+	);
+	const lineEnd = offset + visibleMarkdownLines.length;
 	return {
 		id: details.card.id,
 		title: details.card.title,
 		status: details.card.status,
 		labelsText: details.card.labels.join(", "),
 		markdown,
-		visibleMarkdownLines: markdownLines.slice(
-			offset,
-			offset + visibleLineCount,
-		),
+		visibleMarkdownLines,
+		hiddenLinesBefore: offset,
+		hiddenLinesAfter: Math.max(0, markdownLines.length - lineEnd),
+		lineRangeText:
+			markdownLines.length > visibleLineCount
+				? `${offset + 1}-${lineEnd}/${markdownLines.length}`
+				: "",
 	};
 }
 
@@ -486,7 +516,13 @@ export function buildBoardViewModel(
 	selection: TuiSelection,
 	options: BoardViewOptions = {},
 ): BoardViewModel {
-	const visibleCardCount = Math.max(1, options.visibleCardCount ?? 6);
+	const visibleCardCount = Math.max(
+		1,
+		options.visibleCardCount ??
+			(options.viewportHeight
+				? visibleCardCountForViewport(options.viewportHeight)
+				: 6),
+	);
 	const columns = model.columns.map((column, columnIndex) => {
 		const cards = column.cards.map((card, cardIndex) => ({
 			...card,
@@ -546,8 +582,9 @@ export function BoardView({
 	model,
 	selection,
 	theme = buildTuiTheme(),
+	viewportHeight,
 }: TuiAppViewProps): React.ReactElement {
-	const view = buildBoardViewModel(model, selection);
+	const view = buildBoardViewModel(model, selection, { viewportHeight });
 	return React.createElement(
 		"box",
 		{
@@ -673,7 +710,9 @@ export function IssueCard(props: {
 }
 
 export function DetailPage(props: TuiAppViewProps): React.ReactElement {
-	const page = buildDetailPageViewModel(props.model, props.selection);
+	const page = buildDetailPageViewModel(props.model, props.selection, {
+		viewportHeight: props.viewportHeight,
+	});
 	const theme = props.theme ?? buildTuiTheme();
 	if (!page)
 		return React.createElement("text", { content: "No Issue selected" });
@@ -693,9 +732,22 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 		React.createElement("text", {
 			content: `Labels: ${page.labelsText || "(none)"}`,
 		}),
+		page.lineRangeText
+			? React.createElement("text", { content: page.lineRangeText })
+			: undefined,
+		page.hiddenLinesBefore > 0
+			? React.createElement("text", {
+					content: `↑ ${page.hiddenLinesBefore} more`,
+				})
+			: undefined,
 		React.createElement("markdown", {
 			content: page.visibleMarkdownLines.join("\n"),
 		}),
+		page.hiddenLinesAfter > 0
+			? React.createElement("text", {
+					content: `↓ ${page.hiddenLinesAfter} more`,
+				})
+			: undefined,
 	);
 }
 
@@ -1343,10 +1395,18 @@ export async function launchTui(
 				setSelection({ ...result.selection, message: result.message });
 				return;
 			}
-			setSelection((current) => moveSelection(model, current, action));
+			setSelection((current) =>
+				moveSelection(model, current, action, {
+					viewportHeight: renderer.height,
+				}),
+			);
 		});
 
-		return createTuiAppElement({ model, selection });
+		return createTuiAppElement({
+			model,
+			selection,
+			viewportHeight: renderer.height,
+		});
 	}
 
 	root.render(React.createElement(App));
@@ -1472,12 +1532,28 @@ function formatCard(issue: BoardIssue): TuiCard {
 	};
 }
 
-function detailScrollMax(model: TuiModel, selection: TuiSelection): number {
+function visibleCardCountForViewport(viewportHeight: number): number {
+	return Math.max(1, Math.floor((viewportHeight - 8) / 2));
+}
+
+function visibleDetailLineCount(viewportHeight: number): number {
+	return Math.max(1, viewportHeight - 6);
+}
+
+function detailScrollMax(
+	model: TuiModel,
+	selection: TuiSelection,
+	options: { viewportHeight?: number } = {},
+): number {
 	const details = getSelectedDetails(model, selection);
 	if (!details) return 0;
+	const visibleLineCount = options.viewportHeight
+		? visibleDetailLineCount(options.viewportHeight)
+		: 40;
 	return Math.max(
 		0,
-		stripFrontmatter(details.markdown).split("\n").length - 40,
+		stripFrontmatter(details.markdown).trimEnd().split("\n").length -
+			visibleLineCount,
 	);
 }
 
