@@ -25,10 +25,18 @@ async function cli(cwd: string, argv: string[]) {
 describe("CLI read path", () => {
 	test("package metadata targets scoped npm dist bin", () => {
 		expect(packageJson.name).toBe("@takemo101/mikan");
-		expect(packageJson.version).toBe("0.0.1");
+		expect(packageJson.version).toBe("0.0.2");
 		expect(packageJson.private).toBe(false);
 		expect(packageJson.bin).toEqual({ mikan: "dist/bin.js" });
 		expect(packageJson.files).toEqual(["dist"]);
+		expect(packageJson.optionalDependencies).toMatchObject({
+			"@opentui/core-darwin-arm64": "0.3.0",
+			"@opentui/core-darwin-x64": "0.3.0",
+			"@opentui/core-linux-arm64": "0.3.0",
+			"@opentui/core-linux-x64": "0.3.0",
+			"@opentui/core-win32-arm64": "0.3.0",
+			"@opentui/core-win32-x64": "0.3.0",
+		});
 	});
 
 	test("builds and packs the distributable CLI bin", async () => {
@@ -53,7 +61,7 @@ describe("CLI read path", () => {
 			true,
 		);
 		expect(packed.name).toBe("@takemo101/mikan");
-		expect(packed.version).toBe("0.0.1");
+		expect(packed.version).toBe("0.0.2");
 		expect(packedFiles).toContain("dist/bin.js");
 		expect(packedFiles).toContain("package.json");
 		expect(packedFiles).toContain("README.md");

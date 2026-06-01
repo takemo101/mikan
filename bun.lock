@@ -13,9 +13,17 @@
     },
     "packages/cli": {
       "name": "@takemo101/mikan",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "bin": {
-        "mikan": "./dist/bin.js",
+        "mikan": "dist/bin.js",
+      },
+      "optionalDependencies": {
+        "@opentui/core-darwin-arm64": "0.3.0",
+        "@opentui/core-darwin-x64": "0.3.0",
+        "@opentui/core-linux-arm64": "0.3.0",
+        "@opentui/core-linux-x64": "0.3.0",
+        "@opentui/core-win32-arm64": "0.3.0",
+        "@opentui/core-win32-x64": "0.3.0",
       },
     },
     "packages/core": {
@@ -43,7 +51,7 @@
     },
     "packages/tui": {
       "name": "@mikan/tui",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@mikan/core": "workspace:*",
         "@mikan/project-config": "workspace:*",

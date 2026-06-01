@@ -1,6 +1,6 @@
 {
 	"name": "@takemo101/mikan",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"private": false,
 	"type": "module",
 	"bin": {
@@ -11,6 +11,14 @@
 	],
 	"publishConfig": {
 		"access": "public"
+	},
+	"optionalDependencies": {
+		"@opentui/core-darwin-arm64": "0.3.0",
+		"@opentui/core-darwin-x64": "0.3.0",
+		"@opentui/core-linux-arm64": "0.3.0",
+		"@opentui/core-linux-x64": "0.3.0",
+		"@opentui/core-win32-arm64": "0.3.0",
+		"@opentui/core-win32-x64": "0.3.0"
 	},
 	"scripts": {
 		"build": "bun run build:dist && tsc -p ../../tsconfig.json --noEmit",
