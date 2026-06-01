@@ -141,6 +141,13 @@ export type NotePromptViewModel = {
 	hint: string;
 };
 
+export type ArchivePromptViewModel = {
+	title: string;
+	focused: boolean;
+	body: string;
+	hint: string;
+};
+
 export type TuiSelection = {
 	columnIndex: number;
 	cardIndex: number;
@@ -149,6 +156,7 @@ export type TuiSelection = {
 	moveTargetIndex?: number;
 	noteOpen?: boolean;
 	noteDraft?: string;
+	archiveOpen?: boolean;
 	detailScrollOffset?: number;
 	detailScrollMax?: number;
 	message?: string;
@@ -253,6 +261,9 @@ export function moveSelection(
 		};
 	}
 	if (direction === "escape") {
+		if (selection.archiveOpen) {
+			return { ...selection, archiveOpen: false };
+		}
 		return {
 			...selection,
 			detailOpen: false,
@@ -263,6 +274,7 @@ export function moveSelection(
 	if (direction === "move") {
 		return {
 			...selection,
+			archiveOpen: false,
 			detailOpen: false,
 			noteOpen: false,
 			moveOpen: true,
@@ -272,9 +284,18 @@ export function moveSelection(
 	if (direction === "append-note") {
 		return {
 			...selection,
+			archiveOpen: false,
 			detailOpen: false,
 			moveOpen: false,
 			noteOpen: true,
+		};
+	}
+	if (direction === "archive") {
+		return {
+			...selection,
+			archiveOpen: true,
+			moveOpen: false,
+			noteOpen: false,
 		};
 	}
 	const columnIndex = clamp(
@@ -332,6 +353,7 @@ export function refreshTuiModel(options: {
 			noteOpen: stillSelected ? options.selection.noteOpen : false,
 			noteDraft: stillSelected ? options.selection.noteDraft : undefined,
 			message: options.selection.message,
+			archiveOpen: stillSelected ? options.selection.archiveOpen : false,
 		},
 	};
 }
@@ -372,6 +394,9 @@ export function renderTuiText(
 	}
 	if (selection.noteOpen) {
 		lines.push("", ...renderNoteInteraction(model, selection));
+	}
+	if (selection.archiveOpen) {
+		lines.push("", ...renderArchiveInteraction(model, selection));
 	}
 	lines.push(
 		"",
@@ -447,6 +472,9 @@ export function TuiAppView({
 			: undefined,
 		selection.noteOpen
 			? React.createElement(NotePrompt, { model, selection, theme })
+			: undefined,
+		selection.archiveOpen
+			? React.createElement(ArchivePrompt, { model, selection, theme })
 			: undefined,
 		React.createElement(Footer, {
 			message: selection.message,
@@ -937,6 +965,31 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 	);
 }
 
+export function ArchivePrompt(props: TuiAppViewProps): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "archive-modal-backdrop",
+			style: modalBackdropStyle(theme),
+		},
+		React.createElement(
+			"box",
+			{
+				id: "archive-prompt",
+				title: "Archive Issue",
+				border: true,
+				style: modalStyle(theme),
+			},
+			React.createElement("text", {
+				content: renderArchiveInteraction(props.model, props.selection).join(
+					"\n",
+				),
+			}),
+		),
+	);
+}
+
 function modalBackdropStyle(_theme: TuiTheme): Record<string, string | number> {
 	return {
 		alignItems: "center",
@@ -981,7 +1034,9 @@ export function Footer(props: FooterProps): React.ReactElement {
 }
 
 function footerMode(selection: TuiSelection): FooterMode {
-	if (selection.moveOpen || selection.noteOpen) return "modal";
+	if (selection.moveOpen || selection.noteOpen || selection.archiveOpen) {
+		return "modal";
+	}
 	return selection.detailOpen ? "detail" : "board";
 }
 
@@ -1107,6 +1162,7 @@ export function moveSelectedIssue(options: {
 		model,
 		selection: {
 			...selection,
+			archiveOpen: false,
 			detailOpen: false,
 			moveOpen: false,
 		},
@@ -1133,7 +1189,11 @@ export function archiveSelectedIssue(options: {
 		now: options.now,
 	});
 	return result.ok && card
-		? { ...result, message: `${card.id} archived` }
+		? {
+				...result,
+				message: `${card.id} archived`,
+				selection: { ...result.selection, archiveOpen: false },
+			}
 		: result;
 }
 
@@ -1239,6 +1299,20 @@ export function buildNotePromptViewModel(
 	};
 }
 
+export function buildArchivePromptViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+): ArchivePromptViewModel | undefined {
+	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+	if (!card) return undefined;
+	return {
+		title: `Archive ${card.id}?`,
+		focused: Boolean(selection.archiveOpen),
+		body: `${card.title}\nMove to archived. It will disappear from the default board.`,
+		hint: "enter archive  esc cancel",
+	};
+}
+
 function renderMoveInteraction(
 	model: TuiModel,
 	selection: TuiSelection,
@@ -1267,6 +1341,15 @@ function renderNoteInteraction(
 		...(view.feedback ? [view.feedback] : []),
 		view.hint,
 	];
+}
+
+function renderArchiveInteraction(
+	model: TuiModel,
+	selection: TuiSelection,
+): string[] {
+	const view = buildArchivePromptViewModel(model, selection);
+	if (!view) return ["Archive", "No Issue selected"];
+	return [view.title, view.body, view.hint];
 }
 
 function renderDetails(details: TuiDetails): string[] {
@@ -1393,6 +1476,23 @@ export async function launchTui(
 				setSelection((current) => applyNoteInput(current, key.name, key.shift));
 				return;
 			}
+			if (selection.archiveOpen) {
+				if (action === "escape") {
+					setSelection((current) => moveSelection(model, current, action));
+					return;
+				}
+				if (action === "enter") {
+					const result = archiveSelectedIssue({
+						cwd: options.cwd,
+						model,
+						selection,
+					});
+					setModel(result.model);
+					setSelection({ ...result.selection, message: result.message });
+					return;
+				}
+				return;
+			}
 			if (!action) return;
 			if (action === "quit") {
 				stop();
@@ -1441,13 +1541,7 @@ export async function launchTui(
 				return;
 			}
 			if (action === "archive") {
-				const result = archiveSelectedIssue({
-					cwd: options.cwd,
-					model,
-					selection,
-				});
-				setModel(result.model);
-				setSelection({ ...result.selection, message: result.message });
+				setSelection((current) => moveSelection(model, current, action));
 				return;
 			}
 			setSelection((current) =>
@@ -1485,7 +1579,7 @@ type TuiAction =
 
 type TuiDirection = "left" | "right" | "up" | "down" | "enter" | "escape";
 
-type TuiSelectionAction = TuiDirection | "move" | "append-note";
+type TuiSelectionAction = TuiDirection | "move" | "append-note" | "archive";
 
 export function keyToTuiAction(
 	keyName: string | undefined,

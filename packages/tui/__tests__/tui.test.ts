@@ -12,10 +12,12 @@ import { join } from "node:path";
 import { createIssue, moveIssue } from "@mikan/core";
 import { initProject, loadProjectConfig } from "@mikan/project-config";
 import {
+	ArchivePrompt,
 	appendSelectedIssueNote,
 	applyNoteInput,
 	archiveSelectedIssue,
 	BoardView,
+	buildArchivePromptViewModel,
 	buildBoardViewModel,
 	buildDetailPageViewModel,
 	buildDetailViewModel,
@@ -1073,13 +1075,45 @@ describe("TUI model and navigation", () => {
 		);
 	});
 
+	test("opens an archive confirmation modal before archiving", async () => {
+		const { keyToTuiAction } = await import("../src/index.ts");
+		const model = loadTuiModel(tempProject());
+		const selection = moveSelection(
+			model,
+			{ columnIndex: 1, cardIndex: 0, detailOpen: true },
+			"archive",
+		);
+		const tree = TuiAppView({ model, selection });
+		const prompt = findElementById(tree, "archive-prompt");
+
+		expect(keyToTuiAction("a")).toBe("archive");
+		expect(selection.archiveOpen).toBe(true);
+		expect(selection.detailOpen).toBe(true);
+		expect(buildArchivePromptViewModel(model, selection)).toMatchObject({
+			title: "Archive MIK-001?",
+			focused: true,
+			hint: "enter archive  esc cancel",
+		});
+		expect(collectElementTypes(tree)).toContain(ArchivePrompt);
+		expect(prompt?.props).toMatchObject({ border: true });
+		expect(collectTextContent(prompt)).toContain(
+			"Move to archived. It will disappear from the default board.",
+		);
+		expect(moveSelection(model, selection, "escape").archiveOpen).toBe(false);
+	});
+
 	test("archives the selected Issue and removes it from the default board", () => {
 		const cwd = tempProject();
 		const model = loadTuiModel(cwd);
 		const result = archiveSelectedIssue({
 			cwd,
 			model,
-			selection: { columnIndex: 1, cardIndex: 0, detailOpen: true },
+			selection: {
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: true,
+				archiveOpen: true,
+			},
 			now,
 		});
 
@@ -1092,6 +1126,7 @@ describe("TUI model and navigation", () => {
 			0,
 		);
 		expect(result.selection.detailOpen).toBe(false);
+		expect(result.selection.archiveOpen).toBe(false);
 	});
 
 	test("append-note rejects empty submissions", () => {
