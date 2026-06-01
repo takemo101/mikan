@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createIssue, moveIssue } from "@mikan/core";
 import { initProject, loadProjectConfig } from "@mikan/project-config";
+import packageJson from "../package.json" with { type: "json" };
 import {
 	ArchivePrompt,
 	appendSelectedIssueNote,
@@ -44,6 +45,7 @@ import {
 	NotePrompt,
 	refreshTuiModel,
 	renderTuiText,
+	TUI_VERSION,
 	TuiAppView,
 	type TuiSelection,
 } from "../src/index.ts";
@@ -521,7 +523,9 @@ describe("TUI model and navigation", () => {
 		expect(findElementById(tree, "mikan-header")?.props?.style).toMatchObject({
 			color: theme.interactive.accent,
 		});
-		expect(collectTextContent(tree)).toContain("🍊 mikan v0-dev");
+		expect(packageJson.version).toBe("0.0.0");
+		expect(TUI_VERSION).toBe(packageJson.version);
+		expect(collectTextContent(tree)).toContain("🍊 mikan v0.0.0");
 		expect(findElementById(tree, "mikan-main")?.props?.style).toMatchObject({
 			flexGrow: 1,
 		});

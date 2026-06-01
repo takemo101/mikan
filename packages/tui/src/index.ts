@@ -8,6 +8,7 @@ import {
 } from "@mikan/core";
 import { loadProjectConfig } from "@mikan/project-config";
 import React from "react";
+import packageJson from "../package.json" with { type: "json" };
 import {
 	boxLine,
 	contentLine,
@@ -38,7 +39,7 @@ export type TuiModel = {
 	warnings: string[];
 };
 
-export const TUI_VERSION = "v0-dev";
+export const TUI_VERSION = packageJson.version;
 
 export type TuiTheme = {
 	base: {
@@ -491,7 +492,7 @@ export function Header(props: { theme?: TuiTheme }): React.ReactElement {
 	return React.createElement("text", {
 		id: "mikan-header",
 		style: { color: theme.interactive.accent },
-		content: `🍊 mikan ${TUI_VERSION}`,
+		content: `🍊 mikan v${TUI_VERSION}`,
 	});
 }
 
