@@ -1114,6 +1114,29 @@ export function moveSelectedIssue(options: {
 	};
 }
 
+export function archiveSelectedIssue(options: {
+	cwd?: string;
+	model: TuiModel;
+	selection: TuiSelection;
+	now?: () => Date;
+}): MoveSelectedIssueResult {
+	const card =
+		options.model.columns[options.selection.columnIndex]?.cards[
+			options.selection.cardIndex
+		];
+	const result = moveSelectedIssue({
+		cwd: options.cwd,
+		model: options.model,
+		selection: options.selection,
+		targetStatus: "archived",
+		log: "Archived via TUI",
+		now: options.now,
+	});
+	return result.ok && card
+		? { ...result, message: `${card.id} archived` }
+		: result;
+}
+
 export function appendSelectedIssueNote(options: {
 	cwd?: string;
 	model: TuiModel;
@@ -1417,6 +1440,16 @@ export async function launchTui(
 				setSelection({ ...result.selection, message: result.message });
 				return;
 			}
+			if (action === "archive") {
+				const result = archiveSelectedIssue({
+					cwd: options.cwd,
+					model,
+					selection,
+				});
+				setModel(result.model);
+				setSelection({ ...result.selection, message: result.message });
+				return;
+			}
 			setSelection((current) =>
 				moveSelection(model, current, action, {
 					viewportHeight: renderer.height,
@@ -1446,6 +1479,7 @@ type TuiAction =
 	| "move-left"
 	| "move-right"
 	| "append-note"
+	| "archive"
 	| "reload"
 	| "quit";
 
@@ -1485,8 +1519,10 @@ export function keyToTuiAction(
 			return "reload";
 		case "m":
 			return "move";
-		case "a":
+		case "n":
 			return "append-note";
+		case "a":
+			return "archive";
 		case "q":
 			return "quit";
 		default:
@@ -1503,6 +1539,7 @@ export function keyToDirection(
 		action === "move-left" ||
 		action === "move-right" ||
 		action === "append-note" ||
+		action === "archive" ||
 		action === "reload" ||
 		action === "quit"
 	) {

@@ -14,6 +14,7 @@ import { initProject, loadProjectConfig } from "@mikan/project-config";
 import {
 	appendSelectedIssueNote,
 	applyNoteInput,
+	archiveSelectedIssue,
 	BoardView,
 	buildBoardViewModel,
 	buildDetailPageViewModel,
@@ -621,10 +622,10 @@ describe("TUI model and navigation", () => {
 		);
 
 		expect(boardText).toContain(
-			"Board | j/k card | h/l column | enter detail | H/L move | r reload | q quit",
+			"Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit",
 		);
 		expect(detailText).toContain(
-			"Detail | j/k scroll | esc board | a note | r reload | q quit",
+			"Detail | j/k scroll | esc board | n note | a archive | r reload | q quit",
 		);
 		expect(modalText).toContain("Modal | enter confirm | esc cancel");
 		expect(detailText).not.toContain("j/k card");
@@ -857,13 +858,13 @@ describe("TUI model and navigation", () => {
 			| undefined;
 
 		expect(footer?.props?.content).toBe(
-			"Board | j/k card | h/l column | enter detail | H/L move | r reload | q quit | MIK-001 moved to backlog",
+			"Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit | MIK-001 moved to backlog",
 		);
 		expect(
 			collectTextContent(tree).match(/MIK-001 moved to backlog/g) ?? [],
 		).toHaveLength(1);
 		expect(renderTuiText(model, selection)).toContain(
-			"Board | j/k card | h/l column | enter detail | H/L move | r reload | q quit | MIK-001 moved to backlog",
+			"Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit | MIK-001 moved to backlog",
 		);
 		expect(renderTuiText(model, selection)).not.toContain(
 			"\nMIK-001 moved to backlog\n\nBoard |",
@@ -1035,7 +1036,8 @@ describe("TUI model and navigation", () => {
 			"append-note",
 		);
 
-		expect(keyToTuiAction("a")).toBe("append-note");
+		expect(keyToTuiAction("n")).toBe("append-note");
+		expect(keyToTuiAction("a")).toBe("archive");
 		expect(selection.noteOpen).toBe(true);
 		expect(renderTuiText(model, selection)).toContain("Append note to MIK-001");
 		expect(
@@ -1069,6 +1071,27 @@ describe("TUI model and navigation", () => {
 		expect(getSelectedDetails(result.model, result.selection)?.notes).toContain(
 			"Fresh note from TUI",
 		);
+	});
+
+	test("archives the selected Issue and removes it from the default board", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const result = archiveSelectedIssue({
+			cwd,
+			model,
+			selection: { columnIndex: 1, cardIndex: 0, detailOpen: true },
+			now,
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.message).toContain("MIK-001 archived");
+		expect(existsSync(join(cwd, ".mikan", "archived", "MIK-001.md"))).toBe(
+			true,
+		);
+		expect(result.model.columns.flatMap((column) => column.cards)).toHaveLength(
+			0,
+		);
+		expect(result.selection.detailOpen).toBe(false);
 	});
 
 	test("append-note rejects empty submissions", () => {

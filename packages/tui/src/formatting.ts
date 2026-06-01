@@ -34,9 +34,9 @@ export function visibleDetailLineCount(viewportHeight: number): number {
 export function footerText(mode: FooterMode): string {
 	if (mode === "modal") return "Modal | enter confirm | esc cancel";
 	if (mode === "detail") {
-		return "Detail | j/k scroll | esc board | a note | r reload | q quit";
+		return "Detail | j/k scroll | esc board | n note | a archive | r reload | q quit";
 	}
-	return "Board | j/k card | h/l column | enter detail | H/L move | r reload | q quit";
+	return "Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit";
 }
 
 export function boxLine(
