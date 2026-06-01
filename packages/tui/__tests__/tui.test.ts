@@ -418,15 +418,41 @@ describe("TUI model and navigation", () => {
 		const tree = TuiAppView({ model, selection, viewportHeight: 12 });
 		const text = collectTextContent(tree);
 
-		expect(shortPage?.visibleMarkdownLines).toHaveLength(6);
-		expect(tallPage?.visibleMarkdownLines).toHaveLength(12);
+		expect(shortPage?.visibleMarkdownLines).toHaveLength(4);
+		expect(tallPage?.visibleMarkdownLines).toHaveLength(10);
 		expect(shortPage).toMatchObject({
 			hiddenLinesBefore: 3,
-			hiddenLinesAfter: 21,
-			lineRangeText: "lines 4-9/30 | ↑3 | ↓21",
+			hiddenLinesAfter: 23,
+			lineRangeText: "Lines: 4-7/30 | ↑3 ↓23",
 		});
-		expect(text).toContain("ready | labels: (none) | lines 4-9/30 | ↑3 | ↓21");
+		expect(text).toContain("MIK-001  Ready issue");
+		expect(text).toContain(
+			"Status: ready | Labels: none | Lines: 4-7/30 | ↑3 ↓23",
+		);
+		expect(text).toContain("────────────────");
 		expect(text).not.toContain("line 30");
+	});
+
+	test("omits zero scroll indicators from detail metadata", () => {
+		const cwd = tempProject();
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Ready issue\nlabels: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n${Array.from({ length: 12 }, (_, index) => `line ${index + 1}`).join("\n")}\n`,
+		);
+		const model = loadTuiModel(cwd);
+		const topPage = buildDetailPageViewModel(
+			model,
+			{ columnIndex: 1, cardIndex: 0, detailOpen: true, detailScrollOffset: 0 },
+			{ visibleLineCount: 4 },
+		);
+		const bottomPage = buildDetailPageViewModel(
+			model,
+			{ columnIndex: 1, cardIndex: 0, detailOpen: true, detailScrollOffset: 8 },
+			{ visibleLineCount: 4 },
+		);
+
+		expect(topPage?.lineRangeText).toBe("Lines: 1-4/12 | ↓8");
+		expect(bottomPage?.lineRangeText).toBe("Lines: 9-12/12 | ↑8");
 	});
 
 	test("builds an OpenTUI component tree with named board layout boundaries", () => {
@@ -555,20 +581,29 @@ describe("TUI model and navigation", () => {
 		expect(detailText).not.toContain("j/k card");
 	});
 
-	test("detail mode switches to a full-page Markdown detail page", () => {
+	test("detail mode switches to a polished full-page Markdown detail page", () => {
 		const model = loadTuiModel(tempProject());
+		const theme = buildTuiTheme();
 		const selection: TuiSelection = {
 			columnIndex: 1,
 			cardIndex: 0,
 			detailOpen: true,
 		};
 
-		const tree = TuiAppView({ model, selection });
+		const tree = TuiAppView({ model, selection, theme });
 		const page = buildDetailPageViewModel(model, selection);
+		const detailPage = findElementById(tree, "detail-page");
 
 		expect(collectElementTypes(tree)).not.toContain(BoardView);
 		expect(collectElementTypes(tree)).toContain(DetailPage);
 		expect(collectElementTypes(tree)).not.toContain(DetailView);
+		expect(detailPage?.props).toMatchObject({
+			border: true,
+			title: "Detail",
+		});
+		expect(detailPage?.props?.style).toMatchObject({
+			borderColor: theme.interactive.accent,
+		});
 		expect(page).toMatchObject({
 			id: "MIK-001",
 			title: "Ready issue",
@@ -576,7 +611,10 @@ describe("TUI model and navigation", () => {
 			labelsText: "automation",
 		});
 		expect(page?.markdown).toContain("# Ready issue");
-		expect(collectTextContent(tree)).toContain("labels: #automation");
+		expect(collectTextContent(tree)).toContain("MIK-001  Ready issue");
+		expect(collectTextContent(tree)).toContain(
+			"Status: ready | Labels: #automation",
+		);
 		expect(collectTextContent(tree)).toContain("# Ready issue");
 	});
 

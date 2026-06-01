@@ -476,10 +476,13 @@ export function buildDetailPageViewModel(
 		visibleMarkdownLines,
 		hiddenLinesBefore: offset,
 		hiddenLinesAfter: Math.max(0, markdownLines.length - lineEnd),
-		lineRangeText:
-			markdownLines.length > visibleLineCount
-				? `lines ${offset + 1}-${lineEnd}/${markdownLines.length} | ↑${offset} | ↓${Math.max(0, markdownLines.length - lineEnd)}`
-				: "",
+		lineRangeText: formatLineRange({
+			start: offset + 1,
+			end: lineEnd,
+			total: markdownLines.length,
+			hiddenBefore: offset,
+			hiddenAfter: Math.max(0, markdownLines.length - lineEnd),
+		}),
 	};
 }
 
@@ -714,21 +717,27 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 		"box",
 		{
 			id: "detail-page",
-			title: `${page.id} ${page.title}`,
+			title: "Detail",
+			border: true,
 			style: {
 				backgroundColor: theme.base.surface,
-				borderColor: theme.interactive.focus,
+				borderColor: theme.interactive.accent,
 				flexDirection: "column",
 				flexGrow: 1,
 			},
 		},
 		React.createElement("text", {
-			content: `${page.status} | labels: ${page.labelsText ? formatLabels(page.labelsText.split(", ").filter(Boolean)) : "(none)"}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
+			content: `${page.id}  ${page.title}`,
+		}),
+		React.createElement("text", {
+			content: `Status: ${page.status} | Labels: ${page.labelsText ? formatLabels(page.labelsText.split(", ").filter(Boolean)) : "none"}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
+		}),
+		React.createElement("text", {
+			content: "────────────────────────────────────────────────",
 		}),
 		React.createElement("markdown", {
 			content: page.visibleMarkdownLines.join("\n"),
 		}),
-		undefined,
 	);
 }
 
@@ -1524,12 +1533,31 @@ function formatLabels(labels: string[]): string {
 	return labels.map((label) => `#${label}`).join(" ");
 }
 
+function formatLineRange(options: {
+	start: number;
+	end: number;
+	total: number;
+	hiddenBefore: number;
+	hiddenAfter: number;
+}): string {
+	const scrollIndicators = [
+		options.hiddenBefore > 0 ? `↑${options.hiddenBefore}` : "",
+		options.hiddenAfter > 0 ? `↓${options.hiddenAfter}` : "",
+	].filter(Boolean);
+	return [
+		`Lines: ${options.start}-${options.end}/${options.total}`,
+		scrollIndicators.join(" "),
+	]
+		.filter(Boolean)
+		.join(" | ");
+}
+
 function visibleCardCountForViewport(viewportHeight: number): number {
 	return Math.max(1, Math.floor((viewportHeight - 10) / 3));
 }
 
 function visibleDetailLineCount(viewportHeight: number): number {
-	return Math.max(1, viewportHeight - 6);
+	return Math.max(1, viewportHeight - 8);
 }
 
 function detailScrollMax(
