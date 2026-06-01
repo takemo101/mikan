@@ -59,6 +59,17 @@ bun run check
 
 If a package-specific command is more appropriate for a small Issue slice, use that first, then run the broader checks before PR finalization.
 
+## Release/package workflow
+
+When preparing an npm release, follow the existing dist-package model unless the user explicitly chooses a different packaging strategy.
+
+- Publish the CLI package from `packages/cli`; keep the workspace root private.
+- Bump published package versions after a broken release; npm versions are immutable, so do not try to republish the same version.
+- Regenerate and validate `packages/cli/dist/` before publishing, but keep generated dist files ignored/uncommitted unless the packaging strategy changes.
+- Verify the packed package, not only the workspace. At minimum run `npm pack --dry-run --json packages/cli` and confirm the tarball contains `dist/bin.js`, `README.md`, and `package.json`, and excludes TypeScript source when using dist-only publishing.
+- For bundled CLIs that use native/optional runtime packages, make sure the published `packages/cli/package.json` declares the platform packages npm must install. In particular, `mikan tui` depends on OpenTUI native packages such as `@opentui/core-darwin-arm64`; missing optional dependencies can pass local workspace tests but fail after global install.
+- Before announcing a release, test from an installed package or packed tarball in a temporary directory, including `mikan --help` and any feature that loads native packages such as `mikan tui`.
+
 ## Documentation rules
 
 Keep design-related material in durable docs, not in `AGENTS.md`.
