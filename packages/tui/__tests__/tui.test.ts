@@ -336,7 +336,7 @@ describe("TUI model and navigation", () => {
 				{
 					id: "ready",
 					title: "Ready",
-					cards: Array.from({ length: 10 }, (_, index) => ({
+					cards: Array.from({ length: 20 }, (_, index) => ({
 						id: `MIK-${String(index + 1).padStart(3, "0")}`,
 						title: `Issue ${index + 1}`,
 						labels: [],
@@ -358,9 +358,16 @@ describe("TUI model and navigation", () => {
 			{ columnIndex: 0, cardIndex: 4, detailOpen: false },
 			{ viewportHeight: 24 },
 		);
+		const screenshotHeightView = buildBoardViewModel(
+			model,
+			{ columnIndex: 0, cardIndex: 7, detailOpen: false },
+			{ viewportHeight: 36 },
+		);
 
-		expect(shortView.columns[0]?.visibleCards).toHaveLength(4);
-		expect(tallView.columns[0]?.visibleCards).toHaveLength(8);
+		expect(shortView.columns[0]?.visibleCards).toHaveLength(2);
+		expect(tallView.columns[0]?.visibleCards).toHaveLength(4);
+		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(8);
+		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe("4-11/20");
 	});
 
 	test("renders detail Markdown window from viewport height", () => {

@@ -597,7 +597,7 @@ export function BoardView({
 				{
 					key: `group-${groupIndex}`,
 					id: `board-row-${groupIndex}`,
-					style: { flexDirection: "row" },
+					style: { flexDirection: "row", flexGrow: 1, minHeight: 0 },
 				},
 				...group.columns.map((column) =>
 					React.createElement(ColumnPane, {
@@ -1533,7 +1533,7 @@ function formatCard(issue: BoardIssue): TuiCard {
 }
 
 function visibleCardCountForViewport(viewportHeight: number): number {
-	return Math.max(1, Math.floor((viewportHeight - 8) / 2));
+	return Math.max(1, Math.floor((viewportHeight - 10) / 3));
 }
 
 function visibleDetailLineCount(viewportHeight: number): number {
