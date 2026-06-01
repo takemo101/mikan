@@ -105,10 +105,40 @@ describe("core mutations", () => {
 			"MIK-001",
 			"MIK-002",
 		]);
+		expect(result.value.dependencyStatus).toBe("blocked");
+		expect(result.value.unmetDependencies.map(String)).toEqual([
+			"MIK-001",
+			"MIK-002",
+		]);
 		const markdown = readIssue(root, "backlog");
 		expect(markdown).toContain("depends_on:");
 		expect(markdown).toContain("- MIK-001");
 		expect(markdown).toContain("- MIK-002");
+	});
+
+	test("create returns ready dependency state when dependencies are completed", () => {
+		const root = tempProject();
+		seed(root);
+		moveIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			status: "completed",
+			now: t1,
+		});
+
+		const result = createIssue({
+			projectRoot: root,
+			config,
+			title: "Dependent issue",
+			dependencies: ["MIK-001"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected create");
+		expect(result.value.dependencyStatus).toBe("ready");
+		expect(result.value.unmetDependencies.map(String)).toEqual([]);
 	});
 
 	test("create normalizes generated timestamps to whole-second UTC", () => {
@@ -143,10 +173,44 @@ describe("core mutations", () => {
 		expect(result.ok).toBe(true);
 		if (!result.ok) throw new Error("expected update");
 		expect(result.value.issue.dependencies.map(String)).toEqual(["MIK-002"]);
+		expect(result.value.dependencyStatus).toBe("blocked");
+		expect(result.value.unmetDependencies.map(String)).toEqual(["MIK-002"]);
 		const markdown = readIssue(root, "backlog");
 		expect(markdown).toContain("depends_on:");
 		expect(markdown).toContain("- MIK-002");
 		expect(markdown).toContain("updated_at: 2026-05-30T01:02:03Z");
+	});
+
+	test("update returns refreshed dependency state", () => {
+		const root = tempProject();
+		seed(root);
+		moveIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			status: "completed",
+			now: t1,
+		});
+		const dependent = createIssue({
+			projectRoot: root,
+			config,
+			title: "Dependent",
+			now: t2,
+		});
+		expect(dependent.ok).toBe(true);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-002",
+			dependencies: ["MIK-001"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.dependencyStatus).toBe("ready");
+		expect(result.value.unmetDependencies.map(String)).toEqual([]);
 	});
 
 	test("update preserves existing dependencies when omitted", () => {
