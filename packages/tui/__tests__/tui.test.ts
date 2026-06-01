@@ -195,11 +195,11 @@ describe("TUI model and navigation", () => {
 		expect(text).toContain("│   [automation]");
 		expect(text).toContain("│   (empty)");
 		expect(text).toContain("Warnings");
-		expect(text).toContain("j/k select");
-		expect(text).toContain("h/l column");
+		expect(text).toContain("j/k card");
+		expect(text).toContain("h/l Column");
 		expect(text).toContain("H/L move");
 		expect(text).toContain("r reload");
-		expect(text).toContain("enter details");
+		expect(text).toContain("Enter detail");
 		expect(text).toContain("q quit");
 	});
 
@@ -286,6 +286,29 @@ describe("TUI model and navigation", () => {
 			empty: true,
 			emptyText: "No Issues",
 		});
+	});
+
+	test("renders Column viewport indicators when offscreen Columns exist", () => {
+		const model = loadTuiModel(tempProject());
+
+		const middleTree = TuiAppView({
+			model,
+			selection: { columnIndex: 3, cardIndex: 0, detailOpen: false },
+		});
+		const endTree = TuiAppView({
+			model,
+			selection: { columnIndex: 4, cardIndex: 0, detailOpen: false },
+		});
+
+		expect(collectTextContent(middleTree)).toContain(
+			"◀ Ready / Active / Blocked ▶",
+		);
+		expect(collectTextContent(endTree)).toContain(
+			"◀ Active / Blocked / Completed",
+		);
+		expect(collectTextContent(endTree)).not.toContain(
+			"Active / Blocked / Completed ▶",
+		);
 	});
 
 	test("windows overflowing Column cards around the selected Issue", () => {
@@ -458,9 +481,73 @@ describe("TUI model and navigation", () => {
 		expect(card?.props?.style).toMatchObject({
 			backgroundColor: theme.interactive.selectedSurface,
 			borderColor: theme.interactive.focus,
-			color: theme.feedback.success,
+			color: theme.interactive.focus,
 		});
+		expect(card?.props?.style?.color).not.toBe(theme.feedback.success);
 		expect(collectTextContent(tree)).toContain("▶ MIK-001 Ready issue");
+	});
+
+	test("renders unselected Cards quietly without border noise", () => {
+		const theme = buildTuiTheme();
+		const card = IssueCard({
+			card: {
+				id: "MIK-002",
+				title: "Quiet issue",
+				labels: [],
+				status: "ready",
+				path: "/tmp/MIK-002.md",
+			},
+			selected: false,
+			theme,
+		});
+
+		const cardProps = card.props as {
+			border?: unknown;
+			style?: Record<string, unknown>;
+		};
+
+		expect(cardProps).toMatchObject({ border: false });
+		expect(cardProps.style).toMatchObject({
+			backgroundColor: theme.base.surface,
+			borderColor: theme.base.muted,
+			color: theme.base.text,
+		});
+	});
+
+	test("renders mode-specific footer hints", () => {
+		const model = loadTuiModel(tempProject());
+		const boardText = collectTextContent(
+			TuiAppView({
+				model,
+				selection: { columnIndex: 1, cardIndex: 0, detailOpen: false },
+			}),
+		);
+		const detailText = collectTextContent(
+			TuiAppView({
+				model,
+				selection: { columnIndex: 1, cardIndex: 0, detailOpen: true },
+			}),
+		);
+		const modalText = collectTextContent(
+			TuiAppView({
+				model,
+				selection: {
+					columnIndex: 1,
+					cardIndex: 0,
+					detailOpen: false,
+					moveOpen: true,
+				},
+			}),
+		);
+
+		expect(boardText).toContain(
+			"j/k card · h/l Column · Enter detail · H/L move · r reload · q quit",
+		);
+		expect(detailText).toContain(
+			"j/k scroll · Esc board · a note · r reload · q quit",
+		);
+		expect(modalText).toContain("Enter confirm · Esc cancel");
+		expect(detailText).not.toContain("j/k card");
 	});
 
 	test("detail mode switches to a full-page Markdown detail page", () => {

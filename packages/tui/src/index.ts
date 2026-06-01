@@ -72,6 +72,7 @@ export type BoardViewModel = {
 	groups: { columns: BoardColumnView[] }[];
 	hasColumnsBefore: boolean;
 	hasColumnsAfter: boolean;
+	columnViewportText: string;
 };
 
 export type BoardViewOptions = {
@@ -365,10 +366,7 @@ export function renderTuiText(
 	if (selection.message) {
 		lines.push("", selection.message);
 	}
-	lines.push(
-		"",
-		"j/k select  h/l column  H/L move  enter details  r reload  m move  a note  q quit",
-	);
+	lines.push("", footerText(footerMode(selection)));
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
 		: undefined;
@@ -441,7 +439,7 @@ export function TuiAppView({
 		selection.message
 			? React.createElement("text", { content: selection.message })
 			: undefined,
-		React.createElement(Footer, { theme }),
+		React.createElement(Footer, { mode: footerMode(selection), theme }),
 	);
 }
 
@@ -575,12 +573,17 @@ export function buildBoardViewModel(
 		maxStart,
 	);
 	const visibleColumns = columns.slice(start, start + visibleColumnCount);
+	const hasColumnsBefore = start > 0;
+	const hasColumnsAfter = start + visibleColumnCount < columns.length;
 	return {
 		columns,
 		visibleColumns,
 		groups: [{ columns: visibleColumns }],
-		hasColumnsBefore: start > 0,
-		hasColumnsAfter: start + visibleColumnCount < columns.length,
+		hasColumnsBefore,
+		hasColumnsAfter,
+		columnViewportText: `${hasColumnsBefore ? "◀ " : ""}${visibleColumns
+			.map((column) => column.title)
+			.join(" / ")}${hasColumnsAfter ? " ▶" : ""}`,
 	};
 }
 
@@ -597,6 +600,7 @@ export function BoardView({
 			id: "mikan-board",
 			style: { flexDirection: "column", flexGrow: 1, minHeight: 0 },
 		},
+		React.createElement("text", { content: view.columnViewportText }),
 		...view.groups.map((group, groupIndex) =>
 			React.createElement(
 				"box",
@@ -691,7 +695,7 @@ export function IssueCard(props: {
 		"box",
 		{
 			id: `card-${props.card.id}`,
-			border: true,
+			border: props.selected,
 			focused: props.selected,
 			style: {
 				backgroundColor: props.selected
@@ -700,7 +704,7 @@ export function IssueCard(props: {
 				borderColor: props.selected
 					? theme.interactive.focus
 					: theme.base.muted,
-				color: props.selected ? theme.feedback.success : theme.base.text,
+				color: props.selected ? theme.interactive.focus : theme.base.text,
 				flexDirection: "column",
 			},
 		},
@@ -931,16 +935,30 @@ function modalStyle(theme: TuiTheme): Record<string, string | number> {
 	};
 }
 
-export type FooterProps = { theme?: TuiTheme };
+export type FooterMode = "board" | "detail" | "modal";
+
+export type FooterProps = { mode?: FooterMode; theme?: TuiTheme };
 
 export function Footer(props: FooterProps): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
 	return React.createElement("text", {
 		id: "mikan-footer",
 		style: { color: theme.base.muted, marginTop: "auto" },
-		content:
-			"j/k select  h/l column  H/L move  enter details  r reload  m move  a note  q quit",
+		content: footerText(props.mode ?? "board"),
 	});
+}
+
+function footerMode(selection: TuiSelection): FooterMode {
+	if (selection.moveOpen || selection.noteOpen) return "modal";
+	return selection.detailOpen ? "detail" : "board";
+}
+
+function footerText(mode: FooterMode): string {
+	if (mode === "modal") return "Enter confirm · Esc cancel";
+	if (mode === "detail") {
+		return "j/k scroll · Esc board · a note · r reload · q quit";
+	}
+	return "j/k card · h/l Column · Enter detail · H/L move · r reload · q quit";
 }
 
 export function getMoveTargets(
@@ -1263,6 +1281,7 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 	});
 	const maxRows = Math.max(0, ...columns.map((column) => column.rows.length));
 	const lines: string[] = [];
+	lines.push(view.columnViewportText);
 	lines.push(columns.map((column) => column.header).join(" "));
 	for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
 		lines.push(
