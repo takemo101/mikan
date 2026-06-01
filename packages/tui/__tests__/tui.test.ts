@@ -832,6 +832,34 @@ describe("TUI model and navigation", () => {
 		expect(keyToTuiAction("q")).toBe("quit");
 	});
 
+	test("scopes action feedback to the footer instead of rendering a separate message row", () => {
+		const model = loadTuiModel(tempProject());
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			message: "MIK-001 moved to backlog",
+		};
+
+		const tree = TuiAppView({ model, selection });
+		const footer = findElementById(tree, "mikan-footer") as
+			| { props?: { content?: unknown } }
+			| undefined;
+
+		expect(footer?.props?.content).toBe(
+			"Board | j/k card | h/l column | enter detail | H/L move | r reload | q quit | MIK-001 moved to backlog",
+		);
+		expect(
+			collectTextContent(tree).match(/MIK-001 moved to backlog/g) ?? [],
+		).toHaveLength(1);
+		expect(renderTuiText(model, selection)).toContain(
+			"Board | j/k card | h/l column | enter detail | H/L move | r reload | q quit | MIK-001 moved to backlog",
+		);
+		expect(renderTuiText(model, selection)).not.toContain(
+			"\nMIK-001 moved to backlog\n\nBoard |",
+		);
+	});
+
 	test("builds focused move and note prompt view models", () => {
 		const model = loadTuiModel(tempProject());
 		const moveSelectionState: TuiSelection = {
@@ -862,9 +890,11 @@ describe("TUI model and navigation", () => {
 			title: "Append note to MIK-001",
 			focused: true,
 			draft: "Draft",
-			feedback: "Note cannot be empty",
 			hint: "enter append  esc cancel",
 		});
+		expect(buildNotePromptViewModel(model, noteSelectionState)?.feedback).toBe(
+			undefined,
+		);
 	});
 
 	test("renders move and note interactions as centered modal overlays", () => {

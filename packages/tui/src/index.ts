@@ -373,10 +373,12 @@ export function renderTuiText(
 	if (selection.noteOpen) {
 		lines.push("", ...renderNoteInteraction(model, selection));
 	}
-	if (selection.message) {
-		lines.push("", selection.message);
-	}
-	lines.push("", footerText(footerMode(selection)));
+	lines.push(
+		"",
+		[footerText(footerMode(selection)), selection.message]
+			.filter(Boolean)
+			.join(" | "),
+	);
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
 		: undefined;
@@ -446,10 +448,11 @@ export function TuiAppView({
 		selection.noteOpen
 			? React.createElement(NotePrompt, { model, selection, theme })
 			: undefined,
-		selection.message
-			? React.createElement("text", { content: selection.message })
-			: undefined,
-		React.createElement(Footer, { mode: footerMode(selection), theme }),
+		React.createElement(Footer, {
+			message: selection.message,
+			mode: footerMode(selection),
+			theme,
+		}),
 	);
 }
 
@@ -952,14 +955,20 @@ function modalStyle(theme: TuiTheme): Record<string, string | number> {
 
 export type { FooterMode } from "./formatting.ts";
 
-export type FooterProps = { mode?: FooterMode; theme?: TuiTheme };
+export type FooterProps = {
+	message?: string;
+	mode?: FooterMode;
+	theme?: TuiTheme;
+};
 
 export function Footer(props: FooterProps): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
 	return React.createElement("text", {
 		id: "mikan-footer",
 		style: { color: theme.base.muted, marginTop: "auto" },
-		content: footerText(props.mode ?? "board"),
+		content: [footerText(props.mode ?? "board"), props.message]
+			.filter(Boolean)
+			.join(" | "),
 	});
 }
 
@@ -1195,7 +1204,6 @@ export function buildNotePromptViewModel(
 		title: `Append note to ${card.id}`,
 		focused: Boolean(selection.noteOpen),
 		draft: selection.noteDraft ?? "",
-		feedback: selection.message,
 		hint: "enter append  esc cancel",
 	};
 }
