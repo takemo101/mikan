@@ -433,6 +433,34 @@ describe("TUI model and navigation", () => {
 		expect(text).not.toContain("line 30");
 	});
 
+	test("renders detail title and metadata in a fixed header above the scrolling Markdown body", () => {
+		const cwd = tempProject();
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Ready issue\nlabels: [automation]\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n${Array.from({ length: 30 }, (_, index) => `line ${index + 1}`).join("\n")}\n`,
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+			detailScrollOffset: 10,
+		};
+
+		const tree = TuiAppView({ model, selection, viewportHeight: 14 });
+		const header = findElementById(tree, "detail-header");
+		const body = findElementById(tree, "detail-markdown-body");
+
+		expect(header?.props?.style).toMatchObject({ flexShrink: 0 });
+		expect(body?.props?.style).toMatchObject({ flexGrow: 1, minHeight: 0 });
+		expect(collectTextContent(header)).toContain("MIK-001  Ready issue");
+		expect(collectTextContent(header)).toContain(
+			"Status: ready | Labels: #automation | Lines: 11-16/30 | ↑10 ↓14",
+		);
+		expect(collectTextContent(body)).toContain("line 11");
+		expect(collectTextContent(body)).not.toContain("MIK-001  Ready issue");
+	});
+
 	test("omits zero scroll indicators from detail metadata", () => {
 		const cwd = tempProject();
 		writeFileSync(

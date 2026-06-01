@@ -739,18 +739,40 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 				flexGrow: 1,
 			},
 		},
-		React.createElement("text", {
-			content: `${page.id}  ${page.title}`,
-		}),
-		React.createElement("text", {
-			content: `Status: ${page.status} | Labels: ${page.labelsText ? formatLabels(page.labelsText.split(", ").filter(Boolean)) : "none"}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
-		}),
-		React.createElement("text", {
-			content: "────────────────────────────────────────────────",
-		}),
-		React.createElement("markdown", {
-			content: page.visibleMarkdownLines.join("\n"),
-		}),
+		React.createElement(
+			"box",
+			{
+				id: "detail-header",
+				style: {
+					backgroundColor: theme.base.surface,
+					flexDirection: "column",
+					flexShrink: 0,
+				},
+			},
+			React.createElement("text", {
+				content: `${page.id}  ${page.title}`,
+			}),
+			React.createElement("text", {
+				content: `Status: ${page.status} | Labels: ${page.labelsText ? formatLabels(page.labelsText.split(", ").filter(Boolean)) : "none"}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
+			}),
+			React.createElement("text", {
+				content: "────────────────────────────────────────────────",
+			}),
+		),
+		React.createElement(
+			"box",
+			{
+				id: "detail-markdown-body",
+				style: {
+					flexDirection: "column",
+					flexGrow: 1,
+					minHeight: 0,
+				},
+			},
+			React.createElement("markdown", {
+				content: page.visibleMarkdownLines.join("\n"),
+			}),
+		),
 	);
 }
 
