@@ -308,6 +308,12 @@ export function refreshTuiModel(options: {
 		selection: {
 			...selection,
 			detailOpen: stillSelected ? options.selection.detailOpen : false,
+			detailScrollOffset: stillSelected
+				? options.selection.detailScrollOffset
+				: undefined,
+			detailScrollMax: stillSelected
+				? options.selection.detailScrollMax
+				: undefined,
 			moveOpen: stillSelected ? options.selection.moveOpen : false,
 			moveTargetIndex: stillSelected
 				? options.selection.moveTargetIndex

@@ -887,6 +887,7 @@ describe("TUI model and navigation", () => {
 				columnIndex: 1,
 				cardIndex: 0,
 				detailOpen: true,
+				detailScrollOffset: 12,
 				moveOpen: true,
 				moveTargetIndex: 2,
 				noteOpen: true,
@@ -898,6 +899,7 @@ describe("TUI model and navigation", () => {
 		expect(refreshed.selection.columnIndex).toBe(1);
 		expect(refreshed.selection.cardIndex).toBe(0);
 		expect(refreshed.selection.detailOpen).toBe(true);
+		expect(refreshed.selection.detailScrollOffset).toBe(12);
 		expect(refreshed.selection.moveOpen).toBe(true);
 		expect(refreshed.selection.moveTargetIndex).toBe(2);
 		expect(refreshed.selection.noteOpen).toBe(true);
