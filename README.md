@@ -1,6 +1,19 @@
 # mikan
 
-mikan is a tiny local-first Issue board for AI-assisted development. It keeps project context in Markdown files under `.mikan/`, gives humans a keyboard-first Kanban TUI, and gives agents a small CLI/MCP surface over the same source of truth.
+mikan is a tiny local-first Issue board for AI-assisted development. It gives humans and coding agents one shared, project-local place to track work without introducing a server, database, scheduler, or workflow engine.
+
+mikan stores every Issue as Markdown under `.mikan/`. The CLI, TUI, MCP server, and watcher all operate on those same files.
+
+## Why use mikan?
+
+AI-assisted development often needs more context than a TODO list, but less process than a project-management suite. mikan is meant for that middle ground:
+
+- keep implementation context next to the project;
+- let humans inspect and update work quickly from a terminal board;
+- let agents create, move, and append context through safe primitive operations;
+- keep the source of truth easy to read, diff, commit, and edit by hand.
+
+mikan is intentionally small. It is not a GitHub Issues clone, agent runtime, team scheduler, or hosted service.
 
 ## Install
 
@@ -8,7 +21,7 @@ mikan is a tiny local-first Issue board for AI-assisted development. It keeps pr
 npm install -g @takemo101/mikan
 ```
 
-One-off use also works with npm-style runners:
+One-off use:
 
 ```sh
 npx @takemo101/mikan init
@@ -16,7 +29,7 @@ npx @takemo101/mikan init
 bunx @takemo101/mikan init
 ```
 
-mikan is currently built for Bun-based execution.
+mikan is currently built for Bun-based execution. The published package installs a `mikan` binary backed by a bundled Bun entrypoint.
 
 ## Quickstart
 
@@ -28,64 +41,210 @@ mikan show MIK-001
 mikan tui
 ```
 
-The board lives in `.mikan/`. Each Issue is a Markdown file named by Issue ID, such as `.mikan/ready/MIK-001.md`.
+After `mikan init`, your project gets a `.mikan/` directory:
+
+```txt
+.mikan/
+  config.yaml
+  backlog/
+  ready/
+  active/
+  blocked/
+  completed/
+  archived/
+  .state/
+  templates/
+```
+
+Each Issue is a Markdown file named by Issue ID, for example `.mikan/ready/MIK-001.md`.
+
+## How it works
+
+mikan's model is file-backed:
+
+- **Issue**: one unit of work or discussion.
+- **Issue ID**: stable project-key sequence such as `MIK-001`.
+- **Status**: the containing directory (`backlog`, `ready`, `active`, `blocked`, `completed`, `archived`).
+- **Column**: how a Status appears in the TUI board.
+- **Label**: configured descriptive tag.
+- **Report**: append-only finding from a named source, often an agent or script.
+- **Note**: lightweight human/agent context.
+
+A typical Issue file looks like this:
+
+```md
+---
+id: MIK-001
+title: Prototype dispatcher
+labels:
+  - automation
+created_at: 2026-05-30T00:00:00Z
+updated_at: 2026-05-30T00:00:00Z
+---
+
+# Prototype dispatcher
+
+## Summary
+
+Build a small local prototype.
+
+## Acceptance Criteria
+
+- Reads local Issue Markdown.
+- Appends a Report with findings.
+
+## Status Log
+
+## Reports
+
+## Notes
+```
+
+Moving an Issue changes its directory. Updating or appending context rewrites the Markdown file safely using a project-local write lock.
 
 ## CLI
 
+The CLI exposes small primitive operations:
+
+| Command | Purpose |
+| --- | --- |
+| `mikan init` | Create `.mikan/` config, Status directories, state directory, and template. |
+| `mikan add <title>` | Create a new Issue. |
+| `mikan list` | Print Issues grouped by Status. |
+| `mikan show <id>` | Print one Issue Markdown file. |
+| `mikan update <id>` | Update title, labels, or body. |
+| `mikan move <id> <status>` | Move an Issue to another Status and optionally append a Status Log entry. |
+| `mikan append <id>` | Append Markdown to a section such as `Notes` or `Reports`. |
+| `mikan tui` | Open the keyboard-first board. |
+| `mikan watch` | Run polling hooks for local automation. |
+| `mikan mcp` | Start the stdio MCP server. |
+
+Examples:
+
 ```sh
-mikan init
-mikan list [--status ready] [--include-archived]
-mikan show MIK-001
 mikan add "Prototype dispatcher" --label automation --status backlog
-mikan update MIK-001 --title "Prototype dispatcher" --label herdr
+mikan update MIK-001 --title "Prototype local dispatcher" --label automation --label herdr
 mikan move MIK-001 ready --log "Ready to implement"
-mikan append MIK-001 --section Notes --body "Keep this local."
-mikan tui
-mikan watch
-mikan mcp
+mikan append MIK-001 --section Notes --body "Keep the prototype local-first."
+mikan append MIK-001 --section Reports --source docs-scout --body "Found relevant API examples."
+```
+
+Archived Issues are hidden by default:
+
+```sh
+mikan list --include-archived
 ```
 
 ## TUI
 
-`mikan tui` opens a flow-style keyboard board:
+`mikan tui` opens a flow-style keyboard board over the same Markdown files.
+
+Key bindings:
 
 - `h` / `l` or arrow keys: move across Status Columns
 - `j` / `k` or arrow keys: move through Cards or scroll detail
 - `H` / `L`: move the selected Issue to an adjacent Status
 - `Enter`: open full-page Markdown detail
-- `n`: append a Note
-- `a`: confirm Archive
-- `r`: reload
+- `n`: append a Note in a modal prompt
+- `a`: confirm Archive in a modal prompt
+- `r`: reload from disk
 - `Esc`: back/cancel
 - `q`: quit
 
-## MCP and watch
+The board page is primary. Detail mode renders the Issue body as Markdown with a fixed header. Move, Note, and Archive interactions use focused modal overlays.
 
-`mikan mcp` starts a stdio MCP server exposing primitive Issue operations for agents:
+## MCP server
 
-- `get_board`
-- `list_issues`
-- `get_issue`
-- `create_issue`
-- `update_issue`
-- `move_issue`
-- `append_issue`
+`mikan mcp` starts a stdio MCP server so coding agents can operate on the board without parsing files themselves.
 
-`mikan watch` polls the board and runs configured hooks for local automation. Hook failures are logged but do not roll back Issue moves.
+Available tools:
 
-## Design principles
+- `get_board(include_archived?)`
+- `list_issues(status?, include_archived?)`
+- `get_issue(id)`
+- `create_issue(title, body?, status?, labels?)`
+- `update_issue(id, title?, labels?, body?)`
+- `move_issue(id, status, log?)`
+- `append_issue(id, section, body, source?)`
 
-- Markdown files are the source of truth.
-- Issue is the canonical unit of work.
-- Status is the containing directory.
-- Archived Issues stay local and are hidden by default.
-- The v0 API stays primitive: no workflow engine, scheduler, database, accounts, or remote sync.
+The MCP surface intentionally mirrors CLI primitives. There are no separate workflow, delegation, or scheduling concepts.
 
-See [`docs/design.md`](docs/design.md), [`CONTEXT.md`](CONTEXT.md), and [`docs/adr/0001-markdown-files-source-of-truth.md`](docs/adr/0001-markdown-files-source-of-truth.md) for the durable design record.
+Some agent integrations can be configured with:
+
+```sh
+mikan mcp add --agent <agent>
+```
+
+## Watch hooks
+
+`mikan watch` polls the board and runs configured hooks for local automation. Hooks are configured in `.mikan/config.yaml`:
+
+```yaml
+hooks:
+  on_enter:
+    active:
+      - "bun scripts/on-active.ts {{issue_path}}"
+  on_transition:
+    ready->active:
+      - "bun scripts/spawn-agent.ts {{issue_path}}"
+```
+
+Hook failures are written to `.mikan/.state/hook-log.ndjson`. They do not roll back Issue moves because Markdown files remain the source of truth.
+
+Use quiet mode to suppress routine watch output:
+
+```sh
+mikan watch --quiet
+```
+
+## Configuration
+
+`.mikan/config.yaml` defines the project key, board columns, labels, and hooks.
+
+```yaml
+project:
+  key: MIK
+  name: mikan
+
+board:
+  columns:
+    - id: backlog
+      title: Backlog
+    - id: ready
+      title: Ready
+    - id: active
+      title: Active
+    - id: blocked
+      title: Blocked
+    - id: completed
+      title: Completed
+    - id: archived
+      title: Archived
+
+labels:
+  - id: automation
+    title: Automation
+  - id: herdr
+    title: Herdr
+```
+
+Issue IDs are generated from the project key and a sequence number. `MIK-001` is the display convention, but higher sequences such as `MIK-1000` are supported.
+
+## Package and release notes
+
+The npm package is scoped as `@takemo101/mikan` and installs the `mikan` binary.
+
+The published package is dist-only:
+
+- `dist/bin.js` contains the bundled CLI/TUI/MCP/watch implementation;
+- `package.json` declares runtime metadata and native OpenTUI optional dependencies;
+- `README.md` is included for npm package documentation.
+
+Releases are published from `.github/workflows/publish.yml` using npm Trusted Publishing and provenance on `v*` tags or manual workflow dispatch.
 
 ## Limitations
 
-mikan v0.0.1 is intentionally small:
+mikan v0.0.2 is intentionally small:
 
 - no SQLite/database storage;
 - no GitHub sync;
@@ -94,6 +253,19 @@ mikan v0.0.1 is intentionally small:
 - no drag/drop board interactions;
 - no modeled agent profiles, teams, workflow engine, or scheduler.
 
-## Release
+## Development
 
-The npm package is scoped as `@takemo101/mikan` and installs the `mikan` binary.
+```sh
+bun install
+bun run typecheck
+bun run test
+bun run check
+bun run build
+```
+
+Durable design docs:
+
+- [`docs/design.md`](docs/design.md)
+- [`CONTEXT.md`](CONTEXT.md)
+- [`docs/adr/0001-markdown-files-source-of-truth.md`](docs/adr/0001-markdown-files-source-of-truth.md)
+- [`docs/smoke.md`](docs/smoke.md)

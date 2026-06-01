@@ -35,7 +35,7 @@ describe("workspace scaffold", () => {
 
 		expect(workflow).toContain("name: Publish to npm");
 		expect(workflow).toContain("tags:");
-		expect(workflow).toContain("- 'v*'");
+		expect(workflow).toMatch(/- ['"]v\*['"]/);
 		expect(workflow).toContain("workflow_dispatch:");
 		expect(workflow).toContain("id-token: write");
 		expect(workflow).toContain("oven-sh/setup-bun@v2");
