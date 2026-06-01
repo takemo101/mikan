@@ -695,7 +695,7 @@ export function IssueCard(props: {
 		"box",
 		{
 			id: `card-${props.card.id}`,
-			border: props.selected,
+			border: true,
 			focused: props.selected,
 			style: {
 				backgroundColor: props.selected
@@ -703,7 +703,7 @@ export function IssueCard(props: {
 					: theme.base.surface,
 				borderColor: props.selected
 					? theme.interactive.focus
-					: theme.base.muted,
+					: theme.base.surface,
 				color: props.selected ? theme.interactive.focus : theme.base.text,
 				flexDirection: "column",
 			},

@@ -487,13 +487,13 @@ describe("TUI model and navigation", () => {
 		expect(collectTextContent(tree)).toContain("▶ MIK-001 Ready issue");
 	});
 
-	test("renders unselected Cards quietly without border noise", () => {
+	test("renders unselected Cards quietly without label overlap", () => {
 		const theme = buildTuiTheme();
 		const card = IssueCard({
 			card: {
 				id: "MIK-002",
 				title: "Quiet issue",
-				labels: [],
+				labels: ["automation"],
 				status: "ready",
 				path: "/tmp/MIK-002.md",
 			},
@@ -506,12 +506,14 @@ describe("TUI model and navigation", () => {
 			style?: Record<string, unknown>;
 		};
 
-		expect(cardProps).toMatchObject({ border: false });
+		expect(cardProps).toMatchObject({ border: true });
 		expect(cardProps.style).toMatchObject({
 			backgroundColor: theme.base.surface,
-			borderColor: theme.base.muted,
+			borderColor: theme.base.surface,
 			color: theme.base.text,
 		});
+		expect(collectTextContent(card)).toContain("MIK-002 Quiet issue");
+		expect(collectTextContent(card)).toContain("automation");
 	});
 
 	test("renders mode-specific footer hints", () => {
