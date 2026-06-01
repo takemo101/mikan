@@ -8,6 +8,16 @@ import {
 } from "@mikan/core";
 import { loadProjectConfig } from "@mikan/project-config";
 import React from "react";
+import {
+	boxLine,
+	contentLine,
+	type FooterMode,
+	footerText,
+	formatLabels,
+	formatLineRange,
+	visibleCardCountForViewport,
+	visibleDetailLineCount,
+} from "./formatting.ts";
 
 export type TuiCard = {
 	id: string;
@@ -915,7 +925,7 @@ function modalStyle(theme: TuiTheme): Record<string, string | number> {
 	};
 }
 
-export type FooterMode = "board" | "detail" | "modal";
+export type { FooterMode } from "./formatting.ts";
 
 export type FooterProps = { mode?: FooterMode; theme?: TuiTheme };
 
@@ -931,14 +941,6 @@ export function Footer(props: FooterProps): React.ReactElement {
 function footerMode(selection: TuiSelection): FooterMode {
 	if (selection.moveOpen || selection.noteOpen) return "modal";
 	return selection.detailOpen ? "detail" : "board";
-}
-
-function footerText(mode: FooterMode): string {
-	if (mode === "modal") return "Modal | enter confirm | esc cancel";
-	if (mode === "detail") {
-		return "Detail | j/k scroll | esc board | a note | r reload | q quit";
-	}
-	return "Board | j/k card | h/l column | enter detail | H/L move | r reload | q quit";
 }
 
 export function getMoveTargets(
@@ -1266,24 +1268,6 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 	return lines;
 }
 
-function boxLine(
-	label: string,
-	width: number,
-	left: string,
-	right: string,
-): string {
-	return `${left}${truncate(label.padEnd(width - 2, "─"), width - 2)}${right}`;
-}
-
-function contentLine(content: string, width: number): string {
-	return `│ ${truncate(content, width - 4).padEnd(width - 4)} │`;
-}
-
-function truncate(value: string, maxLength: number): string {
-	if (value.length <= maxLength) return value;
-	return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
-}
-
 export async function launchTui(
 	options: { cwd?: string; pollMs?: number } = {},
 ): Promise<void> {
@@ -1527,37 +1511,6 @@ function formatCard(issue: BoardIssue): TuiCard {
 		status: String(issue.status),
 		path: issue.path,
 	};
-}
-
-function formatLabels(labels: string[]): string {
-	return labels.map((label) => `#${label}`).join(" ");
-}
-
-function formatLineRange(options: {
-	start: number;
-	end: number;
-	total: number;
-	hiddenBefore: number;
-	hiddenAfter: number;
-}): string {
-	const scrollIndicators = [
-		options.hiddenBefore > 0 ? `↑${options.hiddenBefore}` : "",
-		options.hiddenAfter > 0 ? `↓${options.hiddenAfter}` : "",
-	].filter(Boolean);
-	return [
-		`Lines: ${options.start}-${options.end}/${options.total}`,
-		scrollIndicators.join(" "),
-	]
-		.filter(Boolean)
-		.join(" | ");
-}
-
-function visibleCardCountForViewport(viewportHeight: number): number {
-	return Math.max(1, Math.floor((viewportHeight - 10) / 3));
-}
-
-function visibleDetailLineCount(viewportHeight: number): number {
-	return Math.max(1, viewportHeight - 8);
 }
 
 function detailScrollMax(
