@@ -627,6 +627,7 @@ export function BoardView({
 						key: column.id,
 						column,
 						theme,
+						width: `${(100 / group.columns.length).toFixed(2)}%`,
 					}),
 				),
 			),
@@ -645,6 +646,7 @@ export function BoardView({
 export function ColumnPane(props: {
 	column: BoardColumnView;
 	theme?: TuiTheme;
+	width?: string;
 }): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
 	const children = [
@@ -676,6 +678,7 @@ export function ColumnPane(props: {
 					: theme.base.muted,
 				flexDirection: "column",
 				flexGrow: 1,
+				width: props.width,
 			},
 		},
 		...children,

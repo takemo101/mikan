@@ -480,6 +480,17 @@ describe("TUI model and navigation", () => {
 		expect(findElementById(tree, "mikan-footer")?.props?.style).toMatchObject({
 			marginTop: "auto",
 		});
+		expect(findElementById(tree, "column-backlog")?.props?.style).toMatchObject(
+			{
+				width: "33.33%",
+			},
+		);
+		expect(findElementById(tree, "column-ready")?.props?.style).toMatchObject({
+			width: "33.33%",
+		});
+		expect(findElementById(tree, "column-active")?.props?.style).toMatchObject({
+			width: "33.33%",
+		});
 		expect(collectElementTypes(tree)).toContain(MovePrompt);
 		expect(collectElementTypes(tree)).toContain(NotePrompt);
 		expect(collectTextContent(tree)).toContain("malformed_issue");
