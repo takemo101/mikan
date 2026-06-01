@@ -232,6 +232,27 @@ describe("CLI read path", () => {
 		expect(result.stderr).toContain("malformed_issue");
 	});
 
+	test("list and show include dependency read model fields", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "Prerequisite"]);
+		await cli(cwd, ["add", "Dependent", "--depends-on", "MIK-001"]);
+
+		const list = await cli(cwd, ["list"]);
+		const show = await cli(cwd, ["show", "MIK-002"]);
+
+		expect(list.exitCode).toBe(0);
+		expect(list.stdout).toContain("depends_on=MIK-001");
+		expect(list.stdout).toContain("unmet_dependencies=MIK-001");
+		expect(list.stdout).toContain("dependency_status=blocked");
+		expect(show.exitCode).toBe(0);
+		expect(show.stdout).toStartWith("---\n");
+		expect(show.stdout).toContain("id: MIK-002");
+		expect(show.stderr).toContain("Dependency Status: blocked");
+		expect(show.stderr).toContain("Depends On: MIK-001");
+		expect(show.stderr).toContain("Unmet Dependencies: MIK-001");
+	});
+
 	test("list includes hook failure warnings", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);

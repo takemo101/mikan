@@ -267,7 +267,11 @@ function runShow(cwd: string, parsed: ParsedArgs): CliResult {
 		id,
 	});
 	if (!found.ok) return fail(found.error.message);
-	return ok(readFileSync(found.value.path, "utf8"));
+	return {
+		exitCode: 0,
+		stdout: readFileSync(found.value.path, "utf8"),
+		stderr: formatDependencyShowInfo(found.value),
+	};
 }
 
 function runUpdate(
@@ -489,10 +493,36 @@ function formatBoard(
 				item.issue.labels.length > 0
 					? ` [${item.issue.labels.map(String).join(", ")}]`
 					: "";
-			lines.push(`  ${String(item.issue.id)} ${item.issue.title}${labels}`);
+			lines.push(
+				`  ${String(item.issue.id)} ${item.issue.title}${labels}${formatDependencyListSuffix(item)}`,
+			);
 		}
 	}
 	return `${lines.join("\n")}\n`;
+}
+
+function formatDependencyListSuffix(item: BoardIssue): string {
+	const dependsOn = item.issue.dependencies.map(String);
+	const unmet = item.unmetDependencies.map(String);
+	if (dependsOn.length === 0 && unmet.length === 0) return "";
+	const parts = [
+		`depends_on=${dependsOn.length > 0 ? dependsOn.join(",") : "-"}`,
+		`unmet_dependencies=${unmet.length > 0 ? unmet.join(",") : "-"}`,
+		`dependency_status=${item.dependencyStatus}`,
+	];
+	return ` ${parts.join(" ")}`;
+}
+
+function formatDependencyShowInfo(item: BoardIssue): string {
+	const dependsOn = item.issue.dependencies.map(String);
+	const unmet = item.unmetDependencies.map(String);
+	if (dependsOn.length === 0 && unmet.length === 0) return "";
+	return [
+		`Dependency Status: ${item.dependencyStatus}`,
+		`Depends On: ${dependsOn.length > 0 ? dependsOn.join(", ") : "-"}`,
+		`Unmet Dependencies: ${unmet.length > 0 ? unmet.join(", ") : "-"}`,
+		"",
+	].join("\n");
 }
 
 function formatWarnings(warnings: BoardWarning[]): string {

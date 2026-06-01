@@ -279,6 +279,9 @@ function formatIssue(issue: BoardIssue, warnings: BoardWarning[]) {
 		body: issue.issue.body,
 		status: String(issue.status),
 		path: issue.path,
+		depends_on: issue.issue.dependencies.map(String),
+		unmet_dependencies: issue.unmetDependencies.map(String),
+		dependency_status: issue.dependencyStatus,
 		warnings: warnings.filter(
 			(warning) =>
 				warning.issueId === String(issue.issue.id) ||

@@ -77,6 +77,33 @@ describe("MCP tools", () => {
 		expect(JSON.stringify(board.data)).toContain("malformed_issue");
 	});
 
+	test("read tools expose dependency read model fields", () => {
+		const cwd = tempProject();
+		writeFileSync(
+			join(cwd, ".mikan", "backlog", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Prerequisite\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Prerequisite\n`,
+		);
+		writeFileSync(
+			join(cwd, ".mikan", "backlog", "MIK-002.md"),
+			`---\nid: MIK-002\ntitle: Dependent\ndepends_on:\n  - MIK-001\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Dependent\n`,
+		);
+
+		const board = getBoardTool({}, { cwd });
+		const listed = listIssuesTool({}, { cwd });
+		const issue = getIssueTool({ id: "MIK-002" }, { cwd });
+
+		expect(board.ok).toBe(true);
+		expect(listed.ok).toBe(true);
+		expect(issue.ok).toBe(true);
+		if (!board.ok || !listed.ok || !issue.ok) throw new Error("expected ok");
+		for (const data of [board.data, listed.data, issue.data]) {
+			const json = JSON.stringify(data);
+			expect(json).toContain('"depends_on":["MIK-001"]');
+			expect(json).toContain('"unmet_dependencies":["MIK-001"]');
+			expect(json).toContain('"dependency_status":"blocked"');
+		}
+	});
+
 	test("mutation tools create, update, move, append, and reject invalid inputs", () => {
 		const cwd = tempProject();
 		const created = createIssueTool(
