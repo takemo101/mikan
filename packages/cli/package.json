@@ -1,6 +1,6 @@
 {
 	"name": "@takemo101/mikan",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"private": false,
 	"type": "module",
 	"bin": {

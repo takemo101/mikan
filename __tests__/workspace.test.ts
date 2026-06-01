@@ -17,6 +17,16 @@ describe("workspace scaffold", () => {
 		);
 	});
 
+	test("has a public launch README with install and quickstart", () => {
+		const readme = readFileSync(join(root, "README.md"), "utf8");
+
+		expect(readme).toContain("npm install -g @takemo101/mikan");
+		expect(readme).toContain("mikan init");
+		expect(readme).toContain("mikan tui");
+		expect(readme).toContain("mikan mcp");
+		expect(readme).toContain("Limitations");
+	});
+
 	test("creates the five v0 packages with source entrypoints", () => {
 		for (const name of packages) {
 			expect(existsSync(join(root, "packages", name, "package.json"))).toBe(

@@ -25,13 +25,13 @@ async function cli(cwd: string, argv: string[]) {
 describe("CLI read path", () => {
 	test("package metadata targets scoped npm dist bin", () => {
 		expect(packageJson.name).toBe("@takemo101/mikan");
-		expect(packageJson.version).toBe("0.0.0");
+		expect(packageJson.version).toBe("0.0.1");
 		expect(packageJson.private).toBe(false);
 		expect(packageJson.bin).toEqual({ mikan: "./dist/bin.js" });
 		expect(packageJson.files).toEqual(["dist"]);
 	});
 
-	test("builds and runs the distributable CLI bin", async () => {
+	test("builds and packs the distributable CLI bin", async () => {
 		rmSync(join(import.meta.dir, "..", "dist"), {
 			force: true,
 			recursive: true,
@@ -40,12 +40,24 @@ describe("CLI read path", () => {
 		await $`bun run --cwd ${join(import.meta.dir, "..")} build:dist`.quiet();
 		const help =
 			await $`bun ${join(import.meta.dir, "..", "dist", "bin.js")} --help`.quiet();
+		const pack =
+			await $`npm pack --dry-run --json ${join(import.meta.dir, "..")}`.quiet();
+		const [packed] = JSON.parse(pack.stdout.toString()) as [
+			{ files: Array<{ path: string }>; name: string; version: string },
+		];
+		const packedFiles = packed.files.map((file) => file.path);
 
 		expect(help.exitCode).toBe(0);
 		expect(help.stdout.toString()).toContain("mikan — local-first Issue board");
 		expect(existsSync(join(import.meta.dir, "..", "dist", "bin.js"))).toBe(
 			true,
 		);
+		expect(packed.name).toBe("@takemo101/mikan");
+		expect(packed.version).toBe("0.0.1");
+		expect(packedFiles).toContain("dist/bin.js");
+		expect(packedFiles).toContain("package.json");
+		expect(packedFiles).toContain("README.md");
+		expect(packedFiles).not.toContain("src/bin.ts");
 	});
 
 	test("shows global and command help", async () => {

@@ -523,9 +523,9 @@ describe("TUI model and navigation", () => {
 		expect(findElementById(tree, "mikan-header")?.props?.style).toMatchObject({
 			color: theme.interactive.accent,
 		});
-		expect(packageJson.version).toBe("0.0.0");
+		expect(packageJson.version).toBe("0.0.1");
 		expect(TUI_VERSION).toBe(packageJson.version);
-		expect(collectTextContent(tree)).toContain("🍊 mikan v0.0.0");
+		expect(collectTextContent(tree)).toContain("🍊 mikan v0.0.1");
 		expect(findElementById(tree, "mikan-main")?.props?.style).toMatchObject({
 			flexGrow: 1,
 		});
