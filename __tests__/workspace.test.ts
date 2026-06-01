@@ -27,6 +27,28 @@ describe("workspace scaffold", () => {
 		expect(readme).toContain("Limitations");
 	});
 
+	test("defines a Trusted Publishing npm release workflow", () => {
+		const workflow = readFileSync(
+			join(root, ".github", "workflows", "publish.yml"),
+			"utf8",
+		);
+
+		expect(workflow).toContain("name: Publish to npm");
+		expect(workflow).toContain("tags:");
+		expect(workflow).toContain("- 'v*'");
+		expect(workflow).toContain("workflow_dispatch:");
+		expect(workflow).toContain("id-token: write");
+		expect(workflow).toContain("oven-sh/setup-bun@v2");
+		expect(workflow).toContain("bun install --frozen-lockfile");
+		expect(workflow).toContain("bun run build");
+		expect(workflow).toContain(
+			"'pack', '--dry-run', '--json', './packages/cli'",
+		);
+		expect(workflow).toContain("@opentui/core-${" + "platform}-${" + "arch}");
+		expect(workflow).toContain("npm pack ./packages/cli --pack-destination");
+		expect(workflow).toContain("npm publish --provenance --access public");
+	});
+
 	test("creates the five v0 packages with source entrypoints", () => {
 		for (const name of packages) {
 			expect(existsSync(join(root, "packages", name, "package.json"))).toBe(
