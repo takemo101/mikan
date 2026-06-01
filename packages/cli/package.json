@@ -1,22 +1,21 @@
 {
-	"name": "mikan",
-	"private": true,
+	"name": "@takemo101/mikan",
+	"version": "0.0.0",
+	"private": false,
 	"type": "module",
-	"exports": {
-		".": "./src/index.ts"
-	},
 	"bin": {
-		"mikan": "./src/bin.ts"
+		"mikan": "./dist/bin.js"
+	},
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"access": "public"
 	},
 	"scripts": {
-		"build": "tsc -p ../../tsconfig.json --noEmit",
+		"build": "bun run build:dist && tsc -p ../../tsconfig.json --noEmit",
+		"build:dist": "bun build ./src/bin.ts --target=bun --outdir=./dist --entry-naming=bin.js",
 		"typecheck": "tsc -p ../../tsconfig.json --noEmit",
 		"test": "bun test"
-	},
-	"dependencies": {
-		"@mikan/core": "workspace:*",
-		"@mikan/mcp": "workspace:*",
-		"@mikan/project-config": "workspace:*",
-		"@mikan/tui": "workspace:*"
 	}
 }

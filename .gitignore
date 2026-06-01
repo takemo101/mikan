@@ -2,3 +2,4 @@
 .pi-lens/
 .superpowers/
 node_modules/
+packages/cli/dist/
