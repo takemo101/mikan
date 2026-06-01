@@ -478,7 +478,7 @@ export function buildDetailPageViewModel(
 		hiddenLinesAfter: Math.max(0, markdownLines.length - lineEnd),
 		lineRangeText:
 			markdownLines.length > visibleLineCount
-				? `${offset + 1}-${lineEnd}/${markdownLines.length}`
+				? `lines ${offset + 1}-${lineEnd}/${markdownLines.length} | ↑${offset} | ↓${Math.max(0, markdownLines.length - lineEnd)}`
 				: "",
 	};
 }
@@ -561,7 +561,7 @@ export function buildBoardViewModel(
 			hiddenCardsAfter: Math.max(0, cards.length - cardEnd),
 			cardRangeText:
 				cards.length > visibleCardCount
-					? `${cardStart + 1}-${cardEnd}/${cards.length}`
+					? `${cardStart + 1}-${cardEnd}/${cards.length} | ↑${cardStart} | ↓${Math.max(0, cards.length - cardEnd)}`
 					: "",
 		};
 	});
@@ -581,7 +581,7 @@ export function buildBoardViewModel(
 		groups: [{ columns: visibleColumns }],
 		hasColumnsBefore,
 		hasColumnsAfter,
-		columnViewportText: `${hasColumnsBefore ? "◀ " : ""}${visibleColumns
+		columnViewportText: `Columns: ${hasColumnsBefore ? "◀ " : ""}${visibleColumns
 			.map((column) => column.title)
 			.join(" / ")}${hasColumnsAfter ? " ▶" : ""}`,
 	};
@@ -640,28 +640,14 @@ export function ColumnPane(props: {
 			: undefined,
 		...(props.column.empty
 			? [React.createElement("text", { content: props.column.emptyText })]
-			: [
-					props.column.hiddenCardsBefore > 0
-						? React.createElement("text", {
-								key: "hidden-before",
-								content: `↑ ${props.column.hiddenCardsBefore} more`,
-							})
-						: undefined,
-					...props.column.visibleCards.map((card) =>
-						React.createElement(IssueCard, {
-							key: card.id,
-							card,
-							selected: card.selected,
-							theme,
-						}),
-					),
-					props.column.hiddenCardsAfter > 0
-						? React.createElement("text", {
-								key: "hidden-after",
-								content: `↓ ${props.column.hiddenCardsAfter} more`,
-							})
-						: undefined,
-				]),
+			: props.column.visibleCards.map((card) =>
+					React.createElement(IssueCard, {
+						key: card.id,
+						card,
+						selected: card.selected,
+						theme,
+					}),
+				)),
 	];
 	return React.createElement(
 		"box",
@@ -671,9 +657,7 @@ export function ColumnPane(props: {
 			border: true,
 			focused: props.column.active,
 			style: {
-				backgroundColor: props.column.active
-					? theme.interactive.selectedSurface
-					: theme.base.surface,
+				backgroundColor: theme.base.surface,
 				borderColor: props.column.active
 					? theme.interactive.accent
 					: theme.base.muted,
@@ -711,7 +695,9 @@ export function IssueCard(props: {
 		},
 		React.createElement("text", {
 			content: `${props.selected ? "▶ " : ""}${props.card.id} ${props.card.title}${
-				props.card.labels.length > 0 ? ` [${props.card.labels.join(", ")}]` : ""
+				props.card.labels.length > 0
+					? ` ${formatLabels(props.card.labels)}`
+					: ""
 			}`,
 		}),
 	);
@@ -736,26 +722,13 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 				flexGrow: 1,
 			},
 		},
-		React.createElement("text", { content: `Status: ${page.status}` }),
 		React.createElement("text", {
-			content: `Labels: ${page.labelsText || "(none)"}`,
+			content: `${page.status} | labels: ${page.labelsText ? formatLabels(page.labelsText.split(", ").filter(Boolean)) : "(none)"}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
 		}),
-		page.lineRangeText
-			? React.createElement("text", { content: page.lineRangeText })
-			: undefined,
-		page.hiddenLinesBefore > 0
-			? React.createElement("text", {
-					content: `↑ ${page.hiddenLinesBefore} more`,
-				})
-			: undefined,
 		React.createElement("markdown", {
 			content: page.visibleMarkdownLines.join("\n"),
 		}),
-		page.hiddenLinesAfter > 0
-			? React.createElement("text", {
-					content: `↓ ${page.hiddenLinesAfter} more`,
-				})
-			: undefined,
+		undefined,
 	);
 }
 
@@ -952,11 +925,11 @@ function footerMode(selection: TuiSelection): FooterMode {
 }
 
 function footerText(mode: FooterMode): string {
-	if (mode === "modal") return "Enter confirm · Esc cancel";
+	if (mode === "modal") return "Modal | enter confirm | esc cancel";
 	if (mode === "detail") {
-		return "j/k scroll · Esc board · a note · r reload · q quit";
+		return "Detail | j/k scroll | esc board | a note | r reload | q quit";
 	}
-	return "j/k card · h/l Column · Enter detail · H/L move · r reload · q quit";
+	return "Board | j/k card | h/l column | enter detail | H/L move | r reload | q quit";
 }
 
 export function getMoveTargets(
@@ -1251,20 +1224,12 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 			? ["  (empty)"]
 			: [
 					...(column.cardRangeText ? [`  ${column.cardRangeText}`] : []),
-					...(column.hiddenCardsBefore > 0
-						? [`  ↑ ${column.hiddenCardsBefore} more`]
-						: []),
-					...column.visibleCards.flatMap((card) => {
-						const labels =
-							card.labels.length > 0 ? [`  [${card.labels.join(", ")}]`] : [];
-						return [
-							`${card.selected ? "▶" : " "} ${card.id} ${card.title}`,
-							...labels,
-						];
-					}),
-					...(column.hiddenCardsAfter > 0
-						? [`  ↓ ${column.hiddenCardsAfter} more`]
-						: []),
+					...column.visibleCards.map(
+						(card) =>
+							`${card.selected ? "▶" : " "} ${card.id} ${card.title}${
+								card.labels.length > 0 ? ` ${formatLabels(card.labels)}` : ""
+							}`,
+					),
 				];
 		return {
 			header: boxLine(
@@ -1553,6 +1518,10 @@ function formatCard(issue: BoardIssue): TuiCard {
 		status: String(issue.status),
 		path: issue.path,
 	};
+}
+
+function formatLabels(labels: string[]): string {
+	return labels.map((label) => `#${label}`).join(" ");
 }
 
 function visibleCardCountForViewport(viewportHeight: number): number {

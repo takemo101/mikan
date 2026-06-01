@@ -192,14 +192,14 @@ describe("TUI model and navigation", () => {
 		expect(text).toContain("┌─ Backlog ─");
 		expect(text).toContain("┌─ ▶ Ready ─");
 		expect(text).toContain("│ ▶ MIK-001 Ready issue");
-		expect(text).toContain("│   [automation]");
+		expect(text).toContain("│ ▶ MIK-001 Ready issue");
 		expect(text).toContain("│   (empty)");
 		expect(text).toContain("Warnings");
-		expect(text).toContain("j/k card");
-		expect(text).toContain("h/l Column");
+		expect(text).toContain("Columns: Backlog / Ready / Active ▶");
+		expect(text).toContain("j/k card | h/l column");
 		expect(text).toContain("H/L move");
 		expect(text).toContain("r reload");
-		expect(text).toContain("Enter detail");
+		expect(text).toContain("enter detail");
 		expect(text).toContain("q quit");
 	});
 
@@ -301,10 +301,10 @@ describe("TUI model and navigation", () => {
 		});
 
 		expect(collectTextContent(middleTree)).toContain(
-			"◀ Ready / Active / Blocked ▶",
+			"Columns: ◀ Ready / Active / Blocked ▶",
 		);
 		expect(collectTextContent(endTree)).toContain(
-			"◀ Active / Blocked / Completed",
+			"Columns: ◀ Active / Blocked / Completed",
 		);
 		expect(collectTextContent(endTree)).not.toContain(
 			"Active / Blocked / Completed ▶",
@@ -345,7 +345,7 @@ describe("TUI model and navigation", () => {
 		expect(column).toMatchObject({
 			hiddenCardsBefore: 3,
 			hiddenCardsAfter: 1,
-			cardRangeText: "4-7/8",
+			cardRangeText: "4-7/8 | ↑3 | ↓1",
 		});
 		expect(column?.visibleCards[2]).toMatchObject({
 			id: "MIK-006",
@@ -390,7 +390,9 @@ describe("TUI model and navigation", () => {
 		expect(shortView.columns[0]?.visibleCards).toHaveLength(2);
 		expect(tallView.columns[0]?.visibleCards).toHaveLength(4);
 		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(8);
-		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe("4-11/20");
+		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe(
+			"4-11/20 | ↑3 | ↓9",
+		);
 	});
 
 	test("renders detail Markdown window from viewport height", () => {
@@ -421,10 +423,9 @@ describe("TUI model and navigation", () => {
 		expect(shortPage).toMatchObject({
 			hiddenLinesBefore: 3,
 			hiddenLinesAfter: 21,
-			lineRangeText: "4-9/30",
+			lineRangeText: "lines 4-9/30 | ↑3 | ↓21",
 		});
-		expect(text).toContain("4-9/30");
-		expect(text).toContain("↓ 21 more");
+		expect(text).toContain("ready | labels: (none) | lines 4-9/30 | ↑3 | ↓21");
 		expect(text).not.toContain("line 30");
 	});
 
@@ -474,7 +475,7 @@ describe("TUI model and navigation", () => {
 		expect(column?.props?.title).toBe("▶ Ready (1)");
 		expect(column?.props).toMatchObject({ border: true });
 		expect(column?.props?.style).toMatchObject({
-			backgroundColor: theme.interactive.selectedSurface,
+			backgroundColor: theme.base.surface,
 			borderColor: theme.interactive.accent,
 		});
 		expect(card?.props).toMatchObject({ border: true });
@@ -514,7 +515,7 @@ describe("TUI model and navigation", () => {
 			height: 3,
 		});
 		expect(collectTextContent(card)).toContain(
-			"MIK-002 Quiet issue [automation]",
+			"MIK-002 Quiet issue #automation",
 		);
 	});
 
@@ -545,12 +546,12 @@ describe("TUI model and navigation", () => {
 		);
 
 		expect(boardText).toContain(
-			"j/k card · h/l Column · Enter detail · H/L move · r reload · q quit",
+			"Board | j/k card | h/l column | enter detail | H/L move | r reload | q quit",
 		);
 		expect(detailText).toContain(
-			"j/k scroll · Esc board · a note · r reload · q quit",
+			"Detail | j/k scroll | esc board | a note | r reload | q quit",
 		);
-		expect(modalText).toContain("Enter confirm · Esc cancel");
+		expect(modalText).toContain("Modal | enter confirm | esc cancel");
 		expect(detailText).not.toContain("j/k card");
 	});
 
@@ -575,7 +576,7 @@ describe("TUI model and navigation", () => {
 			labelsText: "automation",
 		});
 		expect(page?.markdown).toContain("# Ready issue");
-		expect(collectTextContent(tree)).toContain("Labels: automation");
+		expect(collectTextContent(tree)).toContain("labels: #automation");
 		expect(collectTextContent(tree)).toContain("# Ready issue");
 	});
 
