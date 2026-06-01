@@ -196,11 +196,13 @@ Example:
 
 ```md
 ---
-id: MIK-001
+id: MIK-002
 title: Prototype herdr dispatcher
 labels:
   - automation
   - herdr
+depends_on:
+  - MIK-001
 created_at: 2026-05-30T00:00:00Z
 updated_at: 2026-05-30T00:00:00Z
 ---
@@ -251,6 +253,7 @@ Required frontmatter:
 Optional frontmatter:
 
 - `labels` — array of config-defined label IDs.
+- `depends_on` — array of Issue IDs that must be completed before this Issue is considered dependency-ready.
 
 Do not add these fields in v0:
 
@@ -287,7 +290,36 @@ Default Statuses:
 
 v0 has no transition validation. Any configured Status can move to any other configured Status.
 
-`Blocked by:` entries in Status Log are free text, not a dependency graph. mikan does not automatically unblock Issues.
+## Dependency model
+
+Issue dependencies are structured data in Issue frontmatter:
+
+```yaml
+depends_on:
+  - MIK-001
+  - MIK-002
+```
+
+Dependency semantics:
+
+- `depends_on` points from the current Issue to prerequisite Issues.
+- A dependency is satisfied only when the prerequisite Issue's Status is `completed`.
+- `archived` does not satisfy a dependency; it only removes an Issue from normal views.
+- Missing, malformed, self-referential, cyclic, archived, or incomplete dependencies produce warnings/read-model state, not hard transition validation.
+- mikan does not automatically move, unblock, or schedule Issues when dependencies become satisfied.
+- `Blocked by:` entries in Status Log remain free text and are not a dependency graph.
+
+The board/read model should derive dependency fields for AI and human overview:
+
+```ts
+{
+  depends_on: ["MIK-001"],
+  unmet_dependencies: ["MIK-001"],
+  dependency_status: "blocked" // or "ready"
+}
+```
+
+`dependency_status` is `ready` when all declared dependencies exist and are completed; otherwise it is `blocked`.
 
 ## Issue IDs
 
@@ -307,8 +339,8 @@ v0 CLI mirrors a small primitive operation set:
 mikan init
 mikan list [--status ready] [--include-archived]
 mikan show MIK-001
-mikan add "Prototype herdr dispatcher" --label automation --label herdr --status backlog
-mikan update MIK-001 --title "Prototype dispatcher" --label automation --label herdr
+mikan add "Prototype herdr dispatcher" --label automation --label herdr --status backlog --depends-on MIK-001
+mikan update MIK-002 --title "Prototype dispatcher" --label automation --label herdr --depends-on MIK-001
 mikan move MIK-001 ready --log "Ready to implement"
 mikan append MIK-001 --section Reports --source docs-scout --body "..."
 mikan append MIK-001 --section Notes --body "..."
@@ -317,7 +349,7 @@ mikan watch
 mikan mcp
 ```
 
-Do not add separate `block`, `complete`, `report`, `note`, or `labels set` commands in v0. They are expressed through `move`, `update`, and `append`.
+Do not add separate `block`, `complete`, `report`, `note`, `dependencies set`, or `labels set` commands in v0. They are expressed through `move`, `update`, and `append`. `add` and `update` may accept repeated `--depends-on <issue-id>` flags to write frontmatter dependencies.
 
 ## MCP surface
 
@@ -329,8 +361,8 @@ Initial tools:
 get_board(include_archived?)
 list_issues(status?, include_archived?)
 get_issue(id)
-create_issue(title, body?, status?, labels?)
-update_issue(id, title?, labels?, body?)
+create_issue(title, body?, status?, labels?, depends_on?)
+update_issue(id, title?, labels?, body?, depends_on?)
 move_issue(id, status, log?)
 append_issue(id, section, body, source?)
 ```
@@ -339,11 +371,11 @@ Notes:
 
 - `move_issue` is the only status-changing MCP tool.
 - Blocking and completing are ordinary moves to `blocked` or `completed`.
-- `update_issue` handles title, labels, and body replacement.
+- `update_issue` handles title, labels, dependencies, and body replacement.
 - `append_issue` appends Markdown to `Status Log`, `Reports`, `Notes`, or another named section.
 - `source` is meaningful for Reports and remains a free string.
 
-`get_board` returns a grouped board snapshot for TUI/agent overview. It is a read model, not separate state.
+`get_board` returns a grouped board snapshot for TUI/agent overview. It is a read model, not separate state. Read tools should include `depends_on`, `unmet_dependencies`, and `dependency_status` so agents can choose implementation order without mikan becoming a scheduler.
 
 ## TUI design
 
@@ -364,6 +396,7 @@ Must support:
 - periodically rescan files while preserving the selected Issue by Issue ID when possible;
 - move the selected Issue to another configured Status through the same core mutation used by CLI/MCP;
 - append a short Note to the selected Issue through the same append mutation used by CLI/MCP;
+- show declared and unmet dependencies in detail/read-model views;
 - show concise success/error feedback for TUI actions;
 - use a small internal semantic theme for canvas, surface, text, muted text, focus, accent, warning, error, and success states.
 
@@ -427,14 +460,18 @@ List/TUI should warn on:
 - Markdown files under config-unknown directories;
 - malformed frontmatter;
 - missing required frontmatter;
-- hook failures from hook log.
+- hook failures from hook log;
+- dependency issues: missing dependency target, malformed dependency ID, self-dependency, dependency cycles, archived dependency target, and dependencies not yet completed.
 
 Mutating CLI/MCP operations should reject:
 
 - duplicate Issue IDs;
 - unknown Status;
 - unknown labels;
+- malformed dependency Issue IDs;
 - malformed or missing required frontmatter for the target Issue.
+
+Mutating CLI/MCP operations should not reject moves only because dependencies are unmet. Dependency ordering is advisory/read-model information for humans and agents, not transition enforcement.
 
 ## Agent and herdr boundary
 

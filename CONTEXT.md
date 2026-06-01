@@ -16,6 +16,14 @@ _Avoid_: Slug, title ID, filename ID
 A configured lightweight tag on an **Issue** used for filtering and grouping. Labels are descriptive only; they do not assign agent profiles or workflow behavior.
 _Avoid_: Profile, role, priority
 
+**Dependency**:
+A structured prerequisite relationship from one **Issue** to another, stored as an Issue ID in frontmatter `depends_on`. A Dependency is satisfied only when the prerequisite Issue is in **Completed**. Dependencies guide implementation order; they do not automatically move or schedule Issues.
+_Avoid_: Parent task, blocking edge, scheduler rule
+
+**Unmet Dependency**:
+A declared **Dependency** whose prerequisite Issue is missing, malformed, archived, cyclic, self-referential, or not yet **Completed**. Unmet Dependencies are warnings/read-model information, not hard transition validation.
+_Avoid_: Lock, enforced gate, workflow rule
+
 **Status**:
 The current lifecycle position of an **Issue** on the board. The standard Statuses are backlog, ready, active, blocked, completed, and archived.
 _Avoid_: State, phase
@@ -64,5 +72,7 @@ _Avoid_: Task card, item
 
 Developer: "Create an Issue for the herdr dispatcher prototype."
 Domain expert: "Yes — it will appear as a Card in the Ready column, but the underlying thing remains an Issue."
+Developer: "It depends on MIK-001 being finished first. Is that a workflow rule?"
+Domain expert: "No. Add `MIK-001` to `depends_on` so humans and agents see the Dependency. mikan warns while it is unmet, but it does not enforce scheduling."
 Developer: "So should the CLI say `task` anywhere?"
 Domain expert: "No. Use Issue for the domain concept; Card only when talking about the board UI."
