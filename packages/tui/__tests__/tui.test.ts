@@ -33,6 +33,7 @@ import {
 	getAdjacentMoveTarget,
 	getMoveTargets,
 	getSelectedDetails,
+	Header,
 	IssueCard,
 	keyToDirection,
 	loadTuiModel,
@@ -508,6 +509,7 @@ describe("TUI model and navigation", () => {
 
 		const element = createTuiAppElement({ model, selection });
 		const tree = TuiAppView({ model, selection });
+		const theme = buildTuiTheme();
 
 		expect(element.type).toBe(TuiAppView);
 		expect(tree.type).toBe("box");
@@ -515,6 +517,11 @@ describe("TUI model and navigation", () => {
 		expect(collectElementTypes(tree)).toContain(ColumnPane);
 		expect(collectElementTypes(tree)).toContain(IssueCard);
 		expect(collectElementTypes(tree)).toContain(Footer);
+		expect(collectElementTypes(tree)).toContain(Header);
+		expect(findElementById(tree, "mikan-header")?.props?.style).toMatchObject({
+			color: theme.interactive.accent,
+		});
+		expect(collectTextContent(tree)).toContain("🍊 mikan v0-dev");
 		expect(findElementById(tree, "mikan-main")?.props?.style).toMatchObject({
 			flexGrow: 1,
 		});
@@ -535,6 +542,29 @@ describe("TUI model and navigation", () => {
 		expect(collectElementTypes(tree)).toContain(MovePrompt);
 		expect(collectElementTypes(tree)).toContain(NotePrompt);
 		expect(collectTextContent(tree)).toContain("malformed_issue");
+	});
+
+	test("uses a quiet citrus palette for the TUI", () => {
+		const theme = buildTuiTheme();
+
+		expect(theme).toMatchObject({
+			base: {
+				canvas: "#1f1a14",
+				surface: "#2a2118",
+				text: "#eadfce",
+				muted: "#9c8870",
+			},
+			interactive: {
+				accent: "#f0a04b",
+				focus: "#f6c177",
+				selectedSurface: "#3a2a1d",
+			},
+			feedback: {
+				warning: "#f6c177",
+				error: "#d66a4a",
+				success: "#8faa5f",
+			},
+		});
 	});
 
 	test("makes active Column and selected Issue visually obvious", () => {

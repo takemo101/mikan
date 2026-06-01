@@ -38,6 +38,8 @@ export type TuiModel = {
 	warnings: string[];
 };
 
+export const TUI_VERSION = "v0-dev";
+
 export type TuiTheme = {
 	base: {
 		canvas: string;
@@ -194,20 +196,20 @@ export type TuiDetails = {
 export function buildTuiTheme(): TuiTheme {
 	return {
 		base: {
-			canvas: "#1f1f1f",
-			surface: "#2a2a2a",
-			text: "#d4d4d4",
-			muted: "#6f6f6f",
+			canvas: "#1f1a14",
+			surface: "#2a2118",
+			text: "#eadfce",
+			muted: "#9c8870",
 		},
 		interactive: {
-			accent: "#7aa2f7",
-			focus: "#e0af68",
-			selectedSurface: "#333847",
+			accent: "#f0a04b",
+			focus: "#f6c177",
+			selectedSurface: "#3a2a1d",
 		},
 		feedback: {
-			warning: "#e0af68",
-			error: "#f7768e",
-			success: "#9ece6a",
+			warning: "#f6c177",
+			error: "#d66a4a",
+			success: "#8faa5f",
 		},
 	};
 }
@@ -446,7 +448,7 @@ export function TuiAppView({
 				height: "100%",
 			},
 		},
-		React.createElement("text", { content: "mikan" }),
+		React.createElement(Header, { theme }),
 		React.createElement(
 			"box",
 			{
@@ -482,6 +484,15 @@ export function TuiAppView({
 			theme,
 		}),
 	);
+}
+
+export function Header(props: { theme?: TuiTheme }): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement("text", {
+		id: "mikan-header",
+		style: { color: theme.interactive.accent },
+		content: `🍊 mikan ${TUI_VERSION}`,
+	});
 }
 
 export function buildDetailPageViewModel(
