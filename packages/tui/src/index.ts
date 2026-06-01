@@ -706,6 +706,7 @@ export function IssueCard(props: {
 					: theme.base.muted,
 				color: props.selected ? theme.interactive.focus : theme.base.text,
 				flexDirection: "column",
+				height: 3,
 			},
 		},
 		React.createElement("text", {
@@ -1555,7 +1556,7 @@ function formatCard(issue: BoardIssue): TuiCard {
 }
 
 function visibleCardCountForViewport(viewportHeight: number): number {
-	return Math.max(1, Math.floor((viewportHeight - 9) / 2));
+	return Math.max(1, Math.floor((viewportHeight - 10) / 3));
 }
 
 function visibleDetailLineCount(viewportHeight: number): number {
