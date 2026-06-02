@@ -99,6 +99,7 @@ function findElementById(
 				border?: unknown;
 				style?: Record<string, unknown>;
 				title?: unknown;
+				bottomTitle?: unknown;
 			};
 	  }
 	| undefined {
@@ -111,6 +112,7 @@ function findElementById(
 			id?: unknown;
 			style?: Record<string, unknown>;
 			title?: unknown;
+			bottomTitle?: unknown;
 		};
 	};
 	if (node.props?.id === id) return node;
@@ -393,6 +395,11 @@ describe("TUI model and navigation", () => {
 			id: "MIK-006",
 			selected: true,
 		});
+		if (!column) throw new Error("expected column");
+		const tree = ColumnPane({ column });
+		const columnElement = findElementById(tree, "column-ready");
+		expect(columnElement?.props?.bottomTitle).toBe("4-7/8 | ↑3 | ↓1");
+		expect(collectTextContent(tree)).not.toContain("4-7/8 | ↑3 | ↓1");
 	});
 
 	test("derives visible Column cards from viewport height", () => {

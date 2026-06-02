@@ -701,26 +701,23 @@ export function ColumnPane(props: {
 	width?: string;
 }): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
-	const children = [
-		props.column.cardRangeText
-			? React.createElement("text", { content: props.column.cardRangeText })
-			: undefined,
-		...(props.column.empty
-			? [React.createElement("text", { content: props.column.emptyText })]
-			: props.column.visibleCards.map((card) =>
-					React.createElement(IssueCard, {
-						key: card.id,
-						card,
-						selected: card.selected,
-						theme,
-					}),
-				)),
-	];
+	const children = props.column.empty
+		? [React.createElement("text", { content: props.column.emptyText })]
+		: props.column.visibleCards.map((card) =>
+				React.createElement(IssueCard, {
+					key: card.id,
+					card,
+					selected: card.selected,
+					theme,
+				}),
+			);
 	return React.createElement(
 		"box",
 		{
 			id: `column-${props.column.id}`,
 			title: `${props.column.active ? "▶ " : ""}${props.column.title} (${props.column.count})`,
+			bottomTitle: props.column.cardRangeText || undefined,
+			bottomTitleAlignment: "center",
 			border: true,
 			focused: props.column.active,
 			style: {
