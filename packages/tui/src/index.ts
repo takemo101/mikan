@@ -3,15 +3,16 @@ import { loadProjectConfig } from "@mikan/project-config";
 import { fg, StyledText } from "@opentui/core";
 import React from "react";
 import packageJson from "../package.json" with { type: "json" };
-import type {
-	BoardColumnView,
-	BoardViewModel,
-	BoardViewOptions,
+import {
+	type BoardColumnView,
+	buildBoardViewModel,
+	columnWidthPercent,
+	formatWarningSummary,
 } from "./board-view-model.ts";
-import type {
-	DetailPageOptions,
-	DetailPageViewModel,
-	DetailViewModel,
+import {
+	buildDetailPageViewModel,
+	buildDetailViewModel,
+	type DetailPageViewModel,
 } from "./detail-view-model.ts";
 import {
 	boxLine,
@@ -19,9 +20,6 @@ import {
 	type FooterMode,
 	footerText,
 	formatLabels,
-	formatLineRange,
-	visibleCardCountForViewport,
-	visibleDetailLineCount,
 } from "./formatting.ts";
 import {
 	cardDependencyStatus,
@@ -29,11 +27,9 @@ import {
 	cardUnmetDependencies,
 	getSelectedDetails,
 	loadTuiModel,
-	stripFrontmatter,
 	type TuiCard,
 	type TuiDetails,
 	type TuiModel,
-	type TuiWarning,
 } from "./model.ts";
 import {
 	applyNoteInput,
@@ -43,10 +39,10 @@ import {
 	keyToTuiAction,
 	moveSelection,
 } from "./navigation.ts";
-import type {
-	ArchivePromptViewModel,
-	MovePromptViewModel,
-	NotePromptViewModel,
+import {
+	buildArchivePromptViewModel,
+	buildMovePromptViewModel,
+	buildNotePromptViewModel,
 } from "./prompt-view-model.ts";
 import {
 	clamp,
@@ -62,10 +58,19 @@ export type {
 	BoardViewModel,
 	BoardViewOptions,
 } from "./board-view-model.ts";
+// Public facade re-exports for extracted view model builders (MIK-079).
+export {
+	buildBoardViewModel,
+	columnWidthPercent,
+} from "./board-view-model.ts";
 export type {
 	DetailPageOptions,
 	DetailPageViewModel,
 	DetailViewModel,
+} from "./detail-view-model.ts";
+export {
+	buildDetailPageViewModel,
+	buildDetailViewModel,
 } from "./detail-view-model.ts";
 export type {
 	TuiCard,
@@ -91,6 +96,11 @@ export type {
 	ArchivePromptViewModel,
 	MovePromptViewModel,
 	NotePromptViewModel,
+} from "./prompt-view-model.ts";
+export {
+	buildArchivePromptViewModel,
+	buildMovePromptViewModel,
+	buildNotePromptViewModel,
 } from "./prompt-view-model.ts";
 export type { MoveTarget, TuiSelection } from "./selection.ts";
 export type { TuiTheme } from "./theme.ts";
@@ -277,168 +287,6 @@ export function Header(props: { theme?: TuiTheme }): React.ReactElement {
 	});
 }
 
-export function buildDetailPageViewModel(
-	model: TuiModel,
-	selection: TuiSelection,
-	options: DetailPageOptions = {},
-): DetailPageViewModel | undefined {
-	const details = getSelectedDetails(model, selection);
-	if (!details) return undefined;
-	const markdown = stripFrontmatter(details.markdown).trimEnd();
-	const markdownLines = markdown.split("\n");
-	const visibleLineCount =
-		options.visibleLineCount ??
-		(options.viewportHeight
-			? visibleDetailLineCount(options.viewportHeight)
-			: 40);
-	const offset = clamp(
-		selection.detailScrollOffset ?? 0,
-		0,
-		Math.max(0, markdownLines.length - visibleLineCount),
-	);
-	const visibleMarkdownLines = markdownLines.slice(
-		offset,
-		offset + visibleLineCount,
-	);
-	const lineEnd = offset + visibleMarkdownLines.length;
-	return {
-		id: details.card.id,
-		title: details.card.title,
-		status: details.card.status,
-		labelsText: details.card.labels.join(", "),
-		dependsOnText: cardDependsOn(details.card).join(", "),
-		unmetDependenciesText: cardUnmetDependencies(details.card).join(", "),
-		dependencyStatus: cardDependencyStatus(details.card),
-		warningCount: warningCountForCard(model.warningDetails, details.card),
-		markdown,
-		visibleMarkdownLines,
-		hiddenLinesBefore: offset,
-		hiddenLinesAfter: Math.max(0, markdownLines.length - lineEnd),
-		lineRangeText: formatLineRange({
-			start: offset + 1,
-			end: lineEnd,
-			total: markdownLines.length,
-			hiddenBefore: offset,
-			hiddenAfter: Math.max(0, markdownLines.length - lineEnd),
-		}),
-	};
-}
-
-export function buildDetailViewModel(
-	model: TuiModel,
-	selection: TuiSelection,
-): DetailViewModel | undefined {
-	const details = getSelectedDetails(model, selection);
-	if (!details) return undefined;
-	return {
-		selected: {
-			...details.card,
-			labelsText: details.card.labels.join(", "),
-		},
-		groups: model.columns.map((column, columnIndex) => ({
-			status: column.id,
-			title: column.title,
-			cards: column.cards.map((card, cardIndex) => ({
-				...card,
-				selected:
-					columnIndex === selection.columnIndex &&
-					cardIndex === selection.cardIndex,
-				labelsText: card.labels.join(", "),
-			})),
-		})),
-		sections: {
-			summary: details.summary,
-			statusLog: details.statusLog,
-			reports: details.reports,
-			notes: details.notes,
-			herdr: details.herdr,
-		},
-	};
-}
-
-export function buildBoardViewModel(
-	model: TuiModel,
-	selection: TuiSelection,
-	options: BoardViewOptions = {},
-): BoardViewModel {
-	const visibleCardCount = Math.max(
-		1,
-		options.visibleCardCount ??
-			(options.viewportHeight
-				? visibleCardCountForViewport(options.viewportHeight)
-				: 6),
-	);
-	const columns = model.columns.map((column, columnIndex) => {
-		const cards = column.cards.map((card, cardIndex) => ({
-			...card,
-			selected:
-				columnIndex === selection.columnIndex &&
-				cardIndex === selection.cardIndex,
-			labelsText: card.labels.join(", "),
-		}));
-		const maxCardStart = Math.max(0, cards.length - visibleCardCount);
-		const cardStart =
-			cards.length <= visibleCardCount
-				? 0
-				: columnIndex === selection.columnIndex
-					? clamp(
-							selection.cardIndex - Math.floor(visibleCardCount / 2),
-							0,
-							maxCardStart,
-						)
-					: 0;
-		const visibleCards = cards.slice(cardStart, cardStart + visibleCardCount);
-		const cardEnd = cardStart + visibleCards.length;
-		return {
-			id: column.id,
-			title: column.title,
-			count: column.cards.length,
-			active: columnIndex === selection.columnIndex,
-			empty: column.cards.length === 0,
-			emptyText: "No Issues",
-			cards,
-			visibleCards,
-			laneFillLineCount: Math.max(0, visibleCardCount - visibleCards.length),
-			hiddenCardsBefore: cardStart,
-			hiddenCardsAfter: Math.max(0, cards.length - cardEnd),
-			cardRangeText:
-				cards.length > visibleCardCount
-					? `${cardStart + 1}-${cardEnd}/${cards.length} | ↑${cardStart} | ↓${Math.max(0, cards.length - cardEnd)}`
-					: "",
-		};
-	});
-	const visibleColumnCount = Math.max(1, options.visibleColumnCount ?? 3);
-	const maxStart = Math.max(0, columns.length - visibleColumnCount);
-	const start = clamp(
-		selection.columnIndex - (visibleColumnCount - 1),
-		0,
-		maxStart,
-	);
-	const visibleColumns = columns.slice(start, start + visibleColumnCount);
-	const hasColumnsBefore = start > 0;
-	const hasColumnsAfter = start + visibleColumnCount < columns.length;
-	return {
-		columns,
-		visibleColumns,
-		groups: [{ columns: visibleColumns }],
-		hasColumnsBefore,
-		hasColumnsAfter,
-		columnViewportText: `Columns: ${hasColumnsBefore ? "◀ " : ""}${visibleColumns
-			.map((column) => column.title)
-			.join(" / ")}${hasColumnsAfter ? " ▶" : ""}`,
-	};
-}
-
-export function columnWidthPercent(index: number, count: number): string {
-	const safeCount = Math.max(1, count);
-	const base = Math.floor(100 / safeCount);
-	const remainder = 100 - base * safeCount;
-	const extraStart = Math.floor((safeCount - remainder) / 2);
-	const width =
-		index >= extraStart && index < extraStart + remainder ? base + 1 : base;
-	return `${width}%`;
-}
-
 export function BoardView({
 	model,
 	selection,
@@ -570,15 +418,6 @@ export function IssueCard(props: {
 			content: issueCardContent(props.card, props.selected, theme),
 		}),
 	);
-}
-
-function warningCountForCard(
-	warnings: TuiWarning[] | undefined,
-	card: TuiCard,
-): number {
-	return (warnings ?? []).filter(
-		(warning) => warning.issueId === card.id || warning.path === card.path,
-	).length;
 }
 
 function detailLabelsText(page: DetailPageViewModel): string {
@@ -1148,52 +987,6 @@ export function appendSelectedIssueNote(options: {
 	};
 }
 
-export function buildMovePromptViewModel(
-	model: TuiModel,
-	selection: TuiSelection,
-): MovePromptViewModel | undefined {
-	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
-	if (!card) return undefined;
-	const targetIndex = selection.moveTargetIndex ?? 0;
-	return {
-		title: `Move ${card.id}`,
-		focused: Boolean(selection.moveOpen),
-		targets: getMoveTargets(model, selection).map((target, index) => ({
-			...target,
-			selected: index === targetIndex,
-		})),
-		hint: "enter move  esc cancel",
-	};
-}
-
-export function buildNotePromptViewModel(
-	model: TuiModel,
-	selection: TuiSelection,
-): NotePromptViewModel | undefined {
-	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
-	if (!card) return undefined;
-	return {
-		title: `Append note to ${card.id}`,
-		focused: Boolean(selection.noteOpen),
-		draft: selection.noteDraft ?? "",
-		hint: "enter append  esc cancel",
-	};
-}
-
-export function buildArchivePromptViewModel(
-	model: TuiModel,
-	selection: TuiSelection,
-): ArchivePromptViewModel | undefined {
-	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
-	if (!card) return undefined;
-	return {
-		title: `Archive ${card.id}?`,
-		focused: Boolean(selection.archiveOpen),
-		body: `${card.title}\nMove to archived. It will disappear from the default board.`,
-		hint: "enter archive  esc cancel",
-	};
-}
-
 function renderMoveInteraction(
 	model: TuiModel,
 	selection: TuiSelection,
@@ -1257,14 +1050,6 @@ function renderKeyHelp(): string[] {
 		"r reload",
 		"q quit",
 	];
-}
-
-function formatWarningSummary(warnings: string[]): string {
-	if (warnings.length === 0) return "";
-	const kinds = [...new Set(warnings.map((warning) => warning.split(":")[0]))]
-		.filter(Boolean)
-		.join(", ");
-	return `Warnings: ${warnings.length}${kinds ? ` ${kinds}` : ""} | w details`;
 }
 
 function renderDetails(details: TuiDetails): string[] {
