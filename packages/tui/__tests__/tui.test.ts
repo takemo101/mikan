@@ -70,7 +70,36 @@ function collectElementTypes(element: unknown): unknown[] {
 	];
 }
 
+function styledContentPlain(content: unknown): string {
+	if (typeof content === "string") return content;
+	if (!content || typeof content !== "object") return "";
+	const styled = content as { chunks?: unknown[] };
+	return (styled.chunks ?? [])
+		.map((chunk) => {
+			if (typeof chunk === "string") return chunk;
+			if (chunk && typeof chunk === "object") {
+				return String((chunk as { text?: unknown }).text ?? "");
+			}
+			return "";
+		})
+		.join("");
+}
+
+function styledContentChunk(content: unknown, text: string): unknown {
+	if (!content || typeof content !== "object") return undefined;
+	const styled = content as { chunks?: unknown[] };
+	return (styled.chunks ?? []).find(
+		(chunk) =>
+			chunk &&
+			typeof chunk === "object" &&
+			(chunk as { text?: unknown }).text === text,
+	);
+}
+
 function collectTextContent(element: unknown): string {
+	if (typeof element === "string" || typeof element === "number") {
+		return String(element);
+	}
 	if (!element || typeof element !== "object") return "";
 	const node = element as {
 		type?: unknown;
@@ -82,10 +111,32 @@ function collectTextContent(element: unknown): string {
 	const rendered =
 		typeof node.type === "function" ? node.type(node.props) : undefined;
 	return [
-		typeof node.props?.content === "string" ? node.props.content : "",
+		styledContentPlain(node.props?.content),
 		...children.map(collectTextContent),
 		collectTextContent(rendered),
-	].join("\n");
+	].join("");
+}
+
+function findElementByType(
+	element: unknown,
+	type: string,
+): { props?: Record<string, unknown> } | undefined {
+	if (!element || typeof element !== "object") return undefined;
+	const node = element as {
+		type?: unknown;
+		props?: { children?: unknown };
+	};
+	if (node.type === type) return node;
+	const children = Array.isArray(node.props?.children)
+		? node.props.children
+		: [node.props?.children];
+	const childMatch = children
+		.map((child) => findElementByType(child, type))
+		.find(Boolean);
+	if (childMatch) return childMatch;
+	const rendered =
+		typeof node.type === "function" ? node.type(node.props) : undefined;
+	return findElementByType(rendered, type);
 }
 
 function findElementById(
@@ -97,8 +148,10 @@ function findElementById(
 				children?: unknown;
 				id?: unknown;
 				border?: unknown;
+				content?: unknown;
 				style?: Record<string, unknown>;
 				title?: unknown;
+				bottomTitle?: unknown;
 			};
 	  }
 	| undefined {
@@ -108,9 +161,11 @@ function findElementById(
 		props?: {
 			children?: unknown;
 			border?: unknown;
+			content?: unknown;
 			id?: unknown;
 			style?: Record<string, unknown>;
 			title?: unknown;
+			bottomTitle?: unknown;
 		};
 	};
 	if (node.props?.id === id) return node;
@@ -166,6 +221,49 @@ describe("TUI model and navigation", () => {
 		expect(model.warnings.join("\n")).toContain("malformed_issue");
 	});
 
+	test("loads and renders dependency read model in cards and detail", () => {
+		const root = tempProject();
+		writeFileSync(
+			join(root, ".mikan", "ready", "MIK-002.md"),
+			`---\nid: MIK-002\ntitle: Dependent issue\ndepends_on:\n  - MIK-001\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Dependent issue\n`,
+		);
+		const model = loadTuiModel(root);
+		const dependent = model.columns[1]?.cards.find(
+			(card) => card.id === "MIK-002",
+		);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 1,
+			detailOpen: true,
+		};
+		const page = buildDetailPageViewModel(model, selection);
+		const text = renderTuiText(model, { ...selection, detailOpen: false });
+		const tree = TuiAppView({ model, selection });
+
+		expect(dependent).toMatchObject({
+			dependsOn: ["MIK-001"],
+			unmetDependencies: ["MIK-001"],
+			dependencyStatus: "blocked",
+		});
+		expect(text).toContain("MIK-002");
+		expect(text).toContain("deps!");
+		expect(text).not.toContain("🔒");
+		expect(page).toMatchObject({
+			dependsOnText: "MIK-001",
+			unmetDependenciesText: "MIK-001",
+			dependencyStatus: "blocked",
+			warningCount: 1,
+		});
+		expect(
+			buildDetailPageViewModel(model, {
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: true,
+			})?.warningCount,
+		).toBe(0);
+		expect(collectTextContent(tree)).toContain("deps unmet MIK-001");
+	});
+
 	test("loads hook failure warnings", () => {
 		const root = tempProject();
 		mkdirSync(join(root, ".mikan", ".state"), { recursive: true });
@@ -200,13 +298,33 @@ describe("TUI model and navigation", () => {
 		expect(text).toContain("│ ▶ MIK-001 Ready issue");
 		expect(text).toContain("│ ▶ MIK-001 Ready issue");
 		expect(text).toContain("│   (empty)");
-		expect(text).toContain("Warnings");
+		expect(text).toContain("Warnings: 1 malformed_issue | w details");
+		expect(text).not.toContain("Flow sequence in block collection");
 		expect(text).toContain("Columns: Backlog / Ready / Active ▶");
-		expect(text).toContain("j/k card | h/l column");
-		expect(text).toContain("H/L move");
-		expect(text).toContain("r reload");
+		expect(text).toContain("↑↓ card | ←→ column");
 		expect(text).toContain("enter detail");
-		expect(text).toContain("q quit");
+		expect(text).toContain("? keys");
+	});
+
+	test("renders warning details only when the warning panel is open", () => {
+		const model = loadTuiModel(tempProject());
+
+		const boardText = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		});
+		const warningText = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			warningsOpen: true,
+		});
+
+		expect(boardText).toContain("Warnings: 1 malformed_issue | w details");
+		expect(boardText).not.toContain("Flow sequence in block collection");
+		expect(warningText).toContain("Warning details");
+		expect(warningText).toContain("Flow sequence in block collection");
 	});
 
 	test("defines semantic theme tokens for TUI surfaces and states", () => {
@@ -357,6 +475,11 @@ describe("TUI model and navigation", () => {
 			id: "MIK-006",
 			selected: true,
 		});
+		if (!column) throw new Error("expected column");
+		const tree = ColumnPane({ column });
+		const columnElement = findElementById(tree, "column-ready");
+		expect(columnElement?.props?.bottomTitle).toBe("4-7/8 | ↑3 | ↓1");
+		expect(collectTextContent(tree)).not.toContain("4-7/8 | ↑3 | ↓1");
 	});
 
 	test("derives visible Column cards from viewport height", () => {
@@ -393,12 +516,10 @@ describe("TUI model and navigation", () => {
 			{ viewportHeight: 36 },
 		);
 
-		expect(shortView.columns[0]?.visibleCards).toHaveLength(2);
-		expect(tallView.columns[0]?.visibleCards).toHaveLength(4);
-		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(8);
-		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe(
-			"4-11/20 | ↑3 | ↓9",
-		);
+		expect(shortView.columns[0]?.visibleCards).toHaveLength(6);
+		expect(tallView.columns[0]?.visibleCards).toHaveLength(14);
+		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(20);
+		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe("");
 	});
 
 	test("renders detail Markdown window from viewport height", () => {
@@ -424,18 +545,16 @@ describe("TUI model and navigation", () => {
 		const tree = TuiAppView({ model, selection, viewportHeight: 12 });
 		const text = collectTextContent(tree);
 
-		expect(shortPage?.visibleMarkdownLines).toHaveLength(1);
-		expect(tallPage?.visibleMarkdownLines).toHaveLength(7);
+		expect(shortPage?.visibleMarkdownLines).toHaveLength(4);
+		expect(tallPage?.visibleMarkdownLines).toHaveLength(10);
 		expect(shortPage).toMatchObject({
 			hiddenLinesBefore: 3,
-			hiddenLinesAfter: 26,
-			lineRangeText: "Lines: 4-4/30 | ↑3 ↓26",
+			hiddenLinesAfter: 23,
+			lineRangeText: "Lines: 4-7/30 | ↑3 ↓23",
 		});
-		expect(text).toContain("MIK-001  Ready issue");
-		expect(text).toContain(
-			"Status: ready | Labels: none | Lines: 4-4/30 | ↑3 ↓26",
-		);
-		expect(text).toContain("────────────────");
+		expect(text).toContain("MIK-001 │ Ready issue │ Lines: 4-7/30 | ↑3 ↓23");
+		expect(text).toContain("ready · labels none");
+		expect(text).not.toContain("────────────────");
 		expect(text).not.toContain("line 30");
 	});
 
@@ -453,7 +572,8 @@ describe("TUI model and navigation", () => {
 			detailScrollOffset: 10,
 		};
 
-		const tree = TuiAppView({ model, selection, viewportHeight: 14 });
+		const theme = buildTuiTheme();
+		const tree = TuiAppView({ model, selection, viewportHeight: 14, theme });
 		const header = findElementById(tree, "detail-header");
 		const body = findElementById(tree, "detail-markdown-body");
 		const markdown = findElementById(tree, "detail-markdown");
@@ -469,12 +589,56 @@ describe("TUI model and navigation", () => {
 			minHeight: 0,
 			overflow: "hidden",
 		});
-		expect(collectTextContent(header)).toContain("MIK-001  Ready issue");
-		expect(collectTextContent(header)).toContain(
-			"Status: ready | Labels: #automation | Lines: 11-13/30 | ↑10 ↓17",
+		const headerChildren = Array.isArray(header?.props?.children)
+			? header.props.children
+			: [header?.props?.children];
+		const titleLine = headerChildren[0] as { props?: { content?: unknown } };
+		const metaLine = headerChildren[1] as { props?: { content?: unknown } };
+
+		expect(styledContentPlain(titleLine.props?.content)).toBe(
+			"MIK-001 │ Ready issue │ Lines: 11-16/30 | ↑10 ↓14",
 		);
+		expect(
+			styledContentChunk(titleLine.props?.content, "MIK-001"),
+		).toBeTruthy();
+		expect(
+			styledContentChunk(titleLine.props?.content, "Ready issue"),
+		).toBeTruthy();
+		expect(
+			styledContentChunk(titleLine.props?.content, "Lines: 11-16/30 | ↑10 ↓14"),
+		).toBeTruthy();
+		expect(styledContentPlain(metaLine.props?.content)).toBe(
+			"ready · labels #automation",
+		);
+		expect(styledContentChunk(metaLine.props?.content, "ready")).toBeTruthy();
+		expect(
+			styledContentChunk(metaLine.props?.content, "#automation"),
+		).toBeTruthy();
 		expect(collectTextContent(body)).toContain("line 11");
-		expect(collectTextContent(body)).not.toContain("MIK-001  Ready issue");
+		expect(collectTextContent(body)).not.toContain("MIK-001 │ Ready issue");
+	});
+
+	test("colors blocked detail status as warning instead of success", () => {
+		const cwd = tempProject();
+		writeFileSync(
+			join(cwd, ".mikan", "blocked", "MIK-003.md"),
+			`---\nid: MIK-003\ntitle: Blocked issue\nlabels: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Blocked issue\n`,
+		);
+		const model = loadTuiModel(cwd);
+		const theme = buildTuiTheme();
+		const tree = TuiAppView({
+			model,
+			selection: { columnIndex: 3, cardIndex: 0, detailOpen: true },
+			theme,
+		});
+		const header = findElementById(tree, "detail-header");
+
+		const headerChildren = Array.isArray(header?.props?.children)
+			? header.props.children
+			: [header?.props?.children];
+		const metaLine = headerChildren[1] as { props?: { content?: unknown } };
+
+		expect(styledContentChunk(metaLine.props?.content, "blocked")).toBeTruthy();
 	});
 
 	test("omits zero scroll indicators from detail metadata", () => {
@@ -534,14 +698,19 @@ describe("TUI model and navigation", () => {
 		});
 		expect(findElementById(tree, "column-backlog")?.props?.style).toMatchObject(
 			{
-				width: "33.33%",
+				width: "33%",
 			},
 		);
 		expect(findElementById(tree, "column-ready")?.props?.style).toMatchObject({
-			width: "33.33%",
+			width: "34%",
 		});
+		expect(findElementById(tree, "column-ready-lane-fill")).toBeUndefined();
 		expect(findElementById(tree, "column-active")?.props?.style).toMatchObject({
-			width: "33.33%",
+			width: "33%",
+		});
+		expect(findElementById(tree, "column-active-lane-fill")).toBeUndefined();
+		expect(findElementById(tree, "column-active-empty")?.props).toMatchObject({
+			content: "No Issues",
 		});
 		expect(collectElementTypes(tree)).toContain(MovePrompt);
 		expect(collectElementTypes(tree)).toContain(NotePrompt);
@@ -590,14 +759,23 @@ describe("TUI model and navigation", () => {
 			backgroundColor: theme.base.surface,
 			borderColor: theme.interactive.accent,
 		});
-		expect(card?.props).toMatchObject({ border: true });
+		expect(card?.props).toMatchObject({ border: false });
 		expect(card?.props?.style).toMatchObject({
 			backgroundColor: theme.interactive.selectedSurface,
-			borderColor: theme.interactive.focus,
-			color: theme.interactive.focus,
+			height: 1,
 		});
-		expect(card?.props?.style?.color).not.toBe(theme.feedback.success);
-		expect(collectTextContent(tree)).toContain("▶ MIK-001 Ready issue");
+		expect(card?.props?.style?.color).toBeUndefined();
+		const cardText = findElementByType(card, "text");
+		expect(styledContentPlain(cardText?.props?.content)).toBe(
+			"▶ MIK-001 │ Ready issue #automation",
+		);
+		expect(
+			styledContentChunk(cardText?.props?.content, "MIK-001"),
+		).toBeTruthy();
+		expect(
+			styledContentChunk(cardText?.props?.content, "Ready issue"),
+		).toBeTruthy();
+		expect(collectTextContent(tree)).toContain("▶ MIK-001 │ Ready issue");
 	});
 
 	test("renders unselected Cards quietly without label overlap", () => {
@@ -619,16 +797,25 @@ describe("TUI model and navigation", () => {
 			style?: Record<string, unknown>;
 		};
 
-		expect(cardProps).toMatchObject({ border: true });
+		expect(cardProps).toMatchObject({ border: false });
 		expect(cardProps.style).toMatchObject({
 			backgroundColor: theme.base.surface,
-			borderColor: theme.base.muted,
-			color: theme.base.text,
-			height: 3,
+			height: 1,
 		});
-		expect(collectTextContent(card)).toContain(
-			"MIK-002 Quiet issue #automation",
+		expect(cardProps.style?.color).toBeUndefined();
+		const cardText = findElementByType(card, "text");
+		expect(styledContentPlain(cardText?.props?.content)).toBe(
+			"MIK-002 │ Quiet issue #automation",
 		);
+		expect(
+			styledContentChunk(cardText?.props?.content, "MIK-002"),
+		).toBeTruthy();
+		expect(
+			styledContentChunk(cardText?.props?.content, "Quiet issue"),
+		).toBeTruthy();
+		expect(
+			styledContentChunk(cardText?.props?.content, "#automation"),
+		).toBeTruthy();
 	});
 
 	test("renders mode-specific footer hints", () => {
@@ -658,13 +845,52 @@ describe("TUI model and navigation", () => {
 		);
 
 		expect(boardText).toContain(
-			"Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys",
 		);
-		expect(detailText).toContain(
-			"Detail | j/k scroll | esc board | n note | a archive | r reload | q quit",
-		);
-		expect(modalText).toContain("Modal | enter confirm | esc cancel");
+		expect(detailText).toContain("Detail | ↑↓ scroll | esc board | ? keys");
+		expect(modalText).toContain("Modal | enter confirm | esc cancel | ? keys");
 		expect(detailText).not.toContain("j/k card");
+	});
+
+	test("escape closes help before underlying modal state", () => {
+		const model = loadTuiModel(tempProject());
+		const selection = moveSelection(
+			model,
+			{
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: false,
+				archiveOpen: true,
+				helpOpen: true,
+			},
+			"escape",
+		);
+
+		expect(selection).toMatchObject({
+			helpOpen: false,
+			archiveOpen: true,
+		});
+	});
+
+	test("renders full key help when help is open", () => {
+		const model = loadTuiModel(tempProject());
+		const text = collectTextContent(
+			TuiAppView({
+				model,
+				selection: {
+					columnIndex: 1,
+					cardIndex: 0,
+					detailOpen: false,
+					helpOpen: true,
+				},
+			}),
+		);
+
+		expect(text).toContain("Key help");
+		expect(text).toContain("H/L move Issue");
+		expect(text).toContain("m move menu");
+		expect(text).toContain("w warning details");
+		expect(text).toContain("n append Note");
 	});
 
 	test("detail mode switches to a polished full-page Markdown detail page", () => {
@@ -697,10 +923,8 @@ describe("TUI model and navigation", () => {
 			labelsText: "automation",
 		});
 		expect(page?.markdown).toContain("# Ready issue");
-		expect(collectTextContent(tree)).toContain("MIK-001  Ready issue");
-		expect(collectTextContent(tree)).toContain(
-			"Status: ready | Labels: #automation",
-		);
+		expect(collectTextContent(tree)).toContain("MIK-001 │ Ready issue");
+		expect(collectTextContent(tree)).toContain("ready · labels #automation");
 		expect(collectTextContent(tree)).toContain("# Ready issue");
 	});
 
@@ -719,6 +943,23 @@ describe("TUI model and navigation", () => {
 		expect(selection.columnIndex).toBe(1);
 		expect(selection.cardIndex).toBe(0);
 		expect(selection.detailOpen).toBe(false);
+	});
+
+	test("keeps board mode when opening detail on an empty Column", () => {
+		const model = loadTuiModel(tempProject());
+		const selection = moveSelection(
+			model,
+			{ columnIndex: 0, cardIndex: 0, detailOpen: false },
+			"enter",
+		);
+
+		expect(selection).toMatchObject({
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			message: "No Issue selected",
+		});
+		expect(renderTuiText(model, selection)).toContain("Board | ↑↓ card");
 	});
 
 	test("builds a split-pane detail view model with grouped Issues and separated sections", () => {
@@ -806,6 +1047,22 @@ describe("TUI model and navigation", () => {
 		expect(page?.visibleMarkdownLines).toEqual(["line 1", "line 2"]);
 	});
 
+	test("detail page ignores left and right column navigation", () => {
+		const model = loadTuiModel(tempProject());
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+			detailScrollOffset: 2,
+		};
+
+		const left = moveSelection(model, selection, "left");
+		const right = moveSelection(model, selection, "right");
+
+		expect(left).toMatchObject(selection);
+		expect(right).toMatchObject(selection);
+	});
+
 	test("detail view handles missing optional sections", () => {
 		const cwd = tempProject();
 		writeFileSync(
@@ -842,6 +1099,8 @@ describe("TUI model and navigation", () => {
 		expect(keyToTuiAction("l", true)).toBe("move-right");
 		expect(keyToTuiAction("H")).toBe("move-left");
 		expect(keyToTuiAction("L")).toBe("move-right");
+		expect(keyToTuiAction("w")).toBe("warnings");
+		expect(keyToTuiAction("?")).toBe("help");
 		expect(keyToTuiAction("escape")).toBe("escape");
 	});
 
@@ -894,13 +1153,13 @@ describe("TUI model and navigation", () => {
 			| undefined;
 
 		expect(footer?.props?.content).toBe(
-			"Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit | MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys    MIK-001 moved to backlog",
 		);
 		expect(
 			collectTextContent(tree).match(/MIK-001 moved to backlog/g) ?? [],
 		).toHaveLength(1);
 		expect(renderTuiText(model, selection)).toContain(
-			"Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit | MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys    MIK-001 moved to backlog",
 		);
 		expect(renderTuiText(model, selection)).not.toContain(
 			"\nMIK-001 moved to backlog\n\nBoard |",

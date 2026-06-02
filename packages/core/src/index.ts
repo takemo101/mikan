@@ -31,6 +31,7 @@ export type ParsedIssue = {
 	id: IssueId;
 	title: string;
 	labels: LabelId[];
+	dependencies: IssueId[];
 	createdAt: UtcTimestamp;
 	updatedAt: UtcTimestamp;
 	body: string;
@@ -43,10 +44,14 @@ export type BoardConfig = {
 	labels: LabelConfig[];
 };
 
+export type DependencyStatus = "ready" | "blocked";
+
 export type BoardIssue = {
 	issue: ParsedIssue;
 	status: StatusId;
 	path: string;
+	unmetDependencies: IssueId[];
+	dependencyStatus: DependencyStatus;
 };
 
 export type BoardColumn = ColumnConfig & { issues: BoardIssue[] };
@@ -57,7 +62,12 @@ export type BoardWarning = {
 		| "unknown_label"
 		| "unknown_directory"
 		| "malformed_issue"
-		| "hook_failure";
+		| "hook_failure"
+		| "dependency_missing"
+		| "dependency_incomplete"
+		| "dependency_archived"
+		| "dependency_self"
+		| "dependency_cycle";
 	message: string;
 	path?: string;
 	issueId?: string;
@@ -96,6 +106,7 @@ export type CreateIssueOptions = {
 	body?: string;
 	status?: string;
 	labels?: string[];
+	dependencies?: string[];
 	now?: () => Date;
 };
 
@@ -105,6 +116,7 @@ export type UpdateIssueOptions = {
 	id: string;
 	title?: string;
 	labels?: string[];
+	dependencies?: string[];
 	body?: string;
 	now?: () => Date;
 };
@@ -138,6 +150,7 @@ const frontmatterSchema = z
 		id: z.string().min(1),
 		title: z.string().min(1),
 		labels: z.array(z.string()).optional().default([]),
+		depends_on: z.array(z.string()).optional().default([]),
 		created_at: z.string().min(1),
 		updated_at: z.string().min(1),
 	})
@@ -246,6 +259,8 @@ export function scanBoard(
 				issue: parsed.value,
 				status: status.value,
 				path,
+				unmetDependencies: [],
+				dependencyStatus: "ready",
 			};
 			const id = String(parsed.value.id);
 			const matches = byId.get(id) ?? [];
@@ -276,6 +291,8 @@ export function scanBoard(
 		}
 	}
 
+	deriveDependencyState(byId, warnings);
+
 	if (existsSync(mikanRoot)) {
 		const configured = new Set(
 			configuredStatuses.concat([".state", "templates"]),
@@ -296,6 +313,90 @@ export function scanBoard(
 	warnings.push(...readHookFailureWarnings(options.projectRoot));
 
 	return { ok: true, value: { columns, warnings } };
+}
+
+function deriveDependencyState(
+	byId: Map<string, BoardIssue[]>,
+	warnings: BoardWarning[],
+): void {
+	for (const item of [...byId.values()].flat()) {
+		const issueId = String(item.issue.id);
+		const unmet = new Map<string, IssueId>();
+		for (const dependency of item.issue.dependencies) {
+			const dependencyId = String(dependency);
+			if (dependencyId === issueId) {
+				unmet.set(dependencyId, dependency);
+				warnings.push({
+					kind: "dependency_self",
+					message: `${issueId} depends on itself`,
+					issueId,
+					path: item.path,
+				});
+				continue;
+			}
+			const matches = byId.get(dependencyId) ?? [];
+			const target = matches[0];
+			if (!target) {
+				unmet.set(dependencyId, dependency);
+				warnings.push({
+					kind: "dependency_missing",
+					message: `${issueId} depends on missing Issue ${dependencyId}`,
+					issueId,
+					path: item.path,
+				});
+				continue;
+			}
+			if (hasDependencyPath(dependencyId, issueId, byId)) {
+				unmet.set(dependencyId, dependency);
+				warnings.push({
+					kind: "dependency_cycle",
+					message: `${issueId} has cyclic dependency through ${dependencyId}`,
+					issueId,
+					path: item.path,
+				});
+				continue;
+			}
+			const targetStatus = String(target.status);
+			if (targetStatus === "archived") {
+				unmet.set(dependencyId, dependency);
+				warnings.push({
+					kind: "dependency_archived",
+					message: `${issueId} depends on archived Issue ${dependencyId}`,
+					issueId,
+					path: item.path,
+				});
+				continue;
+			}
+			if (targetStatus !== "completed") {
+				unmet.set(dependencyId, dependency);
+				warnings.push({
+					kind: "dependency_incomplete",
+					message: `${issueId} depends on incomplete Issue ${dependencyId}`,
+					issueId,
+					path: item.path,
+				});
+			}
+		}
+		item.unmetDependencies = [...unmet.values()];
+		item.dependencyStatus =
+			item.unmetDependencies.length > 0 ? "blocked" : "ready";
+	}
+}
+
+function hasDependencyPath(
+	fromId: string,
+	toId: string,
+	byId: Map<string, BoardIssue[]>,
+	seen = new Set<string>(),
+): boolean {
+	if (fromId === toId) return true;
+	if (seen.has(fromId)) return false;
+	seen.add(fromId);
+	const [item] = byId.get(fromId) ?? [];
+	if (!item) return false;
+	return item.issue.dependencies.some((dependency) =>
+		hasDependencyPath(String(dependency), toId, byId, seen),
+	);
 }
 
 export function findMaxIssueSequence(options: {
@@ -380,6 +481,10 @@ export function createIssue(
 	if (!statusValidation.ok) return statusValidation;
 	const labelsValidation = validateLabels(options.config, options.labels ?? []);
 	if (!labelsValidation.ok) return labelsValidation;
+	const dependenciesValidation = validateDependencies(
+		options.dependencies ?? [],
+	);
+	if (!dependenciesValidation.ok) return dependenciesValidation;
 	const projectKey = options.config.project?.key ?? "MIK";
 	const parsedProjectKey = parseProjectKey(projectKey);
 	if (!parsedProjectKey.ok) {
@@ -425,6 +530,7 @@ export function createIssue(
 				id,
 				title: options.title,
 				labels: options.labels ?? [],
+				depends_on: dependenciesValidation.value.map(String),
 				created_at: now,
 				updated_at: now,
 			},
@@ -449,10 +555,11 @@ export function createIssue(
 				error: { kind: "malformed_issue", message: parsed.error.message, path },
 			};
 		}
-		return {
-			ok: true,
-			value: { issue: parsed.value, status: statusValidation.value, path },
-		};
+		return findIssueById({
+			projectRoot: options.projectRoot,
+			config: options.config,
+			id,
+		});
 	});
 }
 
@@ -465,6 +572,11 @@ export function updateIssue(
 		const labels = options.labels ?? target.value.issue.labels.map(String);
 		const labelsValidation = validateLabels(options.config, labels);
 		if (!labelsValidation.ok) return labelsValidation;
+		const dependenciesValidation = options.dependencies
+			? validateDependencies(options.dependencies)
+			: undefined;
+		if (dependenciesValidation && !dependenciesValidation.ok)
+			return dependenciesValidation;
 		const document = readIssueDocument(target.value.path);
 		if (!document.ok) return document;
 		const updated = serializeIssue({
@@ -472,6 +584,9 @@ export function updateIssue(
 				...document.value.frontmatter,
 				title: options.title ?? target.value.issue.title,
 				labels,
+				...(dependenciesValidation
+					? { depends_on: dependenciesValidation.value.map(String) }
+					: {}),
 				updated_at: utcNow(options.now),
 			},
 			body: options.body ?? target.value.issue.body,
@@ -488,7 +603,7 @@ export function updateIssue(
 				},
 			};
 		}
-		return { ok: true, value: { ...target.value, issue: parsed.value } };
+		return findIssueById(options);
 	});
 }
 
@@ -561,14 +676,11 @@ export function moveIssue(
 				},
 			};
 		}
-		return {
-			ok: true,
-			value: {
-				issue: parsed.value,
-				status: statusValidation.value,
-				path: destination,
-			},
-		};
+		return findIssueById({
+			projectRoot: options.projectRoot,
+			config: options.config,
+			id: options.id,
+		});
 	});
 }
 
@@ -608,7 +720,7 @@ export function appendIssue(
 				},
 			};
 		}
-		return { ok: true, value: { ...target.value, issue: parsed.value } };
+		return findIssueById(options);
 	});
 }
 
@@ -686,6 +798,13 @@ function parseIssueDocument(
 		else errors.push(label.error.message);
 	}
 
+	const dependencies: IssueId[] = [];
+	for (const rawDependency of parsedFrontmatter.data.depends_on) {
+		const dependency = parseIssueId(rawDependency);
+		if (dependency.ok) dependencies.push(dependency.value);
+		else errors.push(`depends_on: ${dependency.error.message}`);
+	}
+
 	let createdAt: UtcTimestamp | undefined;
 	const parsedCreatedAt = parseUtcTimestamp(parsedFrontmatter.data.created_at);
 	if (parsedCreatedAt.ok) createdAt = parsedCreatedAt.value;
@@ -708,6 +827,7 @@ function parseIssueDocument(
 				id: issueId,
 				title: parsedFrontmatter.data.title,
 				labels,
+				dependencies,
 				createdAt,
 				updatedAt,
 				body: markdown.slice(frontmatter[0].length),
@@ -779,6 +899,23 @@ function validateLabels(
 			};
 		}
 		parsed.push(labelId.value);
+	}
+	return { ok: true, value: parsed };
+}
+
+function validateDependencies(
+	dependencies: string[],
+): Result<IssueId[], MutationError> {
+	const parsed: IssueId[] = [];
+	for (const dependency of dependencies) {
+		const dependencyId = parseIssueId(dependency);
+		if (!dependencyId.ok) {
+			return {
+				ok: false,
+				error: { kind: "malformed_issue", message: dependencyId.error.message },
+			};
+		}
+		parsed.push(dependencyId.value);
 	}
 	return { ok: true, value: parsed };
 }

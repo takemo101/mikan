@@ -82,6 +82,7 @@ describe("CLI read path", () => {
 		expect(addHelp.exitCode).toBe(0);
 		expect(addHelp.stdout).toContain("Usage:\n  mikan add <title>");
 		expect(addHelp.stdout).toContain("-s, --status <status>");
+		expect(addHelp.stdout).toContain("--depends-on <issue-id>");
 		expect(helpAdd.stdout).toBe(addHelp.stdout);
 	});
 
@@ -127,6 +128,29 @@ describe("CLI read path", () => {
 		expect(show.stdout).toContain("- herdr");
 		expect(show.stdout).toContain("Done");
 		expect(show.stdout).toContain("Remember this");
+	});
+
+	test("add and update write Issue dependencies", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init", "--key", "MIK", "--name", "mikan"]);
+		await cli(cwd, ["add", "Foundation"]);
+
+		const add = await cli(cwd, ["add", "Dependent", "--depends-on", "MIK-001"]);
+		const update = await cli(cwd, [
+			"update",
+			"MIK-002",
+			"--depends-on",
+			"MIK-001",
+			"--depends-on",
+			"MIK-003",
+		]);
+		const show = await cli(cwd, ["show", "MIK-002"]);
+
+		expect(add.exitCode).toBe(0);
+		expect(update.exitCode).toBe(0);
+		expect(show.stdout).toContain("depends_on:");
+		expect(show.stdout).toContain("- MIK-001");
+		expect(show.stdout).toContain("- MIK-003");
 	});
 
 	test("returns clear parse errors for unknown options and missing values", async () => {
@@ -206,6 +230,27 @@ describe("CLI read path", () => {
 		expect(result.exitCode).toBe(0);
 		expect(result.stderr).toContain("unknown_directory");
 		expect(result.stderr).toContain("malformed_issue");
+	});
+
+	test("list and show include dependency read model fields", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "Prerequisite"]);
+		await cli(cwd, ["add", "Dependent", "--depends-on", "MIK-001"]);
+
+		const list = await cli(cwd, ["list"]);
+		const show = await cli(cwd, ["show", "MIK-002"]);
+
+		expect(list.exitCode).toBe(0);
+		expect(list.stdout).toContain("depends_on=MIK-001");
+		expect(list.stdout).toContain("unmet_dependencies=MIK-001");
+		expect(list.stdout).toContain("dependency_status=blocked");
+		expect(show.exitCode).toBe(0);
+		expect(show.stdout).toStartWith("---\n");
+		expect(show.stdout).toContain("id: MIK-002");
+		expect(show.stderr).toContain("Dependency Status: blocked");
+		expect(show.stderr).toContain("Depends On: MIK-001");
+		expect(show.stderr).toContain("Unmet Dependencies: MIK-001");
 	});
 
 	test("list includes hook failure warnings", async () => {

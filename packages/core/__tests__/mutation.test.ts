@@ -88,6 +88,59 @@ describe("core mutations", () => {
 		).toBe(false);
 	});
 
+	test("create writes declared dependencies", () => {
+		const root = tempProject();
+
+		const result = createIssue({
+			projectRoot: root,
+			config,
+			title: "Dependent issue",
+			dependencies: ["MIK-001", "MIK-002"],
+			now: t1,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected create");
+		expect(result.value.issue.dependencies.map(String)).toEqual([
+			"MIK-001",
+			"MIK-002",
+		]);
+		expect(result.value.dependencyStatus).toBe("blocked");
+		expect(result.value.unmetDependencies.map(String)).toEqual([
+			"MIK-001",
+			"MIK-002",
+		]);
+		const markdown = readIssue(root, "backlog");
+		expect(markdown).toContain("depends_on:");
+		expect(markdown).toContain("- MIK-001");
+		expect(markdown).toContain("- MIK-002");
+	});
+
+	test("create returns ready dependency state when dependencies are completed", () => {
+		const root = tempProject();
+		seed(root);
+		moveIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			status: "completed",
+			now: t1,
+		});
+
+		const result = createIssue({
+			projectRoot: root,
+			config,
+			title: "Dependent issue",
+			dependencies: ["MIK-001"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected create");
+		expect(result.value.dependencyStatus).toBe("ready");
+		expect(result.value.unmetDependencies.map(String)).toEqual([]);
+	});
+
 	test("create normalizes generated timestamps to whole-second UTC", () => {
 		const root = tempProject();
 
@@ -103,6 +156,102 @@ describe("core mutations", () => {
 		expect(readIssue(root, "backlog")).toContain(
 			"created_at: 2026-05-30T00:00:00Z",
 		);
+	});
+
+	test("update replaces dependencies", () => {
+		const root = tempProject();
+		seed(root);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			dependencies: ["MIK-002"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.issue.dependencies.map(String)).toEqual(["MIK-002"]);
+		expect(result.value.dependencyStatus).toBe("blocked");
+		expect(result.value.unmetDependencies.map(String)).toEqual(["MIK-002"]);
+		const markdown = readIssue(root, "backlog");
+		expect(markdown).toContain("depends_on:");
+		expect(markdown).toContain("- MIK-002");
+		expect(markdown).toContain("updated_at: 2026-05-30T01:02:03Z");
+	});
+
+	test("update returns refreshed dependency state", () => {
+		const root = tempProject();
+		seed(root);
+		moveIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			status: "completed",
+			now: t1,
+		});
+		const dependent = createIssue({
+			projectRoot: root,
+			config,
+			title: "Dependent",
+			now: t2,
+		});
+		expect(dependent.ok).toBe(true);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-002",
+			dependencies: ["MIK-001"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.dependencyStatus).toBe("ready");
+		expect(result.value.unmetDependencies.map(String)).toEqual([]);
+	});
+
+	test("update preserves existing dependencies when omitted", () => {
+		const root = tempProject();
+		writeFileSync(
+			join(root, ".mikan", "backlog", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Seed\ndepends_on:\n  - MIK-002\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Seed\n`,
+		);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			title: "Updated",
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		expect(readIssue(root, "backlog")).toContain("- MIK-002");
+	});
+
+	test("create and update reject malformed dependencies", () => {
+		const root = tempProject();
+		seed(root);
+
+		expect(
+			createIssue({
+				projectRoot: root,
+				config,
+				title: "Bad dependency",
+				dependencies: ["bad-slug"],
+			}).ok,
+		).toBe(false);
+		expect(
+			updateIssue({
+				projectRoot: root,
+				config,
+				id: "MIK-001",
+				dependencies: ["bad-slug"],
+			}).ok,
+		).toBe(false);
 	});
 
 	test("update changes title, labels, body, and updated_at", () => {

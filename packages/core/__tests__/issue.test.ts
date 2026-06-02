@@ -14,6 +14,9 @@ title: Prototype herdr dispatcher
 labels:
   - automation
   - herdr
+depends_on:
+  - MIK-002
+  - MIK-003
 status: should-be-ignored
 priority: should-not-be-modeled
 profile: should-not-be-modeled
@@ -54,6 +57,10 @@ describe("Issue Markdown parsing", () => {
 		expect(String(result.value.id)).toBe("MIK-001");
 		expect(result.value.title).toBe("Prototype herdr dispatcher");
 		expect(result.value.labels.map(String)).toEqual(["automation", "herdr"]);
+		expect(result.value.dependencies.map(String)).toEqual([
+			"MIK-002",
+			"MIK-003",
+		]);
 		expect(String(result.value.createdAt)).toBe("2026-05-30T00:00:00Z");
 		expect(String(result.value.updatedAt)).toBe("2026-05-30T01:00:00Z");
 		expect(result.value.body).toBe(
@@ -64,7 +71,7 @@ describe("Issue Markdown parsing", () => {
 		expect("profile" in result.value).toBe(false);
 	});
 
-	test("defaults missing labels to an empty array", () => {
+	test("defaults missing labels and dependencies to empty arrays", () => {
 		const result = parseIssueMarkdown(
 			`---\nid: MIK-001\ntitle: Title\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
 		);
@@ -72,6 +79,7 @@ describe("Issue Markdown parsing", () => {
 		expect(result.ok).toBe(true);
 		if (!result.ok) throw new Error("expected valid Issue");
 		expect(result.value.labels.map(String)).toEqual([]);
+		expect(result.value.dependencies.map(String)).toEqual([]);
 	});
 
 	test("rejects missing required fields", () => {
@@ -104,6 +112,22 @@ describe("Issue Markdown parsing", () => {
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("expected invalid Issue");
 		expect(result.error.message).toContain("labels");
+	});
+
+	test("rejects non-array and malformed dependencies", () => {
+		const nonArray = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\ndepends_on: MIK-002\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+		const malformed = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\ndepends_on:\n  - bad-slug\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+
+		expect(nonArray.ok).toBe(false);
+		if (nonArray.ok) throw new Error("expected invalid Issue");
+		expect(nonArray.error.message).toContain("depends_on");
+		expect(malformed.ok).toBe(false);
+		if (malformed.ok) throw new Error("expected invalid Issue");
+		expect(malformed.error.message).toContain("id must look like MIK-001");
 	});
 
 	test("rejects malformed frontmatter", () => {

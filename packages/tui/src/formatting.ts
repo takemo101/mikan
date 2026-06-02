@@ -24,19 +24,21 @@ export function formatLineRange(options: {
 }
 
 export function visibleCardCountForViewport(viewportHeight: number): number {
-	return Math.max(1, Math.floor((viewportHeight - 10) / 3));
+	return Math.max(1, viewportHeight - 10);
 }
 
 export function visibleDetailLineCount(viewportHeight: number): number {
-	return Math.max(1, viewportHeight - 11);
+	return Math.max(1, viewportHeight - 8);
 }
 
 export function footerText(mode: FooterMode): string {
-	if (mode === "modal") return "Modal | enter confirm | esc cancel";
-	if (mode === "detail") {
-		return "Detail | j/k scroll | esc board | n note | a archive | r reload | q quit";
+	if (mode === "modal") {
+		return "Modal | enter confirm | esc cancel | ? keys";
 	}
-	return "Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit";
+	if (mode === "detail") {
+		return "Detail | ↑↓ scroll | esc board | ? keys";
+	}
+	return "Board | ↑↓ card | ←→ column | enter detail | ? keys";
 }
 
 export function boxLine(

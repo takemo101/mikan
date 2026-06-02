@@ -95,7 +95,7 @@ describe("end-to-end smoke flow", () => {
 			detailOpen: false,
 		};
 		expect(renderTuiText(tuiModel, tuiSelection)).toContain(
-			"enter detail | H/L move | n note | a archive | r reload",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys",
 		);
 		expect(
 			createTuiAppElement({ model: tuiModel, selection: tuiSelection }).type,

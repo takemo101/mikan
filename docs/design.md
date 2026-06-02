@@ -95,8 +95,15 @@ mikan borrows a lightweight subset of ideas from `j5ik2o/okite-ai`:
    - `core` must not depend on CLI, MCP, TUI, OpenTUI, or UI concerns.
    - Adapters call core operations.
    - Avoid DDD/CQRS/repository ceremony that does not serve this file-backed model.
+   - Avoiding ceremony does not mean keeping package internals in one large file.
 
-6. **Backward compatibility at public surfaces**
+6. **Small, deep Modules**
+   - Keep code small through focused internal Modules that improve locality, testability, and AI navigation.
+   - Prefer Modules named after mikan concepts or adapter concerns, with a small Interface and meaningful Implementation behind it.
+   - `src/index.ts` should stay a public facade where practical; it should not become the default home for every type, helper, state transition, renderer, and adapter operation.
+   - Do not split code into pass-through files. A split earns its place when it makes behavior easier to test, reason about, change, or delete.
+
+7. **Backward compatibility at public surfaces**
    - CLI commands, MCP tools, config schema, and Markdown conventions become public API once released.
    - Keep them small to keep compatibility cheap.
 
@@ -142,6 +149,13 @@ tui ─┘
 ```
 
 `core` owns domain operations and file mutation rules. CLI/MCP/TUI are adapters.
+
+Within each package, keep public surface and internal implementation separate:
+
+- `src/index.ts` is the package facade: export the public Interface and compose internal Modules.
+- Internal files should group cohesive behavior, not arbitrary layers. Good seams include Issue parsing, board scanning, dependency readiness, CLI command handling, MCP tool adapters, TUI board view models, TUI detail view models, TUI navigation, TUI mutations, and OpenTUI components.
+- Prefer a few deep Modules over many shallow pass-through files. If deleting a Module would simply move the same complexity into every caller, the Module is earning its keep; if deletion removes only forwarding code, the Module is too shallow.
+- Tests should target durable Interfaces. Exporting internals only for tests is acceptable temporarily, but it should not cause `index.ts` to become a catch-all public API.
 
 ## Config design
 

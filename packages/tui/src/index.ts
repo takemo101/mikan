@@ -3,10 +3,12 @@ import {
 	appendIssue,
 	type BoardIssue,
 	type BoardSnapshot,
+	type BoardWarning,
 	moveIssue,
 	scanBoard,
 } from "@mikan/core";
 import { loadProjectConfig } from "@mikan/project-config";
+import { fg, StyledText } from "@opentui/core";
 import React from "react";
 import packageJson from "../package.json" with { type: "json" };
 import {
@@ -26,6 +28,9 @@ export type TuiCard = {
 	labels: string[];
 	status: string;
 	path: string;
+	dependsOn?: string[];
+	unmetDependencies?: string[];
+	dependencyStatus?: "ready" | "blocked";
 };
 
 export type TuiColumn = {
@@ -34,9 +39,18 @@ export type TuiColumn = {
 	cards: TuiCard[];
 };
 
+export type TuiWarning = {
+	text: string;
+	kind: string;
+	message: string;
+	issueId?: string;
+	path?: string;
+};
+
 export type TuiModel = {
 	columns: TuiColumn[];
 	warnings: string[];
+	warningDetails?: TuiWarning[];
 };
 
 export const TUI_VERSION = packageJson.version;
@@ -74,6 +88,7 @@ export type BoardColumnView = {
 	emptyText: string;
 	cards: BoardCardView[];
 	visibleCards: BoardCardView[];
+	laneFillLineCount: number;
 	hiddenCardsBefore: number;
 	hiddenCardsAfter: number;
 	cardRangeText: string;
@@ -117,6 +132,10 @@ export type DetailPageViewModel = {
 	title: string;
 	status: string;
 	labelsText: string;
+	dependsOnText: string;
+	unmetDependenciesText: string;
+	dependencyStatus: "ready" | "blocked";
+	warningCount: number;
 	markdown: string;
 	visibleMarkdownLines: string[];
 	hiddenLinesBefore: number;
@@ -160,6 +179,8 @@ export type TuiSelection = {
 	noteOpen?: boolean;
 	noteDraft?: string;
 	archiveOpen?: boolean;
+	warningsOpen?: boolean;
+	helpOpen?: boolean;
 	detailScrollOffset?: number;
 	detailScrollMax?: number;
 	message?: string;
@@ -233,9 +254,24 @@ export function buildTuiModel(board: BoardSnapshot): TuiModel {
 			title: column.title,
 			cards: column.issues.map(formatCard),
 		})),
-		warnings: board.warnings.map(
-			(warning) => `${warning.kind}: ${warning.message}`,
-		),
+		warnings: board.warnings.map(formatWarning),
+		...(board.warnings.length > 0
+			? { warningDetails: board.warnings.map(formatTuiWarning) }
+			: {}),
+	};
+}
+
+function formatWarning(warning: BoardWarning): string {
+	return `${warning.kind}: ${warning.message}`;
+}
+
+function formatTuiWarning(warning: BoardWarning): TuiWarning {
+	return {
+		text: formatWarning(warning),
+		kind: warning.kind,
+		message: warning.message,
+		issueId: warning.issueId,
+		path: warning.path,
 	};
 }
 
@@ -246,26 +282,42 @@ export function moveSelection(
 	options: { viewportHeight?: number } = {},
 ): TuiSelection {
 	if (direction === "enter") {
-		return { ...selection, detailOpen: true, detailScrollOffset: 0 };
-	}
-	if (
-		selection.detailOpen &&
-		!selection.moveOpen &&
-		!selection.noteOpen &&
-		(direction === "up" || direction === "down")
-	) {
+		const card =
+			model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+		if (!card) {
+			return { ...selection, detailOpen: false, message: "No Issue selected" };
+		}
 		return {
 			...selection,
-			detailScrollOffset: clamp(
-				(selection.detailScrollOffset ?? 0) + (direction === "down" ? 1 : -1),
-				0,
-				detailScrollMax(model, selection, options),
-			),
+			detailOpen: true,
+			detailScrollOffset: 0,
+			message: undefined,
 		};
 	}
+	if (selection.detailOpen && !selection.moveOpen && !selection.noteOpen) {
+		if (direction === "up" || direction === "down") {
+			return {
+				...selection,
+				detailScrollOffset: clamp(
+					(selection.detailScrollOffset ?? 0) + (direction === "down" ? 1 : -1),
+					0,
+					detailScrollMax(model, selection, options),
+				),
+			};
+		}
+		if (direction === "left" || direction === "right") {
+			return selection;
+		}
+	}
 	if (direction === "escape") {
+		if (selection.helpOpen) {
+			return { ...selection, helpOpen: false };
+		}
 		if (selection.archiveOpen) {
 			return { ...selection, archiveOpen: false };
+		}
+		if (selection.warningsOpen) {
+			return { ...selection, warningsOpen: false };
 		}
 		return {
 			...selection,
@@ -300,6 +352,14 @@ export function moveSelection(
 			moveOpen: false,
 			noteOpen: false,
 		};
+	}
+	if (direction === "warnings") {
+		return model.warnings.length > 0
+			? { ...selection, warningsOpen: !selection.warningsOpen }
+			: { ...selection, message: "No warnings" };
+	}
+	if (direction === "help") {
+		return { ...selection, helpOpen: !selection.helpOpen };
 	}
 	const columnIndex = clamp(
 		selection.columnIndex +
@@ -357,6 +417,8 @@ export function refreshTuiModel(options: {
 			noteDraft: stillSelected ? options.selection.noteDraft : undefined,
 			message: options.selection.message,
 			archiveOpen: stillSelected ? options.selection.archiveOpen : false,
+			warningsOpen: options.selection.warningsOpen,
+			helpOpen: options.selection.helpOpen,
 		},
 	};
 }
@@ -384,14 +446,11 @@ export function renderTuiText(
 	model: TuiModel,
 	selection: TuiSelection,
 ): string {
-	const lines = ["mikan board", ...renderBoard(model, selection)];
-	if (model.warnings.length > 0) {
-		lines.push(
-			"",
-			"Warnings",
-			...model.warnings.map((warning) => `! ${warning}`),
-		);
-	}
+	const lines = [
+		"mikan board",
+		formatWarningSummary(model.warnings),
+		...renderBoard(model, selection),
+	].filter(Boolean);
 	if (selection.moveOpen) {
 		lines.push("", ...renderMoveInteraction(model, selection));
 	}
@@ -401,11 +460,17 @@ export function renderTuiText(
 	if (selection.archiveOpen) {
 		lines.push("", ...renderArchiveInteraction(model, selection));
 	}
+	if (selection.warningsOpen) {
+		lines.push("", ...renderWarningDetails(model));
+	}
+	if (selection.helpOpen) {
+		lines.push("", ...renderKeyHelp());
+	}
 	lines.push(
 		"",
 		[footerText(footerMode(selection)), selection.message]
 			.filter(Boolean)
-			.join(" | "),
+			.join("    "),
 	);
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
@@ -479,6 +544,10 @@ export function TuiAppView({
 		selection.archiveOpen
 			? React.createElement(ArchivePrompt, { model, selection, theme })
 			: undefined,
+		selection.warningsOpen
+			? React.createElement(WarningPanel, { model, theme })
+			: undefined,
+		selection.helpOpen ? React.createElement(HelpPanel, { theme }) : undefined,
 		React.createElement(Footer, {
 			message: selection.message,
 			mode: footerMode(selection),
@@ -525,6 +594,10 @@ export function buildDetailPageViewModel(
 		title: details.card.title,
 		status: details.card.status,
 		labelsText: details.card.labels.join(", "),
+		dependsOnText: cardDependsOn(details.card).join(", "),
+		unmetDependenciesText: cardUnmetDependencies(details.card).join(", "),
+		dependencyStatus: cardDependencyStatus(details.card),
+		warningCount: warningCountForCard(model.warningDetails, details.card),
 		markdown,
 		visibleMarkdownLines,
 		hiddenLinesBefore: offset,
@@ -613,6 +686,7 @@ export function buildBoardViewModel(
 			emptyText: "No Issues",
 			cards,
 			visibleCards,
+			laneFillLineCount: Math.max(0, visibleCardCount - visibleCards.length),
 			hiddenCardsBefore: cardStart,
 			hiddenCardsAfter: Math.max(0, cards.length - cardEnd),
 			cardRangeText:
@@ -643,6 +717,16 @@ export function buildBoardViewModel(
 	};
 }
 
+export function columnWidthPercent(index: number, count: number): string {
+	const safeCount = Math.max(1, count);
+	const base = Math.floor(100 / safeCount);
+	const remainder = 100 - base * safeCount;
+	const extraStart = Math.floor((safeCount - remainder) / 2);
+	const width =
+		index >= extraStart && index < extraStart + remainder ? base + 1 : base;
+	return `${width}%`;
+}
+
 export function BoardView({
 	model,
 	selection,
@@ -656,6 +740,12 @@ export function BoardView({
 			id: "mikan-board",
 			style: { flexDirection: "column", flexGrow: 1, minHeight: 0 },
 		},
+		model.warnings.length > 0
+			? React.createElement("text", {
+					content: formatWarningSummary(model.warnings),
+					style: { color: theme.feedback.warning },
+				})
+			: undefined,
 		React.createElement("text", { content: view.columnViewportText }),
 		...view.groups.map((group, groupIndex) =>
 			React.createElement(
@@ -665,24 +755,16 @@ export function BoardView({
 					id: `board-row-${groupIndex}`,
 					style: { flexDirection: "row", flexGrow: 1, minHeight: 0 },
 				},
-				...group.columns.map((column) =>
+				...group.columns.map((column, columnIndex) =>
 					React.createElement(ColumnPane, {
 						key: column.id,
 						column,
 						theme,
-						width: `${(100 / group.columns.length).toFixed(2)}%`,
+						width: columnWidthPercent(columnIndex, group.columns.length),
 					}),
 				),
 			),
 		),
-		model.warnings.length > 0
-			? React.createElement("text", {
-					content: [
-						`Warnings: ${model.warnings.length}`,
-						...model.warnings,
-					].join("\n"),
-				})
-			: undefined,
 	);
 }
 
@@ -692,26 +774,29 @@ export function ColumnPane(props: {
 	width?: string;
 }): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
-	const children = [
-		props.column.cardRangeText
-			? React.createElement("text", { content: props.column.cardRangeText })
-			: undefined,
-		...(props.column.empty
-			? [React.createElement("text", { content: props.column.emptyText })]
-			: props.column.visibleCards.map((card) =>
-					React.createElement(IssueCard, {
-						key: card.id,
-						card,
-						selected: card.selected,
-						theme,
-					}),
-				)),
-	];
+	const cardChildren = props.column.empty
+		? [
+				React.createElement("text", {
+					id: `column-${props.column.id}-empty`,
+					content: props.column.emptyText,
+				}),
+			]
+		: props.column.visibleCards.map((card) =>
+				React.createElement(IssueCard, {
+					key: card.id,
+					card,
+					selected: card.selected,
+					theme,
+				}),
+			);
+	const children = cardChildren;
 	return React.createElement(
 		"box",
 		{
 			id: `column-${props.column.id}`,
 			title: `${props.column.active ? "▶ " : ""}${props.column.title} (${props.column.count})`,
+			bottomTitle: props.column.cardRangeText || undefined,
+			bottomTitleAlignment: "center",
 			border: true,
 			focused: props.column.active,
 			style: {
@@ -728,6 +813,27 @@ export function ColumnPane(props: {
 	);
 }
 
+function issueCardContent(
+	card: TuiCard,
+	selected: boolean,
+	theme: TuiTheme,
+): StyledText {
+	const chunks = [];
+	if (selected) chunks.push(fg(theme.interactive.focus)("▶ "));
+	chunks.push(fg(theme.interactive.accent)(card.id));
+	if (cardDependencyStatus(card) === "blocked") {
+		chunks.push(fg(theme.base.text)(" "));
+		chunks.push(fg(theme.feedback.warning)("deps!"));
+	}
+	chunks.push(fg(theme.base.muted)(" │ "));
+	chunks.push(fg(theme.base.text)(card.title));
+	if (card.labels.length > 0) {
+		chunks.push(fg(theme.base.text)(" "));
+		chunks.push(fg(theme.base.muted)(formatLabels(card.labels)));
+	}
+	return new StyledText(chunks);
+}
+
 export function IssueCard(props: {
 	card: TuiCard;
 	selected: boolean;
@@ -738,28 +844,81 @@ export function IssueCard(props: {
 		"box",
 		{
 			id: `card-${props.card.id}`,
-			border: true,
+			border: false,
 			focused: props.selected,
 			style: {
 				backgroundColor: props.selected
 					? theme.interactive.selectedSurface
 					: theme.base.surface,
-				borderColor: props.selected
-					? theme.interactive.focus
-					: theme.base.muted,
-				color: props.selected ? theme.interactive.focus : theme.base.text,
 				flexDirection: "column",
-				height: 3,
+				height: 1,
 			},
 		},
 		React.createElement("text", {
-			content: `${props.selected ? "▶ " : ""}${props.card.id} ${props.card.title}${
-				props.card.labels.length > 0
-					? ` ${formatLabels(props.card.labels)}`
-					: ""
-			}`,
+			content: issueCardContent(props.card, props.selected, theme),
 		}),
 	);
+}
+
+function warningCountForCard(
+	warnings: TuiWarning[] | undefined,
+	card: TuiCard,
+): number {
+	return (warnings ?? []).filter(
+		(warning) => warning.issueId === card.id || warning.path === card.path,
+	).length;
+}
+
+function detailLabelsText(page: DetailPageViewModel): string {
+	return page.labelsText
+		? formatLabels(page.labelsText.split(", ").filter(Boolean))
+		: "none";
+}
+
+function detailDependencyText(page: DetailPageViewModel): string {
+	if (page.unmetDependenciesText)
+		return `deps unmet ${page.unmetDependenciesText}`;
+	return page.dependsOnText ? `deps ${page.dependencyStatus}` : "";
+}
+
+function detailStatusColor(status: string, theme: TuiTheme): string {
+	if (status === "completed") return theme.feedback.success;
+	if (status === "blocked") return theme.feedback.warning;
+	if (status === "active") return theme.interactive.accent;
+	return theme.base.muted;
+}
+
+function detailTitleContent(
+	page: DetailPageViewModel,
+	theme: TuiTheme,
+): StyledText {
+	const chunks = [
+		fg(theme.interactive.accent)(page.id),
+		fg(theme.base.muted)(" │ "),
+		fg(theme.base.text)(page.title),
+	];
+	if (page.lineRangeText) {
+		chunks.push(fg(theme.base.muted)(" │ "));
+		chunks.push(fg(theme.base.muted)(page.lineRangeText));
+	}
+	return new StyledText(chunks);
+}
+
+function detailMetaContent(
+	page: DetailPageViewModel,
+	theme: TuiTheme,
+): StyledText {
+	const chunks = [
+		fg(detailStatusColor(page.status, theme))(page.status),
+		fg(theme.base.muted)(" · labels "),
+		fg(theme.base.muted)(detailLabelsText(page)),
+	];
+	const dependency = detailDependencyText(page);
+	if (dependency) chunks.push(fg(theme.feedback.warning)(` · ${dependency}`));
+	if (page.warningCount > 0) {
+		chunks.push(fg(theme.feedback.warning)(` · warnings ${page.warningCount}`));
+	}
+	return new StyledText(chunks);
 }
 
 export function DetailPage(props: TuiAppViewProps): React.ReactElement {
@@ -794,13 +953,10 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 				},
 			},
 			React.createElement("text", {
-				content: `${page.id}  ${page.title}`,
+				content: detailTitleContent(page, theme),
 			}),
 			React.createElement("text", {
-				content: `Status: ${page.status} | Labels: ${page.labelsText ? formatLabels(page.labelsText.split(", ").filter(Boolean)) : "none"}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
-			}),
-			React.createElement("text", {
-				content: "────────────────────────────────────────────────",
+				content: detailMetaContent(page, theme),
 			}),
 		),
 		React.createElement(
@@ -1028,6 +1184,53 @@ function modalStyle(theme: TuiTheme): Record<string, string | number> {
 
 export type { FooterMode } from "./formatting.ts";
 
+export function HelpPanel(props: { theme?: TuiTheme }): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "help-panel-backdrop",
+			style: modalBackdropStyle(theme),
+		},
+		React.createElement(
+			"box",
+			{
+				id: "help-panel",
+				title: "Key help",
+				border: true,
+				style: modalStyle(theme),
+			},
+			React.createElement("text", { content: renderKeyHelp().join("\n") }),
+		),
+	);
+}
+
+export function WarningPanel(props: {
+	model: TuiModel;
+	theme?: TuiTheme;
+}): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "warning-panel",
+			title: "Warning details",
+			border: true,
+			style: {
+				backgroundColor: theme.base.surface,
+				borderColor: theme.feedback.warning,
+				flexDirection: "column",
+			},
+		},
+		React.createElement("text", {
+			content:
+				props.model.warnings.length > 0
+					? props.model.warnings.map((warning) => `! ${warning}`).join("\n")
+					: "No warnings",
+		}),
+	);
+}
+
 export type FooterProps = {
 	message?: string;
 	mode?: FooterMode;
@@ -1041,7 +1244,7 @@ export function Footer(props: FooterProps): React.ReactElement {
 		style: { color: theme.base.muted, marginTop: "auto" },
 		content: [footerText(props.mode ?? "board"), props.message]
 			.filter(Boolean)
-			.join(" | "),
+			.join("    "),
 	});
 }
 
@@ -1364,10 +1567,49 @@ function renderArchiveInteraction(
 	return [view.title, view.body, view.hint];
 }
 
+function renderWarningDetails(model: TuiModel): string[] {
+	return [
+		"Warning details",
+		...(model.warnings.length > 0
+			? model.warnings.map((warning) => `! ${warning}`)
+			: ["No warnings"]),
+	];
+}
+
+function renderKeyHelp(): string[] {
+	return [
+		"Key help",
+		"↑/↓ or j/k card/scroll",
+		"←/→ or h/l column",
+		"enter detail/confirm",
+		"esc back/cancel",
+		"H/L move Issue",
+		"m move menu",
+		"n append Note",
+		"a archive Issue",
+		"w warning details",
+		"r reload",
+		"q quit",
+	];
+}
+
+function formatWarningSummary(warnings: string[]): string {
+	if (warnings.length === 0) return "";
+	const kinds = [...new Set(warnings.map((warning) => warning.split(":")[0]))]
+		.filter(Boolean)
+		.join(", ");
+	return `Warnings: ${warnings.length}${kinds ? ` ${kinds}` : ""} | w details`;
+}
+
 function renderDetails(details: TuiDetails): string[] {
 	return [
 		`Detail: ${details.card.id} ${details.card.title}`,
 		"esc back",
+		"",
+		"## Dependencies",
+		`Depends On: ${cardDependsOn(details.card).length > 0 ? cardDependsOn(details.card).join(", ") : "none"}`,
+		`Unmet: ${cardUnmetDependencies(details.card).length > 0 ? cardUnmetDependencies(details.card).join(", ") : "none"}`,
+		`Dependency readiness: ${cardDependencyStatus(details.card)}`,
 		"",
 		"## Summary",
 		details.summary || "(empty)",
@@ -1396,9 +1638,9 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 					...(column.cardRangeText ? [`  ${column.cardRangeText}`] : []),
 					...column.visibleCards.map(
 						(card) =>
-							`${card.selected ? "▶" : " "} ${card.id} ${card.title}${
-								card.labels.length > 0 ? ` ${formatLabels(card.labels)}` : ""
-							}`,
+							`${card.selected ? "▶" : " "} ${card.id}${
+								cardDependencyStatus(card) === "blocked" ? " deps!" : ""
+							} ${card.title}${card.labels.length > 0 ? ` ${formatLabels(card.labels)}` : ""}`,
 					),
 				];
 		return {
@@ -1469,7 +1711,17 @@ export async function launchTui(
 
 		useKeyboard((key: { name?: string; shift?: boolean }) => {
 			const action = keyToTuiAction(key.name, key.shift);
+			if (selection.helpOpen) {
+				if (action === "escape" || action === "help") {
+					setSelection((current) => moveSelection(model, current, action));
+				}
+				return;
+			}
 			if (selection.noteOpen) {
+				if (action === "help") {
+					setSelection((current) => moveSelection(model, current, action));
+					return;
+				}
 				if (action === "escape") {
 					setSelection((current) => moveSelection(model, current, action));
 					return;
@@ -1489,6 +1741,10 @@ export async function launchTui(
 				return;
 			}
 			if (selection.archiveOpen) {
+				if (action === "help") {
+					setSelection((current) => moveSelection(model, current, action));
+					return;
+				}
 				if (action === "escape") {
 					setSelection((current) => moveSelection(model, current, action));
 					return;
@@ -1586,12 +1842,20 @@ type TuiAction =
 	| "move-right"
 	| "append-note"
 	| "archive"
+	| "warnings"
+	| "help"
 	| "reload"
 	| "quit";
 
 type TuiDirection = "left" | "right" | "up" | "down" | "enter" | "escape";
 
-type TuiSelectionAction = TuiDirection | "move" | "append-note" | "archive";
+type TuiSelectionAction =
+	| TuiDirection
+	| "move"
+	| "append-note"
+	| "archive"
+	| "warnings"
+	| "help";
 
 export function keyToTuiAction(
 	keyName: string | undefined,
@@ -1629,6 +1893,10 @@ export function keyToTuiAction(
 			return "append-note";
 		case "a":
 			return "archive";
+		case "w":
+			return "warnings";
+		case "?":
+			return "help";
 		case "q":
 			return "quit";
 		default:
@@ -1646,6 +1914,8 @@ export function keyToDirection(
 		action === "move-right" ||
 		action === "append-note" ||
 		action === "archive" ||
+		action === "warnings" ||
+		action === "help" ||
 		action === "reload" ||
 		action === "quit"
 	) {
@@ -1687,6 +1957,18 @@ function findSelectionByCardId(
 	return undefined;
 }
 
+function cardDependsOn(card: TuiCard): string[] {
+	return card.dependsOn ?? [];
+}
+
+function cardUnmetDependencies(card: TuiCard): string[] {
+	return card.unmetDependencies ?? [];
+}
+
+function cardDependencyStatus(card: TuiCard): "ready" | "blocked" {
+	return card.dependencyStatus ?? "ready";
+}
+
 function formatCard(issue: BoardIssue): TuiCard {
 	return {
 		id: String(issue.issue.id),
@@ -1694,6 +1976,9 @@ function formatCard(issue: BoardIssue): TuiCard {
 		labels: issue.issue.labels.map(String),
 		status: String(issue.status),
 		path: issue.path,
+		dependsOn: issue.issue.dependencies.map(String),
+		unmetDependencies: issue.unmetDependencies.map(String),
+		dependencyStatus: issue.dependencyStatus,
 	};
 }
 
