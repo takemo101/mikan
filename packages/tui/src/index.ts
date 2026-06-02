@@ -770,7 +770,7 @@ export function IssueCard(props: {
 		},
 		React.createElement("text", {
 			content: `${props.selected ? "▶ " : ""}${props.card.id}${
-				cardDependencyStatus(props.card) === "blocked" ? " 🔒" : ""
+				cardDependencyStatus(props.card) === "blocked" ? " deps!" : ""
 			} ${props.card.title}${props.card.labels.length > 0 ? ` ${formatLabels(props.card.labels)}` : ""}`,
 		}),
 	);
@@ -815,7 +815,7 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 			}),
 			page.dependsOnText || page.unmetDependenciesText
 				? React.createElement("text", {
-						content: `Dependencies: ${page.dependsOnText || "none"} | Unmet: ${page.unmetDependenciesText || "none"} | ${page.dependencyStatus}`,
+						content: `Dependencies: ${page.dependsOnText || "none"} | Unmet: ${page.unmetDependenciesText || "none"} | Dependency readiness: ${page.dependencyStatus}`,
 					})
 				: undefined,
 			React.createElement("text", {
@@ -1391,7 +1391,7 @@ function renderDetails(details: TuiDetails): string[] {
 		"## Dependencies",
 		`Depends On: ${cardDependsOn(details.card).length > 0 ? cardDependsOn(details.card).join(", ") : "none"}`,
 		`Unmet: ${cardUnmetDependencies(details.card).length > 0 ? cardUnmetDependencies(details.card).join(", ") : "none"}`,
-		`Status: ${cardDependencyStatus(details.card)}`,
+		`Dependency readiness: ${cardDependencyStatus(details.card)}`,
 		"",
 		"## Summary",
 		details.summary || "(empty)",
@@ -1421,7 +1421,7 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 					...column.visibleCards.map(
 						(card) =>
 							`${card.selected ? "▶" : " "} ${card.id}${
-								cardDependencyStatus(card) === "blocked" ? " 🔒" : ""
+								cardDependencyStatus(card) === "blocked" ? " deps!" : ""
 							} ${card.title}${card.labels.length > 0 ? ` ${formatLabels(card.labels)}` : ""}`,
 					),
 				];

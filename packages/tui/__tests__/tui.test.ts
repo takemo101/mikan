@@ -193,14 +193,15 @@ describe("TUI model and navigation", () => {
 			dependencyStatus: "blocked",
 		});
 		expect(text).toContain("MIK-002");
-		expect(text).toContain("🔒");
+		expect(text).toContain("deps!");
+		expect(text).not.toContain("🔒");
 		expect(page).toMatchObject({
 			dependsOnText: "MIK-001",
 			unmetDependenciesText: "MIK-001",
 			dependencyStatus: "blocked",
 		});
 		expect(collectTextContent(tree)).toContain(
-			"Dependencies: MIK-001 | Unmet: MIK-001 | blocked",
+			"Dependencies: MIK-001 | Unmet: MIK-001 | Dependency readiness: blocked",
 		);
 	});
 
