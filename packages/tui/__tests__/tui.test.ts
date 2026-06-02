@@ -239,13 +239,35 @@ describe("TUI model and navigation", () => {
 		expect(text).toContain("│ ▶ MIK-001 Ready issue");
 		expect(text).toContain("│ ▶ MIK-001 Ready issue");
 		expect(text).toContain("│   (empty)");
-		expect(text).toContain("Warnings");
+		expect(text).toContain("Warnings: 1 malformed_issue | w details");
+		expect(text).not.toContain("Flow sequence in block collection");
 		expect(text).toContain("Columns: Backlog / Ready / Active ▶");
 		expect(text).toContain("j/k card | h/l column");
 		expect(text).toContain("H/L move");
 		expect(text).toContain("r reload");
 		expect(text).toContain("enter detail");
 		expect(text).toContain("q quit");
+	});
+
+	test("renders warning details only when the warning panel is open", () => {
+		const model = loadTuiModel(tempProject());
+
+		const boardText = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		});
+		const warningText = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			warningsOpen: true,
+		});
+
+		expect(boardText).toContain("Warnings: 1 malformed_issue | w details");
+		expect(boardText).not.toContain("Flow sequence in block collection");
+		expect(warningText).toContain("Warning details");
+		expect(warningText).toContain("Flow sequence in block collection");
 	});
 
 	test("defines semantic theme tokens for TUI surfaces and states", () => {

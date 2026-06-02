@@ -166,6 +166,7 @@ export type TuiSelection = {
 	noteOpen?: boolean;
 	noteDraft?: string;
 	archiveOpen?: boolean;
+	warningsOpen?: boolean;
 	detailScrollOffset?: number;
 	detailScrollMax?: number;
 	message?: string;
@@ -283,6 +284,9 @@ export function moveSelection(
 		if (selection.archiveOpen) {
 			return { ...selection, archiveOpen: false };
 		}
+		if (selection.warningsOpen) {
+			return { ...selection, warningsOpen: false };
+		}
 		return {
 			...selection,
 			detailOpen: false,
@@ -316,6 +320,11 @@ export function moveSelection(
 			moveOpen: false,
 			noteOpen: false,
 		};
+	}
+	if (direction === "warnings") {
+		return model.warnings.length > 0
+			? { ...selection, warningsOpen: !selection.warningsOpen }
+			: { ...selection, message: "No warnings" };
 	}
 	const columnIndex = clamp(
 		selection.columnIndex +
@@ -373,6 +382,7 @@ export function refreshTuiModel(options: {
 			noteDraft: stillSelected ? options.selection.noteDraft : undefined,
 			message: options.selection.message,
 			archiveOpen: stillSelected ? options.selection.archiveOpen : false,
+			warningsOpen: options.selection.warningsOpen,
 		},
 	};
 }
@@ -400,14 +410,11 @@ export function renderTuiText(
 	model: TuiModel,
 	selection: TuiSelection,
 ): string {
-	const lines = ["mikan board", ...renderBoard(model, selection)];
-	if (model.warnings.length > 0) {
-		lines.push(
-			"",
-			"Warnings",
-			...model.warnings.map((warning) => `! ${warning}`),
-		);
-	}
+	const lines = [
+		"mikan board",
+		formatWarningSummary(model.warnings),
+		...renderBoard(model, selection),
+	].filter(Boolean);
 	if (selection.moveOpen) {
 		lines.push("", ...renderMoveInteraction(model, selection));
 	}
@@ -416,6 +423,9 @@ export function renderTuiText(
 	}
 	if (selection.archiveOpen) {
 		lines.push("", ...renderArchiveInteraction(model, selection));
+	}
+	if (selection.warningsOpen) {
+		lines.push("", ...renderWarningDetails(model));
 	}
 	lines.push(
 		"",
@@ -494,6 +504,9 @@ export function TuiAppView({
 			: undefined,
 		selection.archiveOpen
 			? React.createElement(ArchivePrompt, { model, selection, theme })
+			: undefined,
+		selection.warningsOpen
+			? React.createElement(WarningPanel, { model, theme })
 			: undefined,
 		React.createElement(Footer, {
 			message: selection.message,
@@ -675,6 +688,12 @@ export function BoardView({
 			id: "mikan-board",
 			style: { flexDirection: "column", flexGrow: 1, minHeight: 0 },
 		},
+		model.warnings.length > 0
+			? React.createElement("text", {
+					content: formatWarningSummary(model.warnings),
+					style: { color: theme.feedback.warning },
+				})
+			: undefined,
 		React.createElement("text", { content: view.columnViewportText }),
 		...view.groups.map((group, groupIndex) =>
 			React.createElement(
@@ -694,14 +713,6 @@ export function BoardView({
 				),
 			),
 		),
-		model.warnings.length > 0
-			? React.createElement("text", {
-					content: [
-						`Warnings: ${model.warnings.length}`,
-						...model.warnings,
-					].join("\n"),
-				})
-			: undefined,
 	);
 }
 
@@ -1044,6 +1055,32 @@ function modalStyle(theme: TuiTheme): Record<string, string | number> {
 
 export type { FooterMode } from "./formatting.ts";
 
+export function WarningPanel(props: {
+	model: TuiModel;
+	theme?: TuiTheme;
+}): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "warning-panel",
+			title: "Warning details",
+			border: true,
+			style: {
+				backgroundColor: theme.base.surface,
+				borderColor: theme.feedback.warning,
+				flexDirection: "column",
+			},
+		},
+		React.createElement("text", {
+			content:
+				props.model.warnings.length > 0
+					? props.model.warnings.map((warning) => `! ${warning}`).join("\n")
+					: "No warnings",
+		}),
+	);
+}
+
 export type FooterProps = {
 	message?: string;
 	mode?: FooterMode;
@@ -1380,6 +1417,23 @@ function renderArchiveInteraction(
 	return [view.title, view.body, view.hint];
 }
 
+function renderWarningDetails(model: TuiModel): string[] {
+	return [
+		"Warning details",
+		...(model.warnings.length > 0
+			? model.warnings.map((warning) => `! ${warning}`)
+			: ["No warnings"]),
+	];
+}
+
+function formatWarningSummary(warnings: string[]): string {
+	if (warnings.length === 0) return "";
+	const kinds = [...new Set(warnings.map((warning) => warning.split(":")[0]))]
+		.filter(Boolean)
+		.join(", ");
+	return `Warnings: ${warnings.length}${kinds ? ` ${kinds}` : ""} | w details`;
+}
+
 function renderDetails(details: TuiDetails): string[] {
 	return [
 		`Detail: ${details.card.id} ${details.card.title}`,
@@ -1607,12 +1661,18 @@ type TuiAction =
 	| "move-right"
 	| "append-note"
 	| "archive"
+	| "warnings"
 	| "reload"
 	| "quit";
 
 type TuiDirection = "left" | "right" | "up" | "down" | "enter" | "escape";
 
-type TuiSelectionAction = TuiDirection | "move" | "append-note" | "archive";
+type TuiSelectionAction =
+	| TuiDirection
+	| "move"
+	| "append-note"
+	| "archive"
+	| "warnings";
 
 export function keyToTuiAction(
 	keyName: string | undefined,
@@ -1650,6 +1710,8 @@ export function keyToTuiAction(
 			return "append-note";
 		case "a":
 			return "archive";
+		case "w":
+			return "warnings";
 		case "q":
 			return "quit";
 		default:
@@ -1667,6 +1729,7 @@ export function keyToDirection(
 		action === "move-right" ||
 		action === "append-note" ||
 		action === "archive" ||
+		action === "warnings" ||
 		action === "reload" ||
 		action === "quit"
 	) {
