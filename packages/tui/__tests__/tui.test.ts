@@ -71,6 +71,9 @@ function collectElementTypes(element: unknown): unknown[] {
 }
 
 function collectTextContent(element: unknown): string {
+	if (typeof element === "string" || typeof element === "number") {
+		return String(element);
+	}
 	if (!element || typeof element !== "object") return "";
 	const node = element as {
 		type?: unknown;
@@ -85,7 +88,30 @@ function collectTextContent(element: unknown): string {
 		typeof node.props?.content === "string" ? node.props.content : "",
 		...children.map(collectTextContent),
 		collectTextContent(rendered),
-	].join("\n");
+	].join("");
+}
+
+function findElementByTypeAndText(
+	element: unknown,
+	type: string,
+	text: string,
+): { props?: Record<string, unknown> } | undefined {
+	if (!element || typeof element !== "object") return undefined;
+	const node = element as {
+		type?: unknown;
+		props?: { children?: unknown };
+	};
+	if (node.type === type && collectTextContent(node) === text) return node;
+	const children = Array.isArray(node.props?.children)
+		? node.props.children
+		: [node.props?.children];
+	const childMatch = children
+		.map((child) => findElementByTypeAndText(child, type, text))
+		.find(Boolean);
+	if (childMatch) return childMatch;
+	const rendered =
+		typeof node.type === "function" ? node.type(node.props) : undefined;
+	return findElementByTypeAndText(rendered, type, text);
 }
 
 function findElementById(
@@ -667,11 +693,26 @@ describe("TUI model and navigation", () => {
 		expect(card?.props).toMatchObject({ border: false });
 		expect(card?.props?.style).toMatchObject({
 			backgroundColor: theme.interactive.selectedSurface,
-			color: theme.interactive.focus,
 			height: 1,
 		});
-		expect(card?.props?.style?.color).not.toBe(theme.feedback.success);
-		expect(collectTextContent(tree)).toContain("▶ MIK-001 Ready issue");
+		expect(card?.props?.style?.color).toBeUndefined();
+		expect(findElementByTypeAndText(card, "span", "▶")?.props).toMatchObject({
+			fg: theme.interactive.focus,
+		});
+		expect(
+			findElementByTypeAndText(card, "span", "MIK-001")?.props,
+		).toMatchObject({
+			fg: theme.interactive.accent,
+		});
+		expect(findElementByTypeAndText(card, "span", "│")?.props).toMatchObject({
+			fg: theme.base.muted,
+		});
+		expect(
+			findElementByTypeAndText(card, "span", "Ready issue")?.props,
+		).toMatchObject({
+			fg: theme.base.text,
+		});
+		expect(collectTextContent(tree)).toContain("▶ MIK-001 │ Ready issue");
 	});
 
 	test("renders unselected Cards quietly without label overlap", () => {
@@ -696,11 +737,26 @@ describe("TUI model and navigation", () => {
 		expect(cardProps).toMatchObject({ border: false });
 		expect(cardProps.style).toMatchObject({
 			backgroundColor: theme.base.surface,
-			color: theme.base.text,
 			height: 1,
 		});
+		expect(cardProps.style?.color).toBeUndefined();
+		expect(
+			findElementByTypeAndText(card, "span", "MIK-002")?.props,
+		).toMatchObject({
+			fg: theme.interactive.accent,
+		});
+		expect(
+			findElementByTypeAndText(card, "span", "Quiet issue")?.props,
+		).toMatchObject({
+			fg: theme.base.text,
+		});
+		expect(
+			findElementByTypeAndText(card, "span", "#automation")?.props,
+		).toMatchObject({
+			fg: theme.base.muted,
+		});
 		expect(collectTextContent(card)).toContain(
-			"MIK-002 Quiet issue #automation",
+			"MIK-002 │ Quiet issue #automation",
 		);
 	});
 

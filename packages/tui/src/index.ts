@@ -824,16 +824,39 @@ export function IssueCard(props: {
 				backgroundColor: props.selected
 					? theme.interactive.selectedSurface
 					: theme.base.surface,
-				color: props.selected ? theme.interactive.focus : theme.base.text,
 				flexDirection: "column",
 				height: 1,
 			},
 		},
-		React.createElement("text", {
-			content: `${props.selected ? "▶ " : ""}${props.card.id}${
-				cardDependencyStatus(props.card) === "blocked" ? " deps!" : ""
-			} ${props.card.title}${props.card.labels.length > 0 ? ` ${formatLabels(props.card.labels)}` : ""}`,
-		}),
+		React.createElement(
+			"text",
+			{},
+			props.selected
+				? React.createElement("span", { fg: theme.interactive.focus }, "▶")
+				: undefined,
+			props.selected ? " " : undefined,
+			React.createElement(
+				"span",
+				{ fg: theme.interactive.accent },
+				props.card.id,
+			),
+			cardDependencyStatus(props.card) === "blocked" ? " " : undefined,
+			cardDependencyStatus(props.card) === "blocked"
+				? React.createElement("span", { fg: theme.feedback.warning }, "deps!")
+				: undefined,
+			" ",
+			React.createElement("span", { fg: theme.base.muted }, "│"),
+			" ",
+			React.createElement("span", { fg: theme.base.text }, props.card.title),
+			props.card.labels.length > 0 ? " " : undefined,
+			props.card.labels.length > 0
+				? React.createElement(
+						"span",
+						{ fg: theme.base.muted },
+						formatLabels(props.card.labels),
+					)
+				: undefined,
+		),
 	);
 }
 
