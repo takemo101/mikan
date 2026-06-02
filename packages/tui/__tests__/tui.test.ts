@@ -242,11 +242,9 @@ describe("TUI model and navigation", () => {
 		expect(text).toContain("Warnings: 1 malformed_issue | w details");
 		expect(text).not.toContain("Flow sequence in block collection");
 		expect(text).toContain("Columns: Backlog / Ready / Active ▶");
-		expect(text).toContain("j/k card | h/l column");
-		expect(text).toContain("H/L move");
-		expect(text).toContain("r reload");
+		expect(text).toContain("↑↓ card | ←→ column");
 		expect(text).toContain("enter detail");
-		expect(text).toContain("q quit");
+		expect(text).toContain("? keys");
 	});
 
 	test("renders warning details only when the warning panel is open", () => {
@@ -721,13 +719,52 @@ describe("TUI model and navigation", () => {
 		);
 
 		expect(boardText).toContain(
-			"Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys",
 		);
-		expect(detailText).toContain(
-			"Detail | j/k scroll | esc board | n note | a archive | r reload | q quit",
-		);
-		expect(modalText).toContain("Modal | enter confirm | esc cancel");
+		expect(detailText).toContain("Detail | ↑↓ scroll | esc board | ? keys");
+		expect(modalText).toContain("Modal | enter confirm | esc cancel | ? keys");
 		expect(detailText).not.toContain("j/k card");
+	});
+
+	test("escape closes help before underlying modal state", () => {
+		const model = loadTuiModel(tempProject());
+		const selection = moveSelection(
+			model,
+			{
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: false,
+				archiveOpen: true,
+				helpOpen: true,
+			},
+			"escape",
+		);
+
+		expect(selection).toMatchObject({
+			helpOpen: false,
+			archiveOpen: true,
+		});
+	});
+
+	test("renders full key help when help is open", () => {
+		const model = loadTuiModel(tempProject());
+		const text = collectTextContent(
+			TuiAppView({
+				model,
+				selection: {
+					columnIndex: 1,
+					cardIndex: 0,
+					detailOpen: false,
+					helpOpen: true,
+				},
+			}),
+		);
+
+		expect(text).toContain("Key help");
+		expect(text).toContain("H/L move Issue");
+		expect(text).toContain("m move menu");
+		expect(text).toContain("w warning details");
+		expect(text).toContain("n append Note");
 	});
 
 	test("detail mode switches to a polished full-page Markdown detail page", () => {
@@ -798,7 +835,7 @@ describe("TUI model and navigation", () => {
 			detailOpen: false,
 			message: "No Issue selected",
 		});
-		expect(renderTuiText(model, selection)).toContain("Board | j/k card");
+		expect(renderTuiText(model, selection)).toContain("Board | ↑↓ card");
 	});
 
 	test("builds a split-pane detail view model with grouped Issues and separated sections", () => {
@@ -922,6 +959,8 @@ describe("TUI model and navigation", () => {
 		expect(keyToTuiAction("l", true)).toBe("move-right");
 		expect(keyToTuiAction("H")).toBe("move-left");
 		expect(keyToTuiAction("L")).toBe("move-right");
+		expect(keyToTuiAction("w")).toBe("warnings");
+		expect(keyToTuiAction("?")).toBe("help");
 		expect(keyToTuiAction("escape")).toBe("escape");
 	});
 
@@ -974,13 +1013,13 @@ describe("TUI model and navigation", () => {
 			| undefined;
 
 		expect(footer?.props?.content).toBe(
-			"Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit | MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys    MIK-001 moved to backlog",
 		);
 		expect(
 			collectTextContent(tree).match(/MIK-001 moved to backlog/g) ?? [],
 		).toHaveLength(1);
 		expect(renderTuiText(model, selection)).toContain(
-			"Board | j/k card | h/l column | enter detail | H/L move | n note | a archive | r reload | q quit | MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys    MIK-001 moved to backlog",
 		);
 		expect(renderTuiText(model, selection)).not.toContain(
 			"\nMIK-001 moved to backlog\n\nBoard |",

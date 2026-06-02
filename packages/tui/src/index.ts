@@ -167,6 +167,7 @@ export type TuiSelection = {
 	noteDraft?: string;
 	archiveOpen?: boolean;
 	warningsOpen?: boolean;
+	helpOpen?: boolean;
 	detailScrollOffset?: number;
 	detailScrollMax?: number;
 	message?: string;
@@ -281,6 +282,9 @@ export function moveSelection(
 		};
 	}
 	if (direction === "escape") {
+		if (selection.helpOpen) {
+			return { ...selection, helpOpen: false };
+		}
 		if (selection.archiveOpen) {
 			return { ...selection, archiveOpen: false };
 		}
@@ -325,6 +329,9 @@ export function moveSelection(
 		return model.warnings.length > 0
 			? { ...selection, warningsOpen: !selection.warningsOpen }
 			: { ...selection, message: "No warnings" };
+	}
+	if (direction === "help") {
+		return { ...selection, helpOpen: !selection.helpOpen };
 	}
 	const columnIndex = clamp(
 		selection.columnIndex +
@@ -383,6 +390,7 @@ export function refreshTuiModel(options: {
 			message: options.selection.message,
 			archiveOpen: stillSelected ? options.selection.archiveOpen : false,
 			warningsOpen: options.selection.warningsOpen,
+			helpOpen: options.selection.helpOpen,
 		},
 	};
 }
@@ -427,11 +435,14 @@ export function renderTuiText(
 	if (selection.warningsOpen) {
 		lines.push("", ...renderWarningDetails(model));
 	}
+	if (selection.helpOpen) {
+		lines.push("", ...renderKeyHelp());
+	}
 	lines.push(
 		"",
 		[footerText(footerMode(selection)), selection.message]
 			.filter(Boolean)
-			.join(" | "),
+			.join("    "),
 	);
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
@@ -508,6 +519,7 @@ export function TuiAppView({
 		selection.warningsOpen
 			? React.createElement(WarningPanel, { model, theme })
 			: undefined,
+		selection.helpOpen ? React.createElement(HelpPanel, { theme }) : undefined,
 		React.createElement(Footer, {
 			message: selection.message,
 			mode: footerMode(selection),
@@ -1055,6 +1067,27 @@ function modalStyle(theme: TuiTheme): Record<string, string | number> {
 
 export type { FooterMode } from "./formatting.ts";
 
+export function HelpPanel(props: { theme?: TuiTheme }): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "help-panel-backdrop",
+			style: modalBackdropStyle(theme),
+		},
+		React.createElement(
+			"box",
+			{
+				id: "help-panel",
+				title: "Key help",
+				border: true,
+				style: modalStyle(theme),
+			},
+			React.createElement("text", { content: renderKeyHelp().join("\n") }),
+		),
+	);
+}
+
 export function WarningPanel(props: {
 	model: TuiModel;
 	theme?: TuiTheme;
@@ -1094,7 +1127,7 @@ export function Footer(props: FooterProps): React.ReactElement {
 		style: { color: theme.base.muted, marginTop: "auto" },
 		content: [footerText(props.mode ?? "board"), props.message]
 			.filter(Boolean)
-			.join(" | "),
+			.join("    "),
 	});
 }
 
@@ -1426,6 +1459,23 @@ function renderWarningDetails(model: TuiModel): string[] {
 	];
 }
 
+function renderKeyHelp(): string[] {
+	return [
+		"Key help",
+		"↑/↓ or j/k card/scroll",
+		"←/→ or h/l column",
+		"enter detail/confirm",
+		"esc back/cancel",
+		"H/L move Issue",
+		"m move menu",
+		"n append Note",
+		"a archive Issue",
+		"w warning details",
+		"r reload",
+		"q quit",
+	];
+}
+
 function formatWarningSummary(warnings: string[]): string {
 	if (warnings.length === 0) return "";
 	const kinds = [...new Set(warnings.map((warning) => warning.split(":")[0]))]
@@ -1544,7 +1594,17 @@ export async function launchTui(
 
 		useKeyboard((key: { name?: string; shift?: boolean }) => {
 			const action = keyToTuiAction(key.name, key.shift);
+			if (selection.helpOpen) {
+				if (action === "escape" || action === "help") {
+					setSelection((current) => moveSelection(model, current, action));
+				}
+				return;
+			}
 			if (selection.noteOpen) {
+				if (action === "help") {
+					setSelection((current) => moveSelection(model, current, action));
+					return;
+				}
 				if (action === "escape") {
 					setSelection((current) => moveSelection(model, current, action));
 					return;
@@ -1564,6 +1624,10 @@ export async function launchTui(
 				return;
 			}
 			if (selection.archiveOpen) {
+				if (action === "help") {
+					setSelection((current) => moveSelection(model, current, action));
+					return;
+				}
 				if (action === "escape") {
 					setSelection((current) => moveSelection(model, current, action));
 					return;
@@ -1662,6 +1726,7 @@ type TuiAction =
 	| "append-note"
 	| "archive"
 	| "warnings"
+	| "help"
 	| "reload"
 	| "quit";
 
@@ -1672,7 +1737,8 @@ type TuiSelectionAction =
 	| "move"
 	| "append-note"
 	| "archive"
-	| "warnings";
+	| "warnings"
+	| "help";
 
 export function keyToTuiAction(
 	keyName: string | undefined,
@@ -1712,6 +1778,8 @@ export function keyToTuiAction(
 			return "archive";
 		case "w":
 			return "warnings";
+		case "?":
+			return "help";
 		case "q":
 			return "quit";
 		default:
@@ -1730,6 +1798,7 @@ export function keyToDirection(
 		action === "append-note" ||
 		action === "archive" ||
 		action === "warnings" ||
+		action === "help" ||
 		action === "reload" ||
 		action === "quit"
 	) {
