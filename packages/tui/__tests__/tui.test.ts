@@ -764,6 +764,23 @@ describe("TUI model and navigation", () => {
 		expect(selection.detailOpen).toBe(false);
 	});
 
+	test("keeps board mode when opening detail on an empty Column", () => {
+		const model = loadTuiModel(tempProject());
+		const selection = moveSelection(
+			model,
+			{ columnIndex: 0, cardIndex: 0, detailOpen: false },
+			"enter",
+		);
+
+		expect(selection).toMatchObject({
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			message: "No Issue selected",
+		});
+		expect(renderTuiText(model, selection)).toContain("Board | j/k card");
+	});
+
 	test("builds a split-pane detail view model with grouped Issues and separated sections", () => {
 		const model = loadTuiModel(tempProject());
 		const view = buildDetailViewModel(model, {

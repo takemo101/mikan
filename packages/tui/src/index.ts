@@ -252,7 +252,17 @@ export function moveSelection(
 	options: { viewportHeight?: number } = {},
 ): TuiSelection {
 	if (direction === "enter") {
-		return { ...selection, detailOpen: true, detailScrollOffset: 0 };
+		const card =
+			model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+		if (!card) {
+			return { ...selection, detailOpen: false, message: "No Issue selected" };
+		}
+		return {
+			...selection,
+			detailOpen: true,
+			detailScrollOffset: 0,
+			message: undefined,
+		};
 	}
 	if (
 		selection.detailOpen &&
