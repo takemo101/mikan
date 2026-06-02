@@ -2,38 +2,15 @@ import React from "react";
 import packageJson from "../package.json" with { type: "json" };
 import type { TuiAppViewProps } from "./app-view-props.ts";
 import { BoardView, Footer } from "./board-view.ts";
-import {
-	buildBoardViewModel,
-	formatWarningSummary,
-} from "./board-view-model.ts";
 import { DetailPage } from "./detail-view.ts";
-import {
-	boxLine,
-	contentLine,
-	footerText,
-	formatLabels,
-} from "./formatting.ts";
 import {
 	ArchivePrompt,
 	HelpPanel,
 	MovePrompt,
 	NotePrompt,
-	renderArchiveInteraction,
-	renderKeyHelp,
-	renderMoveInteraction,
-	renderNoteInteraction,
-	renderWarningDetails,
 	WarningPanel,
 } from "./modals.ts";
-import {
-	cardDependencyStatus,
-	cardDependsOn,
-	cardUnmetDependencies,
-	getSelectedDetails,
-	loadTuiModel,
-	type TuiDetails,
-	type TuiModel,
-} from "./model.ts";
+import { getSelectedDetails, loadTuiModel } from "./model.ts";
 import {
 	appendSelectedIssueNote,
 	archiveSelectedIssue,
@@ -87,6 +64,7 @@ export {
 	buildDetailPageViewModel,
 	buildDetailViewModel,
 } from "./detail-view-model.ts";
+export type { FooterMode } from "./formatting.ts";
 export {
 	ArchivePrompt,
 	HelpPanel,
@@ -138,51 +116,14 @@ export {
 	buildNotePromptViewModel,
 } from "./prompt-view-model.ts";
 export type { MoveTarget, TuiSelection } from "./selection.ts";
+// Public facade re-export for the extracted plain-text renderer (MIK-083).
+export { renderTuiText } from "./text-render.ts";
 export type { TuiTheme } from "./theme.ts";
 // Public facade re-exports for extracted model, selection, theme, and view
 // model Modules (MIK-077). Behavior and exported names are unchanged.
 export { buildTuiTheme } from "./theme.ts";
 
 export const TUI_VERSION = packageJson.version;
-
-export function renderTuiText(
-	model: TuiModel,
-	selection: TuiSelection,
-): string {
-	const lines = [
-		"mikan board",
-		formatWarningSummary(model.warnings),
-		...renderBoard(model, selection),
-	].filter(Boolean);
-	if (selection.moveOpen) {
-		lines.push("", ...renderMoveInteraction(model, selection));
-	}
-	if (selection.noteOpen) {
-		lines.push("", ...renderNoteInteraction(model, selection));
-	}
-	if (selection.archiveOpen) {
-		lines.push("", ...renderArchiveInteraction(model, selection));
-	}
-	if (selection.warningsOpen) {
-		lines.push("", ...renderWarningDetails(model));
-	}
-	if (selection.helpOpen) {
-		lines.push("", ...renderKeyHelp());
-	}
-	lines.push(
-		"",
-		[footerText(footerMode(selection)), selection.message]
-			.filter(Boolean)
-			.join("    "),
-	);
-	const details = selection.detailOpen
-		? getSelectedDetails(model, selection)
-		: undefined;
-	if (details) {
-		lines.push("", ...renderDetails(details));
-	}
-	return `${lines.join("\n")}\n`;
-}
 
 export function createTuiAppElement(
 	props: TuiAppViewProps,
@@ -259,76 +200,6 @@ export function Header(props: { theme?: TuiTheme }): React.ReactElement {
 		style: { color: theme.interactive.accent },
 		content: `🍊 mikan v${TUI_VERSION}`,
 	});
-}
-
-export type { FooterMode } from "./formatting.ts";
-
-function renderDetails(details: TuiDetails): string[] {
-	return [
-		`Detail: ${details.card.id} ${details.card.title}`,
-		"esc back",
-		"",
-		"## Dependencies",
-		`Depends On: ${cardDependsOn(details.card).length > 0 ? cardDependsOn(details.card).join(", ") : "none"}`,
-		`Unmet: ${cardUnmetDependencies(details.card).length > 0 ? cardUnmetDependencies(details.card).join(", ") : "none"}`,
-		`Dependency readiness: ${cardDependencyStatus(details.card)}`,
-		"",
-		"## Summary",
-		details.summary || "(empty)",
-		"",
-		"## Status Log",
-		details.statusLog || "(empty)",
-		"",
-		"## Reports",
-		details.reports || "(empty)",
-		"",
-		"## Notes",
-		details.notes || "(empty)",
-		"",
-		"## Herdr",
-		details.herdr || "(empty)",
-	];
-}
-
-function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
-	const width = 26;
-	const view = buildBoardViewModel(model, selection);
-	const columns = view.visibleColumns.map((column) => {
-		const rows = column.empty
-			? ["  (empty)"]
-			: [
-					...(column.cardRangeText ? [`  ${column.cardRangeText}`] : []),
-					...column.visibleCards.map(
-						(card) =>
-							`${card.selected ? "▶" : " "} ${card.id}${
-								cardDependencyStatus(card) === "blocked" ? " deps!" : ""
-							} ${card.title}${card.labels.length > 0 ? ` ${formatLabels(card.labels)}` : ""}`,
-					),
-				];
-		return {
-			header: boxLine(
-				`─ ${column.active ? "▶ " : ""}${column.title} `,
-				width,
-				"┌",
-				"┐",
-			),
-			rows: rows.map((row) => contentLine(row, width)),
-			footer: boxLine("", width, "└", "┘"),
-		};
-	});
-	const maxRows = Math.max(0, ...columns.map((column) => column.rows.length));
-	const lines: string[] = [];
-	lines.push(view.columnViewportText);
-	lines.push(columns.map((column) => column.header).join(" "));
-	for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
-		lines.push(
-			columns
-				.map((column) => column.rows[rowIndex] ?? contentLine("", width))
-				.join(" "),
-		);
-	}
-	lines.push(columns.map((column) => column.footer).join(" "));
-	return lines;
 }
 
 export async function launchTui(
