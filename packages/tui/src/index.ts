@@ -8,6 +8,7 @@ import {
 	scanBoard,
 } from "@mikan/core";
 import { loadProjectConfig } from "@mikan/project-config";
+import { fg, StyledText } from "@opentui/core";
 import React from "react";
 import packageJson from "../package.json" with { type: "json" };
 import {
@@ -773,17 +774,13 @@ export function ColumnPane(props: {
 					theme,
 				}),
 			);
-	const laneFill =
-		props.column.laneFillLineCount > 0
-			? React.createElement("text", {
-					id: `column-${props.column.id}-lane-fill`,
-					content: Array.from(
-						{ length: props.column.laneFillLineCount },
-						() => "·",
-					).join("\n"),
-					style: { color: theme.base.muted },
-				})
-			: undefined;
+	const laneFill = props.column.empty
+		? React.createElement("text", {
+				id: `column-${props.column.id}-lane-fill`,
+				content: "empty lane",
+				style: { color: theme.base.muted },
+			})
+		: undefined;
 	const children = [...cardChildren, laneFill].filter(Boolean);
 	return React.createElement(
 		"box",
@@ -808,6 +805,27 @@ export function ColumnPane(props: {
 	);
 }
 
+function issueCardContent(
+	card: TuiCard,
+	selected: boolean,
+	theme: TuiTheme,
+): StyledText {
+	const chunks = [];
+	if (selected) chunks.push(fg(theme.interactive.focus)("▶ "));
+	chunks.push(fg(theme.interactive.accent)(card.id));
+	if (cardDependencyStatus(card) === "blocked") {
+		chunks.push(fg(theme.base.text)(" "));
+		chunks.push(fg(theme.feedback.warning)("deps!"));
+	}
+	chunks.push(fg(theme.base.muted)(" │ "));
+	chunks.push(fg(theme.base.text)(card.title));
+	if (card.labels.length > 0) {
+		chunks.push(fg(theme.base.text)(" "));
+		chunks.push(fg(theme.base.muted)(formatLabels(card.labels)));
+	}
+	return new StyledText(chunks);
+}
+
 export function IssueCard(props: {
 	card: TuiCard;
 	selected: boolean;
@@ -828,35 +846,9 @@ export function IssueCard(props: {
 				height: 1,
 			},
 		},
-		React.createElement(
-			"text",
-			{},
-			props.selected
-				? React.createElement("span", { fg: theme.interactive.focus }, "▶")
-				: undefined,
-			props.selected ? " " : undefined,
-			React.createElement(
-				"span",
-				{ fg: theme.interactive.accent },
-				props.card.id,
-			),
-			cardDependencyStatus(props.card) === "blocked" ? " " : undefined,
-			cardDependencyStatus(props.card) === "blocked"
-				? React.createElement("span", { fg: theme.feedback.warning }, "deps!")
-				: undefined,
-			" ",
-			React.createElement("span", { fg: theme.base.muted }, "│"),
-			" ",
-			React.createElement("span", { fg: theme.base.text }, props.card.title),
-			props.card.labels.length > 0 ? " " : undefined,
-			props.card.labels.length > 0
-				? React.createElement(
-						"span",
-						{ fg: theme.base.muted },
-						formatLabels(props.card.labels),
-					)
-				: undefined,
-		),
+		React.createElement("text", {
+			content: issueCardContent(props.card, props.selected, theme),
+		}),
 	);
 }
 
@@ -886,6 +878,39 @@ function detailStatusColor(status: string, theme: TuiTheme): string {
 	if (status === "blocked") return theme.feedback.warning;
 	if (status === "active") return theme.interactive.accent;
 	return theme.base.muted;
+}
+
+function detailTitleContent(
+	page: DetailPageViewModel,
+	theme: TuiTheme,
+): StyledText {
+	const chunks = [
+		fg(theme.interactive.accent)(page.id),
+		fg(theme.base.muted)(" │ "),
+		fg(theme.base.text)(page.title),
+	];
+	if (page.lineRangeText) {
+		chunks.push(fg(theme.base.muted)(" │ "));
+		chunks.push(fg(theme.base.muted)(page.lineRangeText));
+	}
+	return new StyledText(chunks);
+}
+
+function detailMetaContent(
+	page: DetailPageViewModel,
+	theme: TuiTheme,
+): StyledText {
+	const chunks = [
+		fg(detailStatusColor(page.status, theme))(page.status),
+		fg(theme.base.muted)(" · labels "),
+		fg(theme.base.muted)(detailLabelsText(page)),
+	];
+	const dependency = detailDependencyText(page);
+	if (dependency) chunks.push(fg(theme.feedback.warning)(` · ${dependency}`));
+	if (page.warningCount > 0) {
+		chunks.push(fg(theme.feedback.warning)(` · warnings ${page.warningCount}`));
+	}
+	return new StyledText(chunks);
 }
 
 export function DetailPage(props: TuiAppViewProps): React.ReactElement {
@@ -919,56 +944,12 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 					flexShrink: 0,
 				},
 			},
-			React.createElement(
-				"text",
-				{},
-				React.createElement("span", { fg: theme.interactive.accent }, page.id),
-				" ",
-				React.createElement("span", { fg: theme.base.muted }, "│"),
-				" ",
-				React.createElement("span", { fg: theme.base.text }, page.title),
-				page.lineRangeText ? " " : undefined,
-				page.lineRangeText
-					? React.createElement("span", { fg: theme.base.muted }, "│")
-					: undefined,
-				page.lineRangeText ? " " : undefined,
-				page.lineRangeText
-					? React.createElement(
-							"span",
-							{ fg: theme.base.muted },
-							page.lineRangeText,
-						)
-					: undefined,
-			),
-			React.createElement(
-				"text",
-				{},
-				React.createElement(
-					"span",
-					{ fg: detailStatusColor(page.status, theme) },
-					page.status,
-				),
-				React.createElement("span", { fg: theme.base.muted }, " · labels "),
-				React.createElement(
-					"span",
-					{ fg: theme.base.muted },
-					detailLabelsText(page),
-				),
-				detailDependencyText(page)
-					? React.createElement(
-							"span",
-							{ fg: theme.feedback.warning },
-							` · ${detailDependencyText(page)}`,
-						)
-					: undefined,
-				page.warningCount > 0
-					? React.createElement(
-							"span",
-							{ fg: theme.feedback.warning },
-							` · warnings ${page.warningCount}`,
-						)
-					: undefined,
-			),
+			React.createElement("text", {
+				content: detailTitleContent(page, theme),
+			}),
+			React.createElement("text", {
+				content: detailMetaContent(page, theme),
+			}),
 		),
 		React.createElement(
 			"box",
