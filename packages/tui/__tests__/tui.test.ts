@@ -527,7 +527,7 @@ describe("TUI model and navigation", () => {
 			hiddenLinesAfter: 23,
 			lineRangeText: "Lines: 4-7/30 | ↑3 ↓23",
 		});
-		expect(text).toContain("MIK-001  Ready issue | Lines: 4-7/30 | ↑3 ↓23");
+		expect(text).toContain("MIK-001 │ Ready issue │ Lines: 4-7/30 | ↑3 ↓23");
 		expect(text).toContain("ready · labels none");
 		expect(text).not.toContain("────────────────");
 		expect(text).not.toContain("line 30");
@@ -547,7 +547,8 @@ describe("TUI model and navigation", () => {
 			detailScrollOffset: 10,
 		};
 
-		const tree = TuiAppView({ model, selection, viewportHeight: 14 });
+		const theme = buildTuiTheme();
+		const tree = TuiAppView({ model, selection, viewportHeight: 14, theme });
 		const header = findElementById(tree, "detail-header");
 		const body = findElementById(tree, "detail-markdown-body");
 		const markdown = findElementById(tree, "detail-markdown");
@@ -564,11 +565,57 @@ describe("TUI model and navigation", () => {
 			overflow: "hidden",
 		});
 		expect(collectTextContent(header)).toContain(
-			"MIK-001  Ready issue | Lines: 11-16/30 | ↑10 ↓14",
+			"MIK-001 │ Ready issue │ Lines: 11-16/30 | ↑10 ↓14",
 		);
+		expect(
+			findElementByTypeAndText(header, "span", "MIK-001")?.props,
+		).toMatchObject({
+			fg: theme.interactive.accent,
+		});
+		expect(
+			findElementByTypeAndText(header, "span", "Ready issue")?.props,
+		).toMatchObject({
+			fg: theme.base.text,
+		});
+		expect(
+			findElementByTypeAndText(header, "span", "Lines: 11-16/30 | ↑10 ↓14")
+				?.props,
+		).toMatchObject({ fg: theme.base.muted });
 		expect(collectTextContent(header)).toContain("ready · labels #automation");
+		expect(
+			findElementByTypeAndText(header, "span", "ready")?.props,
+		).toMatchObject({
+			fg: theme.base.muted,
+		});
+		expect(
+			findElementByTypeAndText(header, "span", "#automation")?.props,
+		).toMatchObject({
+			fg: theme.base.muted,
+		});
 		expect(collectTextContent(body)).toContain("line 11");
-		expect(collectTextContent(body)).not.toContain("MIK-001  Ready issue");
+		expect(collectTextContent(body)).not.toContain("MIK-001 │ Ready issue");
+	});
+
+	test("colors blocked detail status as warning instead of success", () => {
+		const cwd = tempProject();
+		writeFileSync(
+			join(cwd, ".mikan", "blocked", "MIK-003.md"),
+			`---\nid: MIK-003\ntitle: Blocked issue\nlabels: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Blocked issue\n`,
+		);
+		const model = loadTuiModel(cwd);
+		const theme = buildTuiTheme();
+		const tree = TuiAppView({
+			model,
+			selection: { columnIndex: 3, cardIndex: 0, detailOpen: true },
+			theme,
+		});
+		const header = findElementById(tree, "detail-header");
+
+		expect(
+			findElementByTypeAndText(header, "span", "blocked")?.props,
+		).toMatchObject({
+			fg: theme.feedback.warning,
+		});
 	});
 
 	test("omits zero scroll indicators from detail metadata", () => {
@@ -865,7 +912,7 @@ describe("TUI model and navigation", () => {
 			labelsText: "automation",
 		});
 		expect(page?.markdown).toContain("# Ready issue");
-		expect(collectTextContent(tree)).toContain("MIK-001  Ready issue");
+		expect(collectTextContent(tree)).toContain("MIK-001 │ Ready issue");
 		expect(collectTextContent(tree)).toContain("ready · labels #automation");
 		expect(collectTextContent(tree)).toContain("# Ready issue");
 	});

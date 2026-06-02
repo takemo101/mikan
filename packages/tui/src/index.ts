@@ -869,19 +869,23 @@ function warningCountForCard(
 	).length;
 }
 
-function detailMetaLine(page: DetailPageViewModel): string {
-	const labels = page.labelsText
+function detailLabelsText(page: DetailPageViewModel): string {
+	return page.labelsText
 		? formatLabels(page.labelsText.split(", ").filter(Boolean))
 		: "none";
-	const dependency = page.unmetDependenciesText
-		? `deps unmet ${page.unmetDependenciesText}`
-		: page.dependsOnText
-			? `deps ${page.dependencyStatus}`
-			: "";
-	const warnings = page.warningCount > 0 ? `warnings ${page.warningCount}` : "";
-	return [page.status, `labels ${labels}`, dependency, warnings]
-		.filter(Boolean)
-		.join(" · ");
+}
+
+function detailDependencyText(page: DetailPageViewModel): string {
+	if (page.unmetDependenciesText)
+		return `deps unmet ${page.unmetDependenciesText}`;
+	return page.dependsOnText ? `deps ${page.dependencyStatus}` : "";
+}
+
+function detailStatusColor(status: string, theme: TuiTheme): string {
+	if (status === "completed") return theme.feedback.success;
+	if (status === "blocked") return theme.feedback.warning;
+	if (status === "active") return theme.interactive.accent;
+	return theme.base.muted;
 }
 
 export function DetailPage(props: TuiAppViewProps): React.ReactElement {
@@ -915,12 +919,56 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 					flexShrink: 0,
 				},
 			},
-			React.createElement("text", {
-				content: `${page.id}  ${page.title}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
-			}),
-			React.createElement("text", {
-				content: detailMetaLine(page),
-			}),
+			React.createElement(
+				"text",
+				{},
+				React.createElement("span", { fg: theme.interactive.accent }, page.id),
+				" ",
+				React.createElement("span", { fg: theme.base.muted }, "│"),
+				" ",
+				React.createElement("span", { fg: theme.base.text }, page.title),
+				page.lineRangeText ? " " : undefined,
+				page.lineRangeText
+					? React.createElement("span", { fg: theme.base.muted }, "│")
+					: undefined,
+				page.lineRangeText ? " " : undefined,
+				page.lineRangeText
+					? React.createElement(
+							"span",
+							{ fg: theme.base.muted },
+							page.lineRangeText,
+						)
+					: undefined,
+			),
+			React.createElement(
+				"text",
+				{},
+				React.createElement(
+					"span",
+					{ fg: detailStatusColor(page.status, theme) },
+					page.status,
+				),
+				React.createElement("span", { fg: theme.base.muted }, " · labels "),
+				React.createElement(
+					"span",
+					{ fg: theme.base.muted },
+					detailLabelsText(page),
+				),
+				detailDependencyText(page)
+					? React.createElement(
+							"span",
+							{ fg: theme.feedback.warning },
+							` · ${detailDependencyText(page)}`,
+						)
+					: undefined,
+				page.warningCount > 0
+					? React.createElement(
+							"span",
+							{ fg: theme.feedback.warning },
+							` · warnings ${page.warningCount}`,
+						)
+					: undefined,
+			),
 		),
 		React.createElement(
 			"box",
