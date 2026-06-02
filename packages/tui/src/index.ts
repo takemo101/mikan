@@ -765,7 +765,12 @@ export function ColumnPane(props: {
 }): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
 	const cardChildren = props.column.empty
-		? [React.createElement("text", { content: props.column.emptyText })]
+		? [
+				React.createElement("text", {
+					id: `column-${props.column.id}-empty`,
+					content: props.column.emptyText,
+				}),
+			]
 		: props.column.visibleCards.map((card) =>
 				React.createElement(IssueCard, {
 					key: card.id,
@@ -774,14 +779,7 @@ export function ColumnPane(props: {
 					theme,
 				}),
 			);
-	const laneFill = props.column.empty
-		? React.createElement("text", {
-				id: `column-${props.column.id}-lane-fill`,
-				content: "empty lane",
-				style: { color: theme.base.muted },
-			})
-		: undefined;
-	const children = [...cardChildren, laneFill].filter(Boolean);
+	const children = cardChildren;
 	return React.createElement(
 		"box",
 		{

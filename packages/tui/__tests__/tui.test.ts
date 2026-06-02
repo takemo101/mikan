@@ -708,11 +708,9 @@ describe("TUI model and navigation", () => {
 		expect(findElementById(tree, "column-active")?.props?.style).toMatchObject({
 			width: "33.33%",
 		});
-		expect(
-			findElementById(tree, "column-active-lane-fill")?.props,
-		).toMatchObject({
-			content: "empty lane",
-			style: { color: theme.base.muted },
+		expect(findElementById(tree, "column-active-lane-fill")).toBeUndefined();
+		expect(findElementById(tree, "column-active-empty")?.props).toMatchObject({
+			content: "No Issues",
 		});
 		expect(collectElementTypes(tree)).toContain(MovePrompt);
 		expect(collectElementTypes(tree)).toContain(NotePrompt);
