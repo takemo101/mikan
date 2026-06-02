@@ -97,6 +97,7 @@ function findElementById(
 				children?: unknown;
 				id?: unknown;
 				border?: unknown;
+				content?: unknown;
 				style?: Record<string, unknown>;
 				title?: unknown;
 				bottomTitle?: unknown;
@@ -109,6 +110,7 @@ function findElementById(
 		props?: {
 			children?: unknown;
 			border?: unknown;
+			content?: unknown;
 			id?: unknown;
 			style?: Record<string, unknown>;
 			title?: unknown;
@@ -605,6 +607,12 @@ describe("TUI model and navigation", () => {
 		);
 		expect(findElementById(tree, "column-ready")?.props?.style).toMatchObject({
 			width: "33.33%",
+		});
+		expect(
+			findElementById(tree, "column-ready-lane-fill")?.props,
+		).toMatchObject({
+			content: "·\n·\n·\n·\n·",
+			style: { color: theme.base.muted },
 		});
 		expect(findElementById(tree, "column-active")?.props?.style).toMatchObject({
 			width: "33.33%",

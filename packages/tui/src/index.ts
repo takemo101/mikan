@@ -87,6 +87,7 @@ export type BoardColumnView = {
 	emptyText: string;
 	cards: BoardCardView[];
 	visibleCards: BoardCardView[];
+	laneFillLineCount: number;
 	hiddenCardsBefore: number;
 	hiddenCardsAfter: number;
 	cardRangeText: string;
@@ -684,6 +685,7 @@ export function buildBoardViewModel(
 			emptyText: "No Issues",
 			cards,
 			visibleCards,
+			laneFillLineCount: Math.max(0, visibleCardCount - visibleCards.length),
 			hiddenCardsBefore: cardStart,
 			hiddenCardsAfter: Math.max(0, cards.length - cardEnd),
 			cardRangeText:
@@ -761,7 +763,7 @@ export function ColumnPane(props: {
 	width?: string;
 }): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
-	const children = props.column.empty
+	const cardChildren = props.column.empty
 		? [React.createElement("text", { content: props.column.emptyText })]
 		: props.column.visibleCards.map((card) =>
 				React.createElement(IssueCard, {
@@ -771,6 +773,18 @@ export function ColumnPane(props: {
 					theme,
 				}),
 			);
+	const laneFill =
+		props.column.laneFillLineCount > 0
+			? React.createElement("text", {
+					id: `column-${props.column.id}-lane-fill`,
+					content: Array.from(
+						{ length: props.column.laneFillLineCount },
+						() => "·",
+					).join("\n"),
+					style: { color: theme.base.muted },
+				})
+			: undefined;
+	const children = [...cardChildren, laneFill].filter(Boolean);
 	return React.createElement(
 		"box",
 		{
