@@ -1047,6 +1047,22 @@ describe("TUI model and navigation", () => {
 		expect(page?.visibleMarkdownLines).toEqual(["line 1", "line 2"]);
 	});
 
+	test("detail page ignores left and right column navigation", () => {
+		const model = loadTuiModel(tempProject());
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+			detailScrollOffset: 2,
+		};
+
+		const left = moveSelection(model, selection, "left");
+		const right = moveSelection(model, selection, "right");
+
+		expect(left).toMatchObject(selection);
+		expect(right).toMatchObject(selection);
+	});
+
 	test("detail view handles missing optional sections", () => {
 		const cwd = tempProject();
 		writeFileSync(

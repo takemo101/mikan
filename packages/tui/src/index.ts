@@ -294,20 +294,20 @@ export function moveSelection(
 			message: undefined,
 		};
 	}
-	if (
-		selection.detailOpen &&
-		!selection.moveOpen &&
-		!selection.noteOpen &&
-		(direction === "up" || direction === "down")
-	) {
-		return {
-			...selection,
-			detailScrollOffset: clamp(
-				(selection.detailScrollOffset ?? 0) + (direction === "down" ? 1 : -1),
-				0,
-				detailScrollMax(model, selection, options),
-			),
-		};
+	if (selection.detailOpen && !selection.moveOpen && !selection.noteOpen) {
+		if (direction === "up" || direction === "down") {
+			return {
+				...selection,
+				detailScrollOffset: clamp(
+					(selection.detailScrollOffset ?? 0) + (direction === "down" ? 1 : -1),
+					0,
+					detailScrollMax(model, selection, options),
+				),
+			};
+		}
+		if (direction === "left" || direction === "right") {
+			return selection;
+		}
 	}
 	if (direction === "escape") {
 		if (selection.helpOpen) {
