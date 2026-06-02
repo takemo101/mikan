@@ -698,15 +698,15 @@ describe("TUI model and navigation", () => {
 		});
 		expect(findElementById(tree, "column-backlog")?.props?.style).toMatchObject(
 			{
-				width: "33.33%",
+				width: "33%",
 			},
 		);
 		expect(findElementById(tree, "column-ready")?.props?.style).toMatchObject({
-			width: "33.33%",
+			width: "34%",
 		});
 		expect(findElementById(tree, "column-ready-lane-fill")).toBeUndefined();
 		expect(findElementById(tree, "column-active")?.props?.style).toMatchObject({
-			width: "33.33%",
+			width: "33%",
 		});
 		expect(findElementById(tree, "column-active-lane-fill")).toBeUndefined();
 		expect(findElementById(tree, "column-active-empty")?.props).toMatchObject({

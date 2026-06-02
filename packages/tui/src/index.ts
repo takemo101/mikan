@@ -717,6 +717,16 @@ export function buildBoardViewModel(
 	};
 }
 
+export function columnWidthPercent(index: number, count: number): string {
+	const safeCount = Math.max(1, count);
+	const base = Math.floor(100 / safeCount);
+	const remainder = 100 - base * safeCount;
+	const extraStart = Math.floor((safeCount - remainder) / 2);
+	const width =
+		index >= extraStart && index < extraStart + remainder ? base + 1 : base;
+	return `${width}%`;
+}
+
 export function BoardView({
 	model,
 	selection,
@@ -745,12 +755,12 @@ export function BoardView({
 					id: `board-row-${groupIndex}`,
 					style: { flexDirection: "row", flexGrow: 1, minHeight: 0 },
 				},
-				...group.columns.map((column) =>
+				...group.columns.map((column, columnIndex) =>
 					React.createElement(ColumnPane, {
 						key: column.id,
 						column,
 						theme,
-						width: `${(100 / group.columns.length).toFixed(2)}%`,
+						width: columnWidthPercent(columnIndex, group.columns.length),
 					}),
 				),
 			),
