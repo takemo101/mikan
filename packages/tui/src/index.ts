@@ -3,6 +3,7 @@ import {
 	appendIssue,
 	type BoardIssue,
 	type BoardSnapshot,
+	type BoardWarning,
 	moveIssue,
 	scanBoard,
 } from "@mikan/core";
@@ -37,9 +38,18 @@ export type TuiColumn = {
 	cards: TuiCard[];
 };
 
+export type TuiWarning = {
+	text: string;
+	kind: string;
+	message: string;
+	issueId?: string;
+	path?: string;
+};
+
 export type TuiModel = {
 	columns: TuiColumn[];
 	warnings: string[];
+	warningDetails?: TuiWarning[];
 };
 
 export const TUI_VERSION = packageJson.version;
@@ -123,6 +133,7 @@ export type DetailPageViewModel = {
 	dependsOnText: string;
 	unmetDependenciesText: string;
 	dependencyStatus: "ready" | "blocked";
+	warningCount: number;
 	markdown: string;
 	visibleMarkdownLines: string[];
 	hiddenLinesBefore: number;
@@ -241,9 +252,24 @@ export function buildTuiModel(board: BoardSnapshot): TuiModel {
 			title: column.title,
 			cards: column.issues.map(formatCard),
 		})),
-		warnings: board.warnings.map(
-			(warning) => `${warning.kind}: ${warning.message}`,
-		),
+		warnings: board.warnings.map(formatWarning),
+		...(board.warnings.length > 0
+			? { warningDetails: board.warnings.map(formatTuiWarning) }
+			: {}),
+	};
+}
+
+function formatWarning(warning: BoardWarning): string {
+	return `${warning.kind}: ${warning.message}`;
+}
+
+function formatTuiWarning(warning: BoardWarning): TuiWarning {
+	return {
+		text: formatWarning(warning),
+		kind: warning.kind,
+		message: warning.message,
+		issueId: warning.issueId,
+		path: warning.path,
 	};
 }
 
@@ -569,6 +595,7 @@ export function buildDetailPageViewModel(
 		dependsOnText: cardDependsOn(details.card).join(", "),
 		unmetDependenciesText: cardUnmetDependencies(details.card).join(", "),
 		dependencyStatus: cardDependencyStatus(details.card),
+		warningCount: warningCountForCard(model.warningDetails, details.card),
 		markdown,
 		visibleMarkdownLines,
 		hiddenLinesBefore: offset,
@@ -796,6 +823,30 @@ export function IssueCard(props: {
 	);
 }
 
+function warningCountForCard(
+	warnings: TuiWarning[] | undefined,
+	card: TuiCard,
+): number {
+	return (warnings ?? []).filter(
+		(warning) => warning.issueId === card.id || warning.path === card.path,
+	).length;
+}
+
+function detailMetaLine(page: DetailPageViewModel): string {
+	const labels = page.labelsText
+		? formatLabels(page.labelsText.split(", ").filter(Boolean))
+		: "none";
+	const dependency = page.unmetDependenciesText
+		? `deps unmet ${page.unmetDependenciesText}`
+		: page.dependsOnText
+			? `deps ${page.dependencyStatus}`
+			: "";
+	const warnings = page.warningCount > 0 ? `warnings ${page.warningCount}` : "";
+	return [page.status, `labels ${labels}`, dependency, warnings]
+		.filter(Boolean)
+		.join(" · ");
+}
+
 export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 	const page = buildDetailPageViewModel(props.model, props.selection, {
 		viewportHeight: props.viewportHeight,
@@ -828,18 +879,10 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 				},
 			},
 			React.createElement("text", {
-				content: `${page.id}  ${page.title}`,
+				content: `${page.id}  ${page.title}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
 			}),
 			React.createElement("text", {
-				content: `Status: ${page.status} | Labels: ${page.labelsText ? formatLabels(page.labelsText.split(", ").filter(Boolean)) : "none"}${page.lineRangeText ? ` | ${page.lineRangeText}` : ""}`,
-			}),
-			page.dependsOnText || page.unmetDependenciesText
-				? React.createElement("text", {
-						content: `Dependencies: ${page.dependsOnText || "none"} | Unmet: ${page.unmetDependenciesText || "none"} | Dependency readiness: ${page.dependencyStatus}`,
-					})
-				: undefined,
-			React.createElement("text", {
-				content: "────────────────────────────────────────────────",
+				content: detailMetaLine(page),
 			}),
 		),
 		React.createElement(

@@ -28,7 +28,7 @@ export function visibleCardCountForViewport(viewportHeight: number): number {
 }
 
 export function visibleDetailLineCount(viewportHeight: number): number {
-	return Math.max(1, viewportHeight - 11);
+	return Math.max(1, viewportHeight - 8);
 }
 
 export function footerText(mode: FooterMode): string {

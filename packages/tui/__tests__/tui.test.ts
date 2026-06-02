@@ -199,10 +199,16 @@ describe("TUI model and navigation", () => {
 			dependsOnText: "MIK-001",
 			unmetDependenciesText: "MIK-001",
 			dependencyStatus: "blocked",
+			warningCount: 1,
 		});
-		expect(collectTextContent(tree)).toContain(
-			"Dependencies: MIK-001 | Unmet: MIK-001 | Dependency readiness: blocked",
-		);
+		expect(
+			buildDetailPageViewModel(model, {
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: true,
+			})?.warningCount,
+		).toBe(0);
+		expect(collectTextContent(tree)).toContain("deps unmet MIK-001");
 	});
 
 	test("loads hook failure warnings", () => {
@@ -486,18 +492,16 @@ describe("TUI model and navigation", () => {
 		const tree = TuiAppView({ model, selection, viewportHeight: 12 });
 		const text = collectTextContent(tree);
 
-		expect(shortPage?.visibleMarkdownLines).toHaveLength(1);
-		expect(tallPage?.visibleMarkdownLines).toHaveLength(7);
+		expect(shortPage?.visibleMarkdownLines).toHaveLength(4);
+		expect(tallPage?.visibleMarkdownLines).toHaveLength(10);
 		expect(shortPage).toMatchObject({
 			hiddenLinesBefore: 3,
-			hiddenLinesAfter: 26,
-			lineRangeText: "Lines: 4-4/30 | ↑3 ↓26",
+			hiddenLinesAfter: 23,
+			lineRangeText: "Lines: 4-7/30 | ↑3 ↓23",
 		});
-		expect(text).toContain("MIK-001  Ready issue");
-		expect(text).toContain(
-			"Status: ready | Labels: none | Lines: 4-4/30 | ↑3 ↓26",
-		);
-		expect(text).toContain("────────────────");
+		expect(text).toContain("MIK-001  Ready issue | Lines: 4-7/30 | ↑3 ↓23");
+		expect(text).toContain("ready · labels none");
+		expect(text).not.toContain("────────────────");
 		expect(text).not.toContain("line 30");
 	});
 
@@ -531,10 +535,10 @@ describe("TUI model and navigation", () => {
 			minHeight: 0,
 			overflow: "hidden",
 		});
-		expect(collectTextContent(header)).toContain("MIK-001  Ready issue");
 		expect(collectTextContent(header)).toContain(
-			"Status: ready | Labels: #automation | Lines: 11-13/30 | ↑10 ↓17",
+			"MIK-001  Ready issue | Lines: 11-16/30 | ↑10 ↓14",
 		);
+		expect(collectTextContent(header)).toContain("ready · labels #automation");
 		expect(collectTextContent(body)).toContain("line 11");
 		expect(collectTextContent(body)).not.toContain("MIK-001  Ready issue");
 	});
@@ -798,9 +802,7 @@ describe("TUI model and navigation", () => {
 		});
 		expect(page?.markdown).toContain("# Ready issue");
 		expect(collectTextContent(tree)).toContain("MIK-001  Ready issue");
-		expect(collectTextContent(tree)).toContain(
-			"Status: ready | Labels: #automation",
-		);
+		expect(collectTextContent(tree)).toContain("ready · labels #automation");
 		expect(collectTextContent(tree)).toContain("# Ready issue");
 	});
 
