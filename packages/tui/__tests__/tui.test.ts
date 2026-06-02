@@ -437,12 +437,10 @@ describe("TUI model and navigation", () => {
 			{ viewportHeight: 36 },
 		);
 
-		expect(shortView.columns[0]?.visibleCards).toHaveLength(2);
-		expect(tallView.columns[0]?.visibleCards).toHaveLength(4);
-		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(8);
-		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe(
-			"4-11/20 | ↑3 | ↓9",
-		);
+		expect(shortView.columns[0]?.visibleCards).toHaveLength(6);
+		expect(tallView.columns[0]?.visibleCards).toHaveLength(14);
+		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(20);
+		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe("");
 	});
 
 	test("renders detail Markdown window from viewport height", () => {
@@ -634,11 +632,11 @@ describe("TUI model and navigation", () => {
 			backgroundColor: theme.base.surface,
 			borderColor: theme.interactive.accent,
 		});
-		expect(card?.props).toMatchObject({ border: true });
+		expect(card?.props).toMatchObject({ border: false });
 		expect(card?.props?.style).toMatchObject({
 			backgroundColor: theme.interactive.selectedSurface,
-			borderColor: theme.interactive.focus,
 			color: theme.interactive.focus,
+			height: 1,
 		});
 		expect(card?.props?.style?.color).not.toBe(theme.feedback.success);
 		expect(collectTextContent(tree)).toContain("▶ MIK-001 Ready issue");
@@ -663,12 +661,11 @@ describe("TUI model and navigation", () => {
 			style?: Record<string, unknown>;
 		};
 
-		expect(cardProps).toMatchObject({ border: true });
+		expect(cardProps).toMatchObject({ border: false });
 		expect(cardProps.style).toMatchObject({
 			backgroundColor: theme.base.surface,
-			borderColor: theme.base.muted,
 			color: theme.base.text,
-			height: 3,
+			height: 1,
 		});
 		expect(collectTextContent(card)).toContain(
 			"MIK-002 Quiet issue #automation",

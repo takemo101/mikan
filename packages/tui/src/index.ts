@@ -754,18 +754,15 @@ export function IssueCard(props: {
 		"box",
 		{
 			id: `card-${props.card.id}`,
-			border: true,
+			border: false,
 			focused: props.selected,
 			style: {
 				backgroundColor: props.selected
 					? theme.interactive.selectedSurface
 					: theme.base.surface,
-				borderColor: props.selected
-					? theme.interactive.focus
-					: theme.base.muted,
 				color: props.selected ? theme.interactive.focus : theme.base.text,
 				flexDirection: "column",
-				height: 3,
+				height: 1,
 			},
 		},
 		React.createElement("text", {
