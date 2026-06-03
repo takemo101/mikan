@@ -173,6 +173,9 @@ Options:
   --no-global           Install workspace-local guidance instead of global
   -h, --help            Show this help
 
+Notes:
+  codex installs the skill globally only; --no-global is rejected for codex.
+
 Examples:
   mikan skills add --agent claude-code
   mikan skills add --agent opencode --no-global

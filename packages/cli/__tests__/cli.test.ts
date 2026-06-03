@@ -102,6 +102,9 @@ describe("CLI read path", () => {
 			"Agent to install the mikan skill for: claude-code, opencode, codex",
 		);
 		expect(skillsHelp.stdout).toContain("never changes MCP config");
+		expect(skillsHelp.stdout).toContain(
+			"codex installs the skill globally only",
+		);
 	});
 
 	test("supports short options and equals syntax", async () => {
@@ -619,7 +622,11 @@ describe("CLI read path", () => {
 				["skills", "add", "--agent", "claude-code"],
 				{ cwd, home },
 			);
-			const opencode = await runCli(["skills", "add", "-a", "opencode"], {
+			const opencodeWorkspace = await runCli(
+				["skills", "add", "-a", "opencode", "--no-global"],
+				{ cwd, home },
+			);
+			const codex = await runCli(["skills", "add", "--agent", "codex"], {
 				cwd,
 				home,
 			});
@@ -633,22 +640,35 @@ describe("CLI read path", () => {
 				home,
 			});
 
+			// claude-code global installs into ~/.claude/skills/mikan/SKILL.md.
 			expect(claudeCode.exitCode).toBe(0);
 			expect(claudeCode.stdout).toContain(
 				"Installed mikan skill for claude-code (global)",
 			);
 			expect(
-				readFileSync(join(home, ".mikan", "skills", "claude-code.md"), "utf8"),
-			).toContain("mikan");
-			expect(opencode.exitCode).toBe(0);
-			expect(opencode.stdout).toContain(
-				"Installed mikan skill for opencode (global)",
+				readFileSync(
+					join(home, ".claude", "skills", "mikan", "SKILL.md"),
+					"utf8",
+				),
+			).toContain("name: mikan");
+			// opencode workspace installs into .opencode/skills/mikan/SKILL.md.
+			expect(opencodeWorkspace.exitCode).toBe(0);
+			expect(opencodeWorkspace.stdout).toContain(
+				"Installed mikan skill for opencode (workspace)",
 			);
-			expect(codexWorkspace.exitCode).toBe(0);
-			expect(codexWorkspace.stdout).toContain(
-				"Installed mikan skill for codex (workspace)",
+			expect(
+				existsSync(join(cwd, ".opencode", "skills", "mikan", "SKILL.md")),
+			).toBe(true);
+			// codex installs globally; --no-global is rejected clearly.
+			expect(codex.exitCode).toBe(0);
+			expect(codex.stdout).toContain(
+				"Installed mikan skill for codex (global)",
 			);
-			expect(existsSync(join(cwd, ".mikan", "skills", "codex.md"))).toBe(true);
+			expect(
+				existsSync(join(home, ".codex", "skills", "mikan", "SKILL.md")),
+			).toBe(true);
+			expect(codexWorkspace.exitCode).toBe(1);
+			expect(codexWorkspace.stderr).toContain("Codex skills are global-only");
 			expect(missingAgent.exitCode).toBe(1);
 			expect(missingAgent.stderr).toContain(
 				"Usage: mikan skills add --agent <agent>",
