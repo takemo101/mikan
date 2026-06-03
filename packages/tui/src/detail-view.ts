@@ -10,7 +10,12 @@ import { getSelectedDetails, type TuiDetails } from "./model.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
 
 function detailLabelsText(page: DetailPageViewModel): string {
-	return page.labelsText || "none";
+	if (!page.labelsText) return "none";
+	return page.labelsText
+		.split(", ")
+		.filter(Boolean)
+		.map((label) => `#${label}`)
+		.join(" ");
 }
 
 function detailDependencyText(page: DetailPageViewModel): string {
