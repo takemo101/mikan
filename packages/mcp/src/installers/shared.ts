@@ -15,7 +15,8 @@ export type McpAgent =
 	| "antigravity"
 	| "jcode"
 	| "claude-code"
-	| "opencode";
+	| "opencode"
+	| "codex";
 
 export type McpAgentInstallOptions = {
 	global?: boolean;
@@ -135,13 +136,22 @@ export function readJsonObject(path: string): JsonObject {
 	return parsed as JsonObject;
 }
 
-export function writeJsonObject(path: string, config: JsonObject): void {
+/** Atomic temp-file-and-rename write that preserves an existing file mode. */
+export function writeTextFileAtomic(path: string, contents: string): void {
 	mkdirSync(dirname(path), { recursive: true });
 	const tmpPath = `${path}.${process.pid}.tmp`;
 	const mode = existsSync(path) ? statSync(path).mode & 0o777 : 0o600;
-	writeFileSync(tmpPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+	writeFileSync(tmpPath, contents, "utf8");
 	chmodSync(tmpPath, mode);
 	renameSync(tmpPath, path);
+}
+
+export function writeJsonObject(path: string, config: JsonObject): void {
+	writeTextFileAtomic(path, `${JSON.stringify(config, null, 2)}\n`);
+}
+
+export function readTextFile(path: string): string {
+	return existsSync(path) ? readFileSync(path, "utf8") : "";
 }
 
 export function objectProperty(config: JsonObject, key: string): JsonObject {
