@@ -119,11 +119,58 @@ describe("MCP agent installers", () => {
 		}
 	});
 
+	test("registers mikan for claude-code in user (global) and project config", () => {
+		const home = tempDir("mikan-cc-home-");
+		const cwd = tempDir("mikan-cc-cwd-");
+		try {
+			// Pre-seed a realistic ~/.claude.json so the merge must preserve
+			// unrelated Claude Code state and existing MCP servers.
+			const userConfig = join(home, ".claude.json");
+			writeFileSync(
+				userConfig,
+				JSON.stringify({
+					numStartups: 3,
+					mcpServers: { other: { command: "x", args: ["--mcp"] } },
+				}),
+			);
+
+			const global = installMcpServerForAgent("claude-code", { home });
+			const workspace = installMcpServerForAgent("claude-code", {
+				cwd,
+				global: false,
+			});
+			const globalConfig = JSON.parse(readFileSync(global.path, "utf8"));
+			const workspaceConfig = JSON.parse(readFileSync(workspace.path, "utf8"));
+
+			expect(global.path).toBe(userConfig);
+			expect(global.scope).toBe("global");
+			expect(workspace.path).toBe(join(cwd, ".mcp.json"));
+			expect(workspace.scope).toBe("workspace");
+			// User scope: minimal { command, args } entry, no env or type field.
+			expect(globalConfig.mcpServers.mikan).toEqual({
+				command: "mikan",
+				args: ["mcp"],
+			});
+			// Unrelated state and other servers are preserved.
+			expect(globalConfig.numStartups).toBe(3);
+			expect(globalConfig.mcpServers.other.command).toBe("x");
+			// Project scope: the checked-in .mcp.json mcpServers map.
+			expect(workspaceConfig.mcpServers.mikan).toEqual({
+				command: "mikan",
+				args: ["mcp"],
+			});
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
 	test("exposes registry metadata and rejects unsupported agents", () => {
 		expect(mcpAgentInstallers.map((installer) => installer.agent)).toEqual([
 			"pi",
 			"antigravity",
 			"jcode",
+			"claude-code",
 		]);
 		expect(() => installMcpServerForAgent("claude", {})).toThrow(
 			"Unsupported MCP agent: claude",
@@ -151,11 +198,12 @@ describe("MCP agent installers", () => {
 				expect(result.serverName).toBe("mikan-dev");
 				expect(entry.command).toBe("bun");
 				expect(entry.args).toEqual(["run", "mcp"]);
-				// pi omits env; antigravity and jcode include the shared spec env.
-				if (agent === "pi") {
-					expect(entry.env).toBeUndefined();
-				} else {
+				// antigravity and jcode include the shared spec env;
+				// pi and claude-code use the minimal { command, args } entry.
+				if (agent === "antigravity" || agent === "jcode") {
 					expect(entry.env).toEqual({ MIKAN_ENV: "test" });
+				} else {
+					expect(entry.env).toBeUndefined();
 				}
 			} finally {
 				rmSync(cwd, { recursive: true, force: true });
