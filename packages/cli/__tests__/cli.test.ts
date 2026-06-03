@@ -74,6 +74,7 @@ describe("CLI read path", () => {
 		const globalHelp = await cli(cwd, ["--help"]);
 		const addHelp = await cli(cwd, ["add", "--help"]);
 		const helpAdd = await cli(cwd, ["help", "add"]);
+		const mcpHelp = await cli(cwd, ["help", "mcp"]);
 
 		expect(globalHelp.exitCode).toBe(0);
 		expect(globalHelp.stdout).toContain("mikan — local-first Issue board");
@@ -84,6 +85,10 @@ describe("CLI read path", () => {
 		expect(addHelp.stdout).toContain("-s, --status <status>");
 		expect(addHelp.stdout).toContain("--depends-on <issue-id>");
 		expect(helpAdd.stdout).toBe(addHelp.stdout);
+		expect(mcpHelp.exitCode).toBe(0);
+		expect(mcpHelp.stdout).toContain(
+			"Agent to configure: pi, antigravity, jcode, claude-code",
+		);
 	});
 
 	test("supports short options and equals syntax", async () => {
@@ -479,6 +484,13 @@ describe("CLI read path", () => {
 				cwd,
 				home,
 			});
+			const claudeCode = await runCli(
+				["mcp", "add", "--agent", "claude-code"],
+				{
+					cwd,
+					home,
+				},
+			);
 			const unsupported = await runCli(["mcp", "add", "--agent", "claude"], {
 				cwd,
 				home,
@@ -490,6 +502,10 @@ describe("CLI read path", () => {
 			expect(antigravity.stdout).toContain("for antigravity (workspace)");
 			expect(jcode.exitCode).toBe(0);
 			expect(jcode.stdout).toContain("Registered MCP server 'mikan' for jcode");
+			expect(claudeCode.exitCode).toBe(0);
+			expect(claudeCode.stdout).toContain(
+				"Registered MCP server 'mikan' for claude-code",
+			);
 			expect(unsupported.exitCode).toBe(1);
 			expect(unsupported.stderr).toContain("Unsupported MCP agent: claude");
 			expect(
@@ -506,6 +522,10 @@ describe("CLI read path", () => {
 				JSON.parse(readFileSync(join(home, ".jcode", "mcp.json"), "utf8"))
 					.servers.mikan.shared,
 			).toBe(true);
+			expect(
+				JSON.parse(readFileSync(join(home, ".claude.json"), "utf8")).mcpServers
+					.mikan,
+			).toEqual({ command: "mikan", args: ["mcp"] });
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 		}
