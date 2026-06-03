@@ -114,8 +114,8 @@ export async function runInteractiveCommand(
 			if (!parsed.ok) {
 				return fail(`${parsed.error}\n\nRun \`mikan help tui\` for usage.`);
 			}
-			// Validate --columns here so invalid values fail before launching.
-			// Wiring the resolved column count into launchTui is MIK-104.
+			// Validate --columns here so invalid values fail before launching,
+			// then forward the resolved mode into the interactive viewport.
 			const columns = parseTuiColumnsOption(
 				parsed.value.flags.get("columns")?.at(-1),
 			);
@@ -124,7 +124,12 @@ export async function runInteractiveCommand(
 			}
 			const loaded = loadProjectConfig(cwd);
 			if (!loaded.ok) return fail(loaded.error.message);
-			await (options.launchTui ?? (() => launchTui({ cwd })))();
+			await (
+				options.launchTui ??
+				((launchOptions) => launchTui({ cwd, columns: launchOptions.columns }))
+			)({
+				columns: columns.value,
+			});
 			return ok("");
 		}
 		if (argv[0] === "watch") {

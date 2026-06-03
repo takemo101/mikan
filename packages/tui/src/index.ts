@@ -1,6 +1,6 @@
 import React from "react";
 import packageJson from "../package.json" with { type: "json" };
-import type { TuiAppViewProps } from "./app-view-props.ts";
+import type { TuiAppViewProps, TuiColumnsMode } from "./app-view-props.ts";
 import { BoardView, Footer } from "./board-view.ts";
 import { DetailPage } from "./detail-view.ts";
 import {
@@ -28,7 +28,7 @@ import {
 import { clamp, type TuiSelection } from "./selection.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
 
-export type { TuiAppViewProps } from "./app-view-props.ts";
+export type { TuiAppViewProps, TuiColumnsMode } from "./app-view-props.ts";
 export type { FooterProps } from "./board-view.ts";
 // Public facade re-exports for extracted board rendering components (MIK-081).
 export {
@@ -143,6 +143,8 @@ export function TuiAppView({
 	selection,
 	theme = buildTuiTheme(),
 	viewportHeight,
+	viewportWidth,
+	columns,
 }: TuiAppViewProps): React.ReactElement {
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
@@ -177,6 +179,8 @@ export function TuiAppView({
 						selection,
 						theme,
 						viewportHeight,
+						viewportWidth,
+						columns,
 					}),
 		),
 		selection.moveOpen
@@ -210,7 +214,7 @@ export function Header(props: { theme?: TuiTheme }): React.ReactElement {
 }
 
 export async function launchTui(
-	options: { cwd?: string; pollMs?: number } = {},
+	options: { cwd?: string; pollMs?: number; columns?: TuiColumnsMode } = {},
 ): Promise<void> {
 	const { createCliRenderer } = await import("@opentui/core");
 	const { createRoot, useKeyboard } = await import("@opentui/react");
@@ -363,6 +367,8 @@ export async function launchTui(
 			model,
 			selection,
 			viewportHeight: renderer.height,
+			viewportWidth: renderer.width,
+			columns: options.columns,
 		});
 	}
 

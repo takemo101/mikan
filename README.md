@@ -162,7 +162,7 @@ mikan tui --columns 2      # request a narrow two-Column viewport
 mikan tui --columns 5      # request up to five Status Columns
 ```
 
-`mikan tui` accepts and validates `--columns <auto|2|3|4|5>` (default `auto`) today; invalid values are rejected with a pointer to `mikan help tui`. The option is scoped to the visible TUI viewport only and will never change configured Statuses or the Markdown board. Wiring the chosen count into the rendered viewport lands in a follow-up (MIK-104), so the flag does not yet change what you see on screen.
+`mikan tui --columns <auto|2|3|4|5>` (default `auto`) controls how many Status Columns the board shows at once. `auto` derives 2..5 visible Columns from terminal width and keeps the sliding viewport that follows your selection; a fixed `2`–`5` pins that count. The option is scoped to the visible TUI viewport only and never changes configured Statuses or the Markdown board. Invalid values are rejected with a pointer to `mikan help tui`.
 
 ## MCP server
 

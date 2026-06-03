@@ -16,8 +16,17 @@ export function BoardView({
 	selection,
 	theme = buildTuiTheme(),
 	viewportHeight,
+	viewportWidth,
+	columns,
 }: TuiAppViewProps): React.ReactElement {
-	const view = buildBoardViewModel(model, selection, { viewportHeight });
+	// A fixed columns count overrides the responsive width; "auto" (or unset)
+	// keeps the sliding viewport derived from viewport width.
+	const view = buildBoardViewModel(model, selection, {
+		viewportHeight,
+		...(typeof columns === "number"
+			? { visibleColumnCount: columns }
+			: { viewportWidth }),
+	});
 	return React.createElement(
 		"box",
 		{
