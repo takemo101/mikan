@@ -117,7 +117,8 @@ The CLI exposes small primitive operations:
 | `mikan append <id>` | Append Markdown to a section such as `Notes` or `Reports`. |
 | `mikan tui` | Open the keyboard-first board. |
 | `mikan watch` | Run polling hooks for local automation. |
-| `mikan mcp` | Start the stdio MCP server. |
+| `mikan mcp` | Start the stdio MCP server, register it (`mcp add`), or print its manifest (`mcp llms`). |
+| `mikan skills add` | Install agent-facing mikan usage guidance for a supported agent. |
 
 Examples:
 
@@ -162,18 +163,61 @@ Available tools:
 - `get_board(include_archived?)`
 - `list_issues(status?, include_archived?)`
 - `get_issue(id)`
-- `create_issue(title, body?, status?, labels?)`
-- `update_issue(id, title?, labels?, body?)`
+- `create_issue(title, body?, status?, labels?, depends_on?)`
+- `update_issue(id, title?, labels?, body?, depends_on?)`
 - `move_issue(id, status, log?)`
 - `append_issue(id, section, body, source?)`
 
-The MCP surface intentionally mirrors CLI primitives. There are no separate workflow, delegation, or scheduling concepts.
+The MCP surface intentionally mirrors CLI primitives. mikan stays **stdio MCP only**: there is no HTTP server, port, auth, scheduler, workflow engine, or delegation runtime.
 
-Some agent integrations can be configured with:
+## Agent setup
+
+mikan wires into AI coding agents through two separate, optional surfaces. Neither models agents or turns mikan into an agent runtime.
+
+### Register the MCP server with `mikan mcp add`
+
+`mikan mcp add` registers the stdio `mikan mcp` server in a target agent's MCP config so the agent can call the mikan tools. It writes only that agent's config file; it never starts an HTTP server or changes mikan's behavior.
 
 ```sh
-mikan mcp add --agent <agent>
+mikan mcp add --agent <agent> [--no-global]
 ```
+
+Supported agents: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`.
+
+```sh
+mikan mcp add --agent claude-code             # ~/.claude.json   (--no-global -> ./.mcp.json)
+mikan mcp add --agent opencode                # ~/.config/opencode/opencode.json (--no-global -> ./opencode.json)
+mikan mcp add --agent codex                   # ~/.codex/config.toml (global only; --no-global is rejected)
+```
+
+### Install agent guidance with `mikan skills add`
+
+`mikan skills add` is **separate** from MCP registration. It installs a small mikan skill — a `SKILL.md` instructions file — that teaches an agent what mikan is and to drive the board through the MCP tools. Installing skills never changes MCP config, and registering MCP never installs skills.
+
+```sh
+mikan skills add --agent <agent> [--no-global]
+```
+
+Supported skill agents: `claude-code`, `opencode`, `codex`.
+
+```sh
+mikan skills add --agent claude-code          # ~/.claude/skills/mikan/SKILL.md (--no-global -> ./.claude/skills/...)
+mikan skills add --agent opencode --no-global # ./.opencode/skills/mikan/SKILL.md
+mikan skills add --agent codex                # ~/.codex/skills/mikan/SKILL.md (global only; --no-global is rejected)
+```
+
+### incur-backed discovery
+
+mikan's MCP server is built with [`incur`](https://www.npmjs.com/package/incur), which can emit a token-efficient command manifest. For agents that read incur manifests directly — no config file needed:
+
+```sh
+mikan mcp llms          # print the incur manifest for the mikan MCP tools
+mikan mcp llms --full   # print the fuller per-argument manifest
+```
+
+Discovery is read-only: it never registers a server, so it cannot install for a specific agent. `mikan mcp llms --agent <agent>` fails and points you to `mikan mcp add --agent <agent>`.
+
+Use `mikan mcp add` / `mikan skills add` for native per-agent registration; use `mikan mcp llms` for incur-backed discovery.
 
 ## Watch hooks
 
