@@ -298,7 +298,7 @@ Releases are published from `.github/workflows/publish.yml` using npm Trusted Pu
 
 ## Limitations
 
-mikan v0.0.2 is intentionally small:
+mikan v0.0.3 is intentionally small:
 
 - no SQLite/database storage;
 - no GitHub sync;

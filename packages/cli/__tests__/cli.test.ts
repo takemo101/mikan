@@ -25,7 +25,7 @@ async function cli(cwd: string, argv: string[]) {
 describe("CLI read path", () => {
 	test("package metadata targets scoped npm dist bin", () => {
 		expect(packageJson.name).toBe("@takemo101/mikan");
-		expect(packageJson.version).toBe("0.0.2");
+		expect(packageJson.version).toBe("0.0.3");
 		expect(packageJson.private).toBe(false);
 		expect(packageJson.bin).toEqual({ mikan: "dist/bin.js" });
 		expect(packageJson.files).toEqual(["dist"]);
@@ -61,7 +61,7 @@ describe("CLI read path", () => {
 			true,
 		);
 		expect(packed.name).toBe("@takemo101/mikan");
-		expect(packed.version).toBe("0.0.2");
+		expect(packed.version).toBe("0.0.3");
 		expect(packedFiles).toContain("dist/bin.js");
 		expect(packedFiles).toContain("package.json");
 		expect(packedFiles).toContain("README.md");
