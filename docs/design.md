@@ -500,6 +500,63 @@ herdr integration is optional and external:
 - TUI may display herdr-related Markdown sections;
 - mikan core remains scheduler-free.
 
+## Agent MCP and skills integration
+
+mikan helps external AI coding agents talk to the same Markdown board without becoming an agent runtime. There are two distinct, independent integration surfaces, and neither of them turns an external tool into a modeled mikan domain object:
+
+- **MCP registration** (`mikan mcp add`) — register the existing stdio `mikan mcp` server in a target agent's MCP configuration so the agent can call mikan tools.
+- **Skills installation** (`mikan skills add`) — install lightweight, agent-facing usage instructions so the agent knows what mikan is and how to drive it.
+
+These surfaces stay separate: registering MCP tools never installs skills, and installing skills never edits MCP config. An "agent" here is only an installer target string (`pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, …), not a mikan Issue concept. Do not model agents, profiles, roles, teams, or sessions in core.
+
+### MCP registration as thin installer adapters
+
+`mikan mcp add --agent <agent> [--no-global]` writes the same stdio mikan MCP server spec — command `mikan`, args `["mcp"]` — into the target agent's own MCP config convention. It does not start an HTTP server, allocate a port, or add auth; the registered server is always the existing stdio server started by `mikan mcp`.
+
+The installer registry lives in `packages/mcp` and exposes a stable `installMcpServerForAgent(agent, options)` Interface that returns where the server was registered (`{ agent, path, serverName, scope }`) or throws a clear "Unsupported MCP agent: …. Supported agents: …" error. Each supported agent is a thin adapter that encodes only that agent's differences:
+
+- the config file path for global vs workspace-local scope;
+- the JSON shape for one server entry (for example `mcpServers` vs `servers`, and any agent-specific fields such as `env` or `shared`);
+- the reported `scope` label.
+
+Shared helpers own the parts that must not drift per agent: reading/merging an existing JSON object, atomic temp-file-and-rename writes that preserve file mode, and constructing the default mikan server spec. Adding a new agent should mean adding one small adapter Module, not duplicating JSON I/O.
+
+Target MCP agents for this work, beyond the existing `pi`, `antigravity`, and `jcode` adapters:
+
+- **Claude Code** — register the stdio mikan server using Claude Code's MCP config convention (`mcpServers` map; global vs project-local scope). Verify the exact path/format or CLI registration path before implementing.
+- **opencode** — register using opencode's MCP config convention. Verify the exact path/format before implementing.
+- **Codex** — register using Codex's MCP config convention. Verify the exact path/format before implementing.
+
+For each new agent, verify the registration convention from that tool's docs or code before implementing. When an agent does not support a requested scope (for example workspace-local), the installer must fail clearly rather than invent a path, and that behavior is covered by tests.
+
+### Skills installation as agent-facing instructions
+
+`mikan skills add --agent <agent> [--no-global]` is a separate top-level command from `mikan mcp add`. It installs a small mikan skill/instructions file using the target agent's skill convention, with global vs workspace scope where the agent supports both. The installed instructions:
+
+- explain mikan as a local-first, Markdown-backed Issue board;
+- use Issue vocabulary from `CONTEXT.md` (Issue, Issue ID, Status, Label, Report, Note, Dependency) and avoid Task/ticket/profile/role;
+- describe dependencies as advisory read-model data (`depends_on`, `unmet_dependencies`, `dependency_status`), not scheduling;
+- tell the agent to use mikan MCP tools for board reads, Issue create/update/move, and appending Reports/Notes.
+
+Skills add dispatches to its own installer registry, parallel to the MCP installer registry, and returns a clear registration message or an "unsupported agent" error listing supported skill agents. Skill installers must not modify MCP config.
+
+### incur-backed discovery and fallback
+
+mikan already builds its stdio MCP server with `incur`. Where incur provides a discovery or manifest capability that fits mikan (for example an incur agent target, manifest command, or sync path), expose it as an additional documented and tested path rather than reimplementing it. Constraints:
+
+- The incur-backed path must not break the existing `mikan mcp` stdio server or the custom `mikan mcp add` UX.
+- When incur cannot perform a requested installation from the custom mikan CLI, fail with a clear explanation that points to the supported native installer path instead of silently doing nothing.
+- Verify actual incur behavior before relying on it; document when to use native agent installers versus incur-backed discovery.
+
+### Scope guardrails for agent integration
+
+This integration stays inside mikan's existing scope guards:
+
+- no HTTP MCP server, port management, or auth — registration always targets the stdio `mikan mcp` server;
+- no scheduler, workflow engine, or delegation runtime;
+- no modeled Agent/profile/role/team domain object in core;
+- no changes to existing `pi`, `antigravity`, or `jcode` adapter behavior except in an Issue that explicitly covers that adapter.
+
 ## GitHub sync
 
 Do not implement GitHub sync in v0.
