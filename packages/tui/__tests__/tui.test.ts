@@ -488,7 +488,7 @@ describe("TUI model and navigation", () => {
 				{
 					id: "ready",
 					title: "Ready",
-					cards: Array.from({ length: 20 }, (_, index) => ({
+					cards: Array.from({ length: 40 }, (_, index) => ({
 						id: `MIK-${String(index + 1).padStart(3, "0")}`,
 						title: `Issue ${index + 1}`,
 						labels: [],
@@ -516,10 +516,12 @@ describe("TUI model and navigation", () => {
 			{ viewportHeight: 36 },
 		);
 
-		expect(shortView.columns[0]?.visibleCards).toHaveLength(6);
-		expect(tallView.columns[0]?.visibleCards).toHaveLength(14);
-		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(20);
-		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe("");
+		expect(shortView.columns[0]?.visibleCards).toHaveLength(10);
+		expect(tallView.columns[0]?.visibleCards).toHaveLength(18);
+		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(30);
+		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe(
+			"1-30/40 | ↑0 | ↓10",
+		);
 	});
 
 	test("renders detail Markdown window from viewport height", () => {
