@@ -18,6 +18,9 @@
       "bin": {
         "mikan": "dist/bin.js",
       },
+      "dependencies": {
+        "@mikan/github": "workspace:*",
+      },
       "optionalDependencies": {
         "@opentui/core-darwin-arm64": "0.3.0",
         "@opentui/core-darwin-x64": "0.3.0",

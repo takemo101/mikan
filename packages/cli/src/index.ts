@@ -7,6 +7,7 @@ import { type CliResult, fail, ok } from "./cli-output.ts";
 import {
 	runAdd,
 	runAppend,
+	runGithub,
 	runInit,
 	runList,
 	runMcp,
@@ -66,6 +67,8 @@ export async function runCli(
 				return runMove(cwd, parsed.value, options);
 			case "append":
 				return runAppend(cwd, parsed.value, options);
+			case "github":
+				return runGithub(cwd, parsed.value, options);
 			case "mcp":
 				return runMcp(cwd, parsed.value, options);
 			case "skills":

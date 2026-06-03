@@ -24,6 +24,7 @@ Commands:
   update    Update Issue title, labels, or body
   move      Move an Issue to another Status
   append    Append Markdown to an Issue section
+  github    Create or push GitHub Mirrors
   tui       Open the read-only board
   watch     Run the polling watcher
   mcp       Start the stdio MCP server
@@ -115,6 +116,24 @@ Options:
   -b, --body <body>     Markdown to append
   -s, --source <source> Source name for timestamped entries
   -h, --help            Show this help
+`;
+		case "github":
+			return `Create or push one-way GitHub Mirrors.
+
+Usage:
+  mikan github mirror <issue-id>
+  mikan github push <issue-id>
+  mikan github push --all
+
+Options:
+  --all                 With push: update every Issue that already has github_issue
+  -h, --help            Show this help
+
+Notes:
+  Configure github.repo in .mikan/config.yaml first.
+  GitHub Mirror uses the gh CLI; install gh and run gh auth login.
+  mirror creates a GitHub Issue when github_issue is absent and updates it when present.
+  push requires an existing github_issue; push --all never creates new GitHub Issues.
 `;
 		case "tui":
 			return `Open the read-only board.
