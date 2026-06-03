@@ -17,6 +17,7 @@ export type CommandName =
 	| "update"
 	| "move"
 	| "append"
+	| "github"
 	| "mcp"
 	| "skills"
 	| "tui"
@@ -34,6 +35,7 @@ const commands: CommandName[] = [
 	"update",
 	"move",
 	"append",
+	"github",
 	"mcp",
 	"skills",
 	"tui",
@@ -67,6 +69,7 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 		{ name: "body", short: "b", value: true },
 		{ name: "source", short: "s", value: true },
 	],
+	github: [{ name: "all", value: false }],
 	mcp: [
 		{ name: "agent", short: "a", value: true },
 		{ name: "no-global", value: false },

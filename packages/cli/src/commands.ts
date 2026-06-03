@@ -8,9 +8,15 @@ import {
 	createIssue,
 	findIssueById,
 	moveIssue,
+	type Result,
 	scanBoard,
 	updateIssue,
 } from "@mikan/core";
+import {
+	type GitHubMirrorResult,
+	mirrorIssueToGitHub,
+	pushGitHubMirror,
+} from "@mikan/github";
 import {
 	getMcpManifest,
 	installMcpServerForAgent,
@@ -94,6 +100,76 @@ export function runSkills(
 	} catch (error) {
 		return fail(error instanceof Error ? error.message : String(error));
 	}
+}
+
+export async function runGithub(
+	cwd: string,
+	parsed: ParsedArgs,
+	options: CliOptions,
+): Promise<CliResult> {
+	const subcommand = parsed.positionals[0];
+	const id = parsed.positionals[1];
+	const operations = options.githubMirror ?? {
+		mirrorIssueToGitHub,
+		pushGitHubMirror,
+	};
+	const loaded = loadProjectConfig(cwd);
+	if (!loaded.ok) return fail(loaded.error.message);
+	if (subcommand === "mirror") {
+		if (!id) return fail("Usage: mikan github mirror <issue-id>");
+		return formatGitHubMirrorCliResult(
+			await operations.mirrorIssueToGitHub({
+				projectRoot: loaded.value.projectRoot,
+				config: loaded.value.config,
+				id,
+				now: options.now,
+			}),
+			"mirrored",
+		);
+	}
+	if (subcommand === "push") {
+		if (parsed.flags.has("all")) {
+			const board = scanBoard({
+				projectRoot: loaded.value.projectRoot,
+				config: loaded.value.config,
+				includeArchived: true,
+			});
+			if (!board.ok) return fail(board.error.message);
+			const mirroredIssues = board.value.columns
+				.flatMap((column) => column.issues)
+				.filter((issue) => issue.issue.githubIssue)
+				.map((issue) => String(issue.issue.id));
+			const outputs: string[] = [];
+			const warnings: string[] = [];
+			for (const issueId of mirroredIssues) {
+				const result = await operations.pushGitHubMirror({
+					projectRoot: loaded.value.projectRoot,
+					config: loaded.value.config,
+					id: issueId,
+					now: options.now,
+				});
+				if (!result.ok) return fail(result.error.message);
+				outputs.push(formatGitHubMirrorSuccess(result.value, "pushed"));
+				warnings.push(...result.value.warnings);
+			}
+			return {
+				exitCode: 0,
+				stdout: outputs.length > 0 ? `${outputs.join("\n")}\n` : "",
+				stderr: formatGitHubMirrorWarnings(warnings),
+			};
+		}
+		if (!id) return fail("Usage: mikan github push <issue-id>|--all");
+		return formatGitHubMirrorCliResult(
+			await operations.pushGitHubMirror({
+				projectRoot: loaded.value.projectRoot,
+				config: loaded.value.config,
+				id,
+				now: options.now,
+			}),
+			"pushed",
+		);
+	}
+	return fail("Usage: mikan github <mirror|push> ...");
 }
 
 export function runWatch(cwd: string, parsed: ParsedArgs): CliResult {
@@ -264,6 +340,29 @@ export function runAppend(
 	});
 	if (!result.ok) return fail(result.error.message);
 	return ok(`${String(result.value.issue.id)} appended ${section}\n`);
+}
+
+function formatGitHubMirrorCliResult(
+	result: Result<GitHubMirrorResult, { message: string }>,
+	verb: "mirrored" | "pushed",
+): CliResult {
+	if (!result.ok) return fail(result.error.message);
+	return {
+		exitCode: 0,
+		stdout: `${formatGitHubMirrorSuccess(result.value, verb)}\n`,
+		stderr: formatGitHubMirrorWarnings(result.value.warnings),
+	};
+}
+
+function formatGitHubMirrorSuccess(
+	result: GitHubMirrorResult,
+	verb: "mirrored" | "pushed",
+): string {
+	return `${result.issue_id} ${verb} to ${result.github_issue.url}`;
+}
+
+function formatGitHubMirrorWarnings(warnings: string[]): string {
+	return warnings.map((warning) => `warning: ${warning}\n`).join("");
 }
 
 function formatBoard(

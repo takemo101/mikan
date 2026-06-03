@@ -18,8 +18,16 @@ function tempProject(): string {
 
 import { mkdtempSync } from "node:fs";
 
-async function cli(cwd: string, argv: string[]) {
-	return runCli(argv, { cwd, now: () => new Date("2026-05-30T00:00:00Z") });
+async function cli(
+	cwd: string,
+	argv: string[],
+	options: Parameters<typeof runCli>[1] = {},
+) {
+	return runCli(argv, {
+		cwd,
+		now: () => new Date("2026-05-30T00:00:00Z"),
+		...options,
+	});
 }
 
 describe("CLI read path", () => {
@@ -100,6 +108,12 @@ describe("CLI read path", () => {
 		expect(mcpHelp.stdout).toContain("codex registers in global");
 		expect(mcpHelp.stdout).toContain("mikan mcp llms [--full]");
 		expect(mcpHelp.stdout).toContain("incur-backed discovery");
+		const githubHelp = await cli(cwd, ["help", "github"]);
+
+		expect(githubHelp.exitCode).toBe(0);
+		expect(githubHelp.stdout).toContain("mikan github mirror <issue-id>");
+		expect(githubHelp.stdout).toContain("mikan github push --all");
+		expect(githubHelp.stdout).toContain("gh auth login");
 		expect(skillsHelp.exitCode).toBe(0);
 		expect(skillsHelp.stdout).toContain(
 			"Usage:\n  mikan skills add --agent <agent> [--no-global]",
@@ -833,6 +847,124 @@ describe("CLI read path", () => {
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 		}
+	});
+
+	test("github mirror creates or updates a GitHub Mirror", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "Mirror me", "--status", "ready"]);
+		let calledWith: string | undefined;
+		const mirrorResult = {
+			ok: true as const,
+			value: {
+				issue_id: "MIK-001",
+				action: "created" as const,
+				github_issue: {
+					repo: "takemo101/mikan",
+					number: 123,
+					url: "https://github.com/takemo101/mikan/issues/123",
+				},
+				warnings: ["label skipped"],
+			},
+		};
+
+		const result = await cli(cwd, ["github", "mirror", "MIK-001"], {
+			githubMirror: {
+				mirrorIssueToGitHub: async (options) => {
+					calledWith = options.id;
+					return mirrorResult;
+				},
+				pushGitHubMirror: async () => {
+					throw new Error("unexpected push");
+				},
+			},
+		});
+
+		expect(result.exitCode).toBe(0);
+		expect(calledWith).toBe("MIK-001");
+		expect(result.stdout).toContain(
+			"MIK-001 mirrored to https://github.com/takemo101/mikan/issues/123",
+		);
+		expect(result.stderr).toContain("warning: label skipped");
+	});
+
+	test("github push updates an existing mirror and push --all only pushes mirrored Issues", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Mirrored\ngithub_issue:\n  repo: takemo101/mikan\n  number: 123\n  url: https://github.com/takemo101/mikan/issues/123\n  last_mirrored_at: 2026-06-03T22:00:00Z\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Mirrored\n`,
+		);
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-002.md"),
+			`---\nid: MIK-002\ntitle: Local only\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Local only\n`,
+		);
+		const pushed: string[] = [];
+		const githubMirror = {
+			mirrorIssueToGitHub: async () => {
+				throw new Error("unexpected mirror");
+			},
+			pushGitHubMirror: async (options: { id: string }) => {
+				pushed.push(options.id);
+				return {
+					ok: true as const,
+					value: {
+						issue_id: options.id,
+						action: "updated" as const,
+						github_issue: {
+							repo: "takemo101/mikan",
+							number: 123,
+							url: `https://github.com/takemo101/mikan/issues/123`,
+						},
+						warnings: [],
+					},
+				};
+			},
+		};
+
+		const single = await cli(cwd, ["github", "push", "MIK-001"], {
+			githubMirror,
+		});
+		const all = await cli(cwd, ["github", "push", "--all"], {
+			githubMirror,
+		});
+
+		expect(single.exitCode).toBe(0);
+		expect(single.stdout).toContain("MIK-001 pushed to https://github.com");
+		expect(all.exitCode).toBe(0);
+		expect(pushed).toEqual(["MIK-001", "MIK-001"]);
+		expect(all.stdout).toContain("MIK-001 pushed to https://github.com");
+		expect(all.stdout).not.toContain("MIK-002");
+	});
+
+	test("github commands return clear errors", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		const missingId = await cli(cwd, ["github", "mirror"]);
+		const missingAllOrId = await cli(cwd, ["github", "push"]);
+		const operationError = await cli(cwd, ["github", "mirror", "MIK-001"], {
+			githubMirror: {
+				mirrorIssueToGitHub: async () => ({
+					ok: false as const,
+					error: {
+						kind: "missing_config" as const,
+						message: "Set github.repo in .mikan/config.yaml",
+					},
+				}),
+				pushGitHubMirror: async () => {
+					throw new Error("unexpected push");
+				},
+			},
+		});
+
+		expect(missingId.exitCode).toBe(1);
+		expect(missingId.stderr).toContain("Usage: mikan github mirror <issue-id>");
+		expect(missingAllOrId.exitCode).toBe(1);
+		expect(missingAllOrId.stderr).toContain(
+			"Usage: mikan github push <issue-id>|--all",
+		);
+		expect(operationError.exitCode).toBe(1);
+		expect(operationError.stderr).toContain("Set github.repo");
 	});
 
 	test("show returns clear not-found error", async () => {
