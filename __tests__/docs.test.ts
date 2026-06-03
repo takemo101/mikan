@@ -9,6 +9,14 @@ const packageReadme = readFileSync(
 	"utf8",
 );
 const configManual = readFileSync(join(repoRoot, "site", "config.md"), "utf8");
+const githubMirrorManual = readFileSync(
+	join(repoRoot, "site", "github-mirror.md"),
+	"utf8",
+);
+const vitepressConfig = readFileSync(
+	join(repoRoot, "site", ".vitepress", "config.ts"),
+	"utf8",
+);
 
 const mcpAgents = [
 	"pi",
@@ -68,5 +76,36 @@ describe("manual site documentation", () => {
 		]) {
 			expect(configManual).toContain(`<code v-pre>{{${placeholder}}}</code>`);
 		}
+	});
+
+	test("GitHub Mirror manual documents one-way publication surfaces", () => {
+		for (const required of [
+			"GitHub Mirror",
+			"one-way",
+			"github.repo",
+			"github.auto_push_mirrors",
+			"gh auth login",
+			"mikan github mirror MIK-001",
+			"mikan github push --all",
+			"TUI action",
+			"mirror_issue_to_github",
+			"push_github_mirror",
+			"mikan watch --github-push",
+			"label creation fails",
+			"GitHub state is never authoritative",
+		]) {
+			expect(githubMirrorManual).toContain(required);
+		}
+	});
+
+	test("GitHub Mirror docs avoid sync framing and are linked from docs surfaces", () => {
+		expect(githubMirrorManual).not.toContain("bidirectional sync");
+		expect(githubMirrorManual).not.toContain("GitHub sync");
+		expect(readme).toContain("https://takemo101.github.io/mikan/github-mirror");
+		expect(packageReadme).toContain(
+			"https://takemo101.github.io/mikan/github-mirror",
+		);
+		expect(vitepressConfig).toContain("/github-mirror");
+		expect(configManual).toContain("github.auto_push_mirrors");
 	});
 });

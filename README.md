@@ -115,6 +115,7 @@ The CLI exposes small primitive operations:
 | `mikan update <id>` | Update title, labels, or body. |
 | `mikan move <id> <status>` | Move an Issue to another Status and optionally append a Status Log entry. |
 | `mikan append <id>` | Append Markdown to a section such as `Notes` or `Reports`. |
+| `mikan github` | Create or push one-way GitHub Mirrors. |
 | `mikan tui` | Open the keyboard-first board. |
 | `mikan watch` | Run polling hooks for local automation. |
 | `mikan mcp` | Start the stdio MCP server, register it (`mcp add`), or print its manifest (`mcp llms`). |
@@ -148,6 +149,7 @@ Key bindings:
 - `Enter`: open full-page Markdown detail
 - `n`: append a Note in a modal prompt
 - `a`: confirm Archive in a modal prompt
+- `g`: create or push a one-way GitHub Mirror
 - `r`: reload from disk
 - `Esc`: back/cancel
 - `q`: quit
@@ -163,6 +165,12 @@ mikan tui --columns 5      # request up to five Status Columns
 ```
 
 `mikan tui --columns <auto|2|3|4|5>` (default `auto`) controls how many Status Columns the board shows at once. `auto` derives 2..5 visible Columns from terminal width and keeps the sliding viewport that follows your selection; a fixed `2`–`5` pins that count. The option is scoped to the visible TUI viewport only and never changes configured Statuses or the Markdown board. Invalid values are rejected with a pointer to `mikan help tui`.
+
+## GitHub Mirror
+
+GitHub Mirror publishes local mikan Issues outward to GitHub Issues for external visibility while keeping Markdown authoritative. Configure `github.repo`, run `gh auth login`, then use `mikan github mirror`, `mikan github push`, the TUI `g` action, or the MCP Mirror tools.
+
+Full setup, watch auto-push, label behavior, and source-of-truth rules are documented in the manual: <https://takemo101.github.io/mikan/github-mirror>
 
 ## MCP server
 
@@ -305,7 +313,7 @@ Releases are published from `.github/workflows/publish.yml` using npm Trusted Pu
 mikan v0.0.3 is intentionally small:
 
 - no SQLite/database storage;
-- no GitHub sync;
+- no GitHub-as-source-of-truth behavior;
 - no user accounts or hosted service;
 - no full Markdown body editing in the TUI;
 - no drag/drop board interactions;
