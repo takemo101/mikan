@@ -7,9 +7,17 @@ import {
 	createIssue,
 	findIssueById,
 	moveIssue,
+	type Result,
 	scanBoard,
 	updateIssue,
 } from "@mikan/core";
+import {
+	mirrorIssueToGitHub as defaultMirrorIssueToGitHub,
+	pushGitHubMirror as defaultPushGitHubMirror,
+	type GitHubMirrorError,
+	type GitHubMirrorOptions,
+	type GitHubMirrorResult,
+} from "@mikan/github";
 import { loadProjectConfig } from "@mikan/project-config";
 import { Cli, z } from "incur";
 
@@ -35,9 +43,19 @@ export {
 	skillAgentInstallers,
 } from "./skills/index.ts";
 
+export type McpGithubMirrorOperations = {
+	mirrorIssueToGitHub?: (
+		options: GitHubMirrorOptions,
+	) => Promise<Result<GitHubMirrorResult, GitHubMirrorError>>;
+	pushGitHubMirror?: (
+		options: GitHubMirrorOptions,
+	) => Promise<Result<GitHubMirrorResult, GitHubMirrorError>>;
+};
+
 export type McpRuntime = {
 	cwd?: string;
 	now?: () => Date;
+	githubMirror?: McpGithubMirrorOperations;
 };
 
 export type McpToolError = {
@@ -209,6 +227,42 @@ export function appendIssueTool(
 	return ok(formatIssue(result.value, []));
 }
 
+export async function mirrorIssueToGitHubTool(
+	args: { id: string },
+	runtime: McpRuntime = {},
+): Promise<McpToolResult<GitHubMirrorResult>> {
+	const loaded = load(runtime.cwd);
+	if (!loaded.ok) return loaded;
+	const mirrorIssueToGitHub =
+		runtime.githubMirror?.mirrorIssueToGitHub ?? defaultMirrorIssueToGitHub;
+	const result = await mirrorIssueToGitHub({
+		projectRoot: loaded.value.projectRoot,
+		config: loaded.value.config,
+		id: args.id,
+		now: runtime.now,
+	});
+	if (!result.ok) return coreError(result.error.kind, result.error.message);
+	return ok(result.value);
+}
+
+export async function pushGitHubMirrorTool(
+	args: { id: string },
+	runtime: McpRuntime = {},
+): Promise<McpToolResult<GitHubMirrorResult>> {
+	const loaded = load(runtime.cwd);
+	if (!loaded.ok) return loaded;
+	const pushGitHubMirror =
+		runtime.githubMirror?.pushGitHubMirror ?? defaultPushGitHubMirror;
+	const result = await pushGitHubMirror({
+		projectRoot: loaded.value.projectRoot,
+		config: loaded.value.config,
+		id: args.id,
+		now: runtime.now,
+	});
+	if (!result.ok) return coreError(result.error.kind, result.error.message);
+	return ok(result.value);
+}
+
 export function createMikanMcpCli(runtime: McpRuntime = {}) {
 	return Cli.create("mikan", {
 		description: "mikan local Issue board MCP server",
@@ -280,6 +334,20 @@ export function createMikanMcpCli(runtime: McpRuntime = {}) {
 			}),
 			run: (context) =>
 				forIncur(context, appendIssueTool(context.args, runtime)),
+		})
+		.command("mirror_issue_to_github", {
+			description:
+				"Explicit external-publication operation: create or update the GitHub Issue mirror for one local mikan Issue. Markdown remains source of truth.",
+			args: z.object({ id: z.string() }),
+			run: async (context) =>
+				forIncur(context, await mirrorIssueToGitHubTool(context.args, runtime)),
+		})
+		.command("push_github_mirror", {
+			description:
+				"Explicit external-publication operation: push one already-mirrored mikan Issue to its GitHub Issue mirror. Does not create a new GitHub Issue.",
+			args: z.object({ id: z.string() }),
+			run: async (context) =>
+				forIncur(context, await pushGitHubMirrorTool(context.args, runtime)),
 		});
 }
 

@@ -76,7 +76,9 @@ const MCP_FACADE = [
 	"installMcpServerForAgent",
 	"listIssuesTool",
 	"mcpAgentInstallers",
+	"mirrorIssueToGitHubTool",
 	"moveIssueTool",
+	"pushGitHubMirrorTool",
 	"startMcpServer",
 	"updateIssueTool",
 ] as const;
@@ -218,6 +220,7 @@ type _McpTypeFacade = [
 	mcpTypes.McpAgentInstaller,
 	mcpTypes.McpAgentInstallOptions,
 	mcpTypes.McpAgentInstallResult,
+	mcpTypes.McpGithubMirrorOperations,
 	mcpTypes.McpRuntime,
 	mcpTypes.McpToolError,
 	mcpTypes.McpToolResult<unknown>,

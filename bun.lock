@@ -47,6 +47,7 @@
       "name": "@mikan/mcp",
       "dependencies": {
         "@mikan/core": "workspace:*",
+        "@mikan/github": "workspace:*",
         "@mikan/project-config": "workspace:*",
         "incur": "^0.4.8",
       },

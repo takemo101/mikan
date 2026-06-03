@@ -177,6 +177,10 @@ Available tools:
 - `update_issue(id, title?, labels?, body?, depends_on?)`
 - `move_issue(id, status, log?)`
 - `append_issue(id, section, body, source?)`
+- `mirror_issue_to_github(id)` — explicit one-way publication to create or update the GitHub Issue mirror.
+- `push_github_mirror(id)` — explicit one-way publication to update an existing mirror only.
+
+GitHub Mirror tools keep Markdown authoritative. They publish outward to GitHub Issues; they do not import GitHub state.
 
 The MCP surface intentionally mirrors CLI primitives. mikan stays **stdio MCP only**: there is no HTTP server, port, auth, scheduler, workflow engine, or delegation runtime.
 
