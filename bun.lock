@@ -34,6 +34,12 @@
         "zod": "^4.3.6",
       },
     },
+    "packages/github": {
+      "name": "@mikan/github",
+      "dependencies": {
+        "@mikan/core": "workspace:*",
+      },
+    },
     "packages/mcp": {
       "name": "@mikan/mcp",
       "dependencies": {
@@ -186,6 +192,8 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@mikan/core": ["@mikan/core@workspace:packages/core"],
+
+    "@mikan/github": ["@mikan/github@workspace:packages/github"],
 
     "@mikan/mcp": ["@mikan/mcp@workspace:packages/mcp"],
 
