@@ -6,14 +6,11 @@ import {
 	buildDetailViewModel,
 	type DetailPageViewModel,
 } from "./detail-view-model.ts";
-import { formatLabels } from "./formatting.ts";
 import { getSelectedDetails, type TuiDetails } from "./model.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
 
 function detailLabelsText(page: DetailPageViewModel): string {
-	return page.labelsText
-		? formatLabels(page.labelsText.split(", ").filter(Boolean))
-		: "none";
+	return page.labelsText || "none";
 }
 
 function detailDependencyText(page: DetailPageViewModel): string {

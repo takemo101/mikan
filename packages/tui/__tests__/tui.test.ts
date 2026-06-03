@@ -675,6 +675,63 @@ describe("TUI model and navigation", () => {
 		expect(text).not.toContain("line 30");
 	});
 
+	test("renders detail label titles while preserving label IDs", () => {
+		const cwd = tempProject();
+		writeFileSync(
+			join(cwd, ".mikan", "config.yaml"),
+			`project:
+  key: MIK
+  name: mikan
+board:
+  columns:
+    - id: backlog
+      title: Backlog
+    - id: ready
+      title: Ready
+    - id: active
+      title: Active
+    - id: blocked
+      title: Blocked
+    - id: completed
+      title: Completed
+    - id: archived
+      title: Archived
+labels:
+  - id: automation
+    title: Automation Work
+`,
+		);
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---
+id: MIK-001
+title: Ready issue
+labels:
+  - automation
+created_at: 2026-05-30T00:00:00Z
+updated_at: 2026-05-30T00:00:00Z
+---
+
+# Ready issue
+`,
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const page = buildDetailPageViewModel(model, selection);
+		const tree = TuiAppView({ model, selection });
+		const text = collectTextContent(tree);
+
+		expect(model.columns[1]?.cards[0]?.labels).toEqual(["automation"]);
+		expect(page?.labelsText).toBe("Automation Work (automation)");
+		expect(text).toContain("ready · labels Automation Work (automation)");
+		expect(text).not.toContain("ready · labels #automation");
+	});
+
 	test("renders detail title and metadata in a fixed header above the scrolling Markdown body", () => {
 		const cwd = tempProject();
 		writeFileSync(
@@ -725,11 +782,11 @@ describe("TUI model and navigation", () => {
 			styledContentChunk(titleLine.props?.content, "Lines: 11-16/30 | ↑10 ↓14"),
 		).toBeTruthy();
 		expect(styledContentPlain(metaLine.props?.content)).toBe(
-			"ready · labels #automation",
+			"ready · labels Automation (automation)",
 		);
 		expect(styledContentChunk(metaLine.props?.content, "ready")).toBeTruthy();
 		expect(
-			styledContentChunk(metaLine.props?.content, "#automation"),
+			styledContentChunk(metaLine.props?.content, "Automation (automation)"),
 		).toBeTruthy();
 		expect(collectTextContent(body)).toContain("line 11");
 		expect(collectTextContent(body)).not.toContain("MIK-001 │ Ready issue");
@@ -1037,11 +1094,13 @@ describe("TUI model and navigation", () => {
 			id: "MIK-001",
 			title: "Ready issue",
 			status: "ready",
-			labelsText: "automation",
+			labelsText: "Automation (automation)",
 		});
 		expect(page?.markdown).toContain("# Ready issue");
 		expect(collectTextContent(tree)).toContain("MIK-001 │ Ready issue");
-		expect(collectTextContent(tree)).toContain("ready · labels #automation");
+		expect(collectTextContent(tree)).toContain(
+			"ready · labels Automation (automation)",
+		);
 		expect(collectTextContent(tree)).toContain("# Ready issue");
 	});
 
@@ -1091,7 +1150,7 @@ describe("TUI model and navigation", () => {
 			id: "MIK-001",
 			title: "Ready issue",
 			status: "ready",
-			labelsText: "automation",
+			labelsText: "Automation (automation)",
 		});
 		expect(view?.groups.map((group) => group.status)).toContain("ready");
 		expect(view?.groups[1]?.cards[0]).toMatchObject({
@@ -1628,6 +1687,6 @@ describe("TUI model and navigation", () => {
 	test("buildTuiModel is pure for startup smoke", () => {
 		const model = buildTuiModel({ columns: [], warnings: [] });
 
-		expect(model).toEqual({ columns: [], warnings: [] });
+		expect(model).toEqual({ columns: [], warnings: [], labelTitles: {} });
 	});
 });
