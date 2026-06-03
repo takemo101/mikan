@@ -38,6 +38,7 @@ describe("MCP tools", () => {
 		expect(stdout).toContain("get_issue");
 		expect(stdout).toContain("create_issue");
 		expect(stdout).toContain("move_issue");
+		expect(stdout).toContain("depends_on");
 		expect(stdout).not.toContain("complete_issue");
 	});
 
@@ -147,5 +148,66 @@ describe("MCP tools", () => {
 		expect(JSON.stringify(issue)).toContain("blocked");
 		expect(JSON.stringify(issue)).toContain("docs-scout");
 		expect(JSON.stringify(issue)).toContain("Free note");
+	});
+
+	test("create_issue and update_issue accept depends_on dependencies", () => {
+		const cwd = tempProject();
+		createIssueTool({ title: "Prerequisite" }, { cwd, now });
+
+		const created = createIssueTool(
+			{ title: "Dependent", depends_on: ["MIK-001"] },
+			{ cwd, now },
+		);
+		expect(created.ok).toBe(true);
+		if (!created.ok) throw new Error("expected ok");
+		const createdJson = JSON.stringify(created.data);
+		expect(createdJson).toContain('"depends_on":["MIK-001"]');
+		expect(createdJson).toContain('"unmet_dependencies":["MIK-001"]');
+		expect(createdJson).toContain('"dependency_status":"blocked"');
+
+		const updated = updateIssueTool(
+			{ id: "MIK-002", depends_on: [] },
+			{ cwd, now },
+		);
+		expect(updated.ok).toBe(true);
+		if (!updated.ok) throw new Error("expected ok");
+		const updatedJson = JSON.stringify(updated.data);
+		expect(updatedJson).toContain('"depends_on":[]');
+		expect(updatedJson).toContain('"dependency_status":"ready"');
+	});
+
+	test("update_issue without depends_on leaves dependencies unchanged", () => {
+		const cwd = tempProject();
+		createIssueTool({ title: "Prerequisite" }, { cwd, now });
+		createIssueTool(
+			{ title: "Dependent", depends_on: ["MIK-001"] },
+			{ cwd, now },
+		);
+
+		const updated = updateIssueTool(
+			{ id: "MIK-002", title: "Renamed" },
+			{ cwd, now },
+		);
+		expect(updated.ok).toBe(true);
+		if (!updated.ok) throw new Error("expected ok");
+		const json = JSON.stringify(updated.data);
+		expect(json).toContain('"title":"Renamed"');
+		expect(json).toContain('"depends_on":["MIK-001"]');
+	});
+
+	test("depends_on with a malformed Issue ID is rejected", () => {
+		const cwd = tempProject();
+		const created = createIssueTool(
+			{ title: "Dependent", depends_on: ["not-an-id"] },
+			{ cwd, now },
+		);
+		expect(created.ok).toBe(false);
+
+		createIssueTool({ title: "Real" }, { cwd, now });
+		const updated = updateIssueTool(
+			{ id: "MIK-001", depends_on: ["nope"] },
+			{ cwd, now },
+		);
+		expect(updated.ok).toBe(false);
 	});
 });
