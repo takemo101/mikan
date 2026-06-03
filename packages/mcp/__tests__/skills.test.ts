@@ -95,6 +95,8 @@ describe("skill agent installers", () => {
 				"update_issue",
 				"move_issue",
 				"append_issue",
+				"mirror_issue_to_github",
+				"push_github_mirror",
 			]) {
 				expect(doc).toContain(tool);
 			}
@@ -106,6 +108,9 @@ describe("skill agent installers", () => {
 			expect(doc).toContain("depends_on");
 			expect(doc).toContain("dependency_status");
 			expect(doc).toContain("advisory");
+			// GitHub Mirror described as explicit one-way publication.
+			expect(doc).toContain("GitHub Mirror is one-way");
+			expect(doc).toContain("external mirrors only");
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 		}

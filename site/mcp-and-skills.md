@@ -50,6 +50,10 @@ Agents can use explicit tools for primitive board operations:
 | `update_issue` | Update title, labels, body, or dependencies. |
 | `move_issue` | Move an Issue to another Status and optionally append a Status Log entry. |
 | `append_issue` | Append Markdown to `Notes`, `Reports`, or another section. |
+| `mirror_issue_to_github` | Explicit external-publication operation: create or update the GitHub Issue mirror for one local Issue. |
+| `push_github_mirror` | Explicit external-publication operation: update an already-mirrored Issue without creating a new GitHub Issue. |
+
+GitHub Mirror tools are one-way publication helpers. Markdown remains the source of truth; agents should not import GitHub Issues or treat GitHub as authoritative.
 
 ## Install agent skills
 
@@ -61,7 +65,7 @@ mikan skills add --agent codex
 
 Claude Code and opencode support global and workspace-local skills. Codex skills are global-only and reject `--no-global`.
 
-The installed skill teaches the agent the mikan vocabulary, MCP tools, advisory dependency model, and local-first scope.
+The installed skill teaches the agent the mikan vocabulary, MCP tools, advisory dependency model, one-way GitHub Mirror rules, and local-first scope.
 
 ## Discovery manifest
 

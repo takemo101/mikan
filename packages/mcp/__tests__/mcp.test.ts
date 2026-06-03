@@ -11,7 +11,10 @@ import {
 	getIssueTool,
 	getMcpManifest,
 	listIssuesTool,
+	type McpRuntime,
+	mirrorIssueToGitHubTool,
 	moveIssueTool,
+	pushGitHubMirrorTool,
 	updateIssueTool,
 } from "../src/index.ts";
 
@@ -39,7 +42,10 @@ describe("MCP tools", () => {
 		expect(stdout).toContain("get_issue");
 		expect(stdout).toContain("create_issue");
 		expect(stdout).toContain("move_issue");
+		expect(stdout).toContain("mirror_issue_to_github");
+		expect(stdout).toContain("push_github_mirror");
 		expect(stdout).toContain("depends_on");
+		expect(stdout).toContain("Explicit external-publication");
 		expect(stdout).not.toContain("complete_issue");
 	});
 
@@ -48,6 +54,7 @@ describe("MCP tools", () => {
 		expect(manifest).toContain("get_board");
 		expect(manifest).toContain("create_issue");
 		expect(manifest).toContain("append_issue");
+		expect(manifest).toContain("mirror_issue_to_github");
 
 		const full = await getMcpManifest(
 			{ cwd: tempProject(), now },
@@ -225,5 +232,96 @@ describe("MCP tools", () => {
 			{ cwd, now },
 		);
 		expect(updated.ok).toBe(false);
+	});
+
+	test("GitHub Mirror tools return structured success results through fake operations", async () => {
+		const cwd = tempProject();
+		createIssueTool({ title: "Mirror me" }, { cwd, now });
+		const calls: string[] = [];
+		const runtime = {
+			cwd,
+			now,
+			githubMirror: {
+				mirrorIssueToGitHub: async (options) => {
+					calls.push(`mirror:${options.id}`);
+					return {
+						ok: true as const,
+						value: {
+							issue_id: options.id,
+							action: "created" as const,
+							github_issue: {
+								repo: "takemo101/mikan",
+								number: 52,
+								url: "https://github.com/takemo101/mikan/issues/52",
+							},
+							warnings: ["label skipped"],
+						},
+					};
+				},
+				pushGitHubMirror: async (options) => {
+					calls.push(`push:${options.id}`);
+					return {
+						ok: true as const,
+						value: {
+							issue_id: options.id,
+							action: "updated" as const,
+							github_issue: {
+								repo: "takemo101/mikan",
+								number: 52,
+								url: "https://github.com/takemo101/mikan/issues/52",
+							},
+							warnings: [],
+						},
+					};
+				},
+			},
+		} satisfies McpRuntime;
+
+		const mirrored = await mirrorIssueToGitHubTool({ id: "MIK-001" }, runtime);
+		const pushed = await pushGitHubMirrorTool({ id: "MIK-001" }, runtime);
+
+		expect(mirrored.ok).toBe(true);
+		expect(pushed.ok).toBe(true);
+		if (!mirrored.ok || !pushed.ok) throw new Error("expected ok");
+		expect(mirrored.data).toEqual({
+			issue_id: "MIK-001",
+			action: "created",
+			github_issue: {
+				repo: "takemo101/mikan",
+				number: 52,
+				url: "https://github.com/takemo101/mikan/issues/52",
+			},
+			warnings: ["label skipped"],
+		});
+		expect(pushed.data.action).toBe("updated");
+		expect(calls).toEqual(["mirror:MIK-001", "push:MIK-001"]);
+	});
+
+	test("GitHub Mirror tools return structured errors from fake operations", async () => {
+		const cwd = tempProject();
+		const runtime = {
+			cwd,
+			now,
+			githubMirror: {
+				mirrorIssueToGitHub: async () => ({
+					ok: false as const,
+					error: {
+						kind: "missing_config" as const,
+						message:
+							"Set github.repo in .mikan/config.yaml before using GitHub Mirror.",
+					},
+				}),
+			},
+		} satisfies McpRuntime;
+
+		const result = await mirrorIssueToGitHubTool({ id: "MIK-001" }, runtime);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected error");
+		expect(result.error).toEqual({
+			code: "missing_config",
+			message:
+				"Set github.repo in .mikan/config.yaml before using GitHub Mirror.",
+		});
 	});
 });
