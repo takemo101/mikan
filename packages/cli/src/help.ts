@@ -27,6 +27,7 @@ Commands:
   tui       Open the read-only board
   watch     Run the polling watcher
   mcp       Start the stdio MCP server
+  skills    Install agent-facing mikan usage guidance
 
 Run \`mikan help <command>\` for command-specific options.
 `;
@@ -156,6 +157,26 @@ Examples:
   mikan mcp add --agent claude-code
   mikan mcp add --agent opencode --no-global
   mikan mcp add --agent codex
+`;
+		case "skills":
+			return `Install agent-facing mikan usage guidance.
+
+mikan skills add installs lightweight instructions that teach an agent how to
+use mikan. It is separate from mikan mcp add, which registers the MCP tools;
+installing skills never changes MCP config.
+
+Usage:
+  mikan skills add --agent <agent> [--no-global]
+
+Options:
+  -a, --agent <agent>   Agent to install the mikan skill for: claude-code, opencode, codex
+  --no-global           Install workspace-local guidance instead of global
+  -h, --help            Show this help
+
+Examples:
+  mikan skills add --agent claude-code
+  mikan skills add --agent opencode --no-global
+  mikan skills add -a codex
 `;
 	}
 }

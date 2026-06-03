@@ -5,3 +5,4 @@
 .superpowers/
 node_modules/
 packages/cli/dist/
+*.tsbuildinfo
