@@ -8,6 +8,7 @@ const packageReadme = readFileSync(
 	join(repoRoot, "packages", "cli", "README.md"),
 	"utf8",
 );
+const configManual = readFileSync(join(repoRoot, "site", "config.md"), "utf8");
 
 const mcpAgents = [
 	"pi",
@@ -53,5 +54,19 @@ describe("agent setup documentation", () => {
 		expect(packageReadme).toContain("mikan mcp llms");
 		expect(packageReadme).toContain("stdio MCP only");
 		expect(packageReadme).toContain("separate");
+	});
+});
+
+describe("manual site documentation", () => {
+	test("config page escapes hook placeholders for VitePress", () => {
+		for (const placeholder of [
+			"issue_id",
+			"issue_path",
+			"from_status",
+			"to_status",
+			"project_root",
+		]) {
+			expect(configManual).toContain(`<code v-pre>{{${placeholder}}}</code>`);
+		}
 	});
 });
