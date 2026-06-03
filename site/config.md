@@ -84,7 +84,7 @@ Archived Issues are hidden from normal board/list views by default.
 
 Labels are descriptive only. They do not assign agents, profiles, priority, or workflow behavior.
 
-`id` is the stable value used in Issue frontmatter, CLI flags, and MCP payloads. `title` is the human-facing display name. The TUI detail page shows labels as `title (id)` when a configured title differs from the id, while compact card and command surfaces continue to use the stable id.
+`id` is the stable value used in Issue frontmatter, CLI flags, and MCP payloads. `title` is the human-facing display name. The TUI detail page shows labels as `#title`, while compact card and command surfaces continue to use the stable id.
 
 ## Hooks
 

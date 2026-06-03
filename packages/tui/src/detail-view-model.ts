@@ -132,10 +132,7 @@ export function buildDetailViewModel(
 
 function formatDetailLabels(model: TuiModel, card: TuiCard): string {
 	return card.labels
-		.map((label) => {
-			const title = model.labelTitles?.[label];
-			return title && title !== label ? `${title} (${label})` : label;
-		})
+		.map((label) => model.labelTitles?.[label] ?? label)
 		.join(", ");
 }
 

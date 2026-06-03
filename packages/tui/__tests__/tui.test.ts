@@ -727,8 +727,8 @@ updated_at: 2026-05-30T00:00:00Z
 		const text = collectTextContent(tree);
 
 		expect(model.columns[1]?.cards[0]?.labels).toEqual(["automation"]);
-		expect(page?.labelsText).toBe("Automation Work (automation)");
-		expect(text).toContain("ready · labels Automation Work (automation)");
+		expect(page?.labelsText).toBe("Automation Work");
+		expect(text).toContain("ready · labels #Automation Work");
 		expect(text).not.toContain("ready · labels #automation");
 	});
 
@@ -782,11 +782,11 @@ updated_at: 2026-05-30T00:00:00Z
 			styledContentChunk(titleLine.props?.content, "Lines: 11-16/30 | ↑10 ↓14"),
 		).toBeTruthy();
 		expect(styledContentPlain(metaLine.props?.content)).toBe(
-			"ready · labels Automation (automation)",
+			"ready · labels #Automation",
 		);
 		expect(styledContentChunk(metaLine.props?.content, "ready")).toBeTruthy();
 		expect(
-			styledContentChunk(metaLine.props?.content, "Automation (automation)"),
+			styledContentChunk(metaLine.props?.content, "#Automation"),
 		).toBeTruthy();
 		expect(collectTextContent(body)).toContain("line 11");
 		expect(collectTextContent(body)).not.toContain("MIK-001 │ Ready issue");
@@ -1094,13 +1094,11 @@ updated_at: 2026-05-30T00:00:00Z
 			id: "MIK-001",
 			title: "Ready issue",
 			status: "ready",
-			labelsText: "Automation (automation)",
+			labelsText: "Automation",
 		});
 		expect(page?.markdown).toContain("# Ready issue");
 		expect(collectTextContent(tree)).toContain("MIK-001 │ Ready issue");
-		expect(collectTextContent(tree)).toContain(
-			"ready · labels Automation (automation)",
-		);
+		expect(collectTextContent(tree)).toContain("ready · labels #Automation");
 		expect(collectTextContent(tree)).toContain("# Ready issue");
 	});
 
@@ -1150,7 +1148,7 @@ updated_at: 2026-05-30T00:00:00Z
 			id: "MIK-001",
 			title: "Ready issue",
 			status: "ready",
-			labelsText: "Automation (automation)",
+			labelsText: "Automation",
 		});
 		expect(view?.groups.map((group) => group.status)).toContain("ready");
 		expect(view?.groups[1]?.cards[0]).toMatchObject({
