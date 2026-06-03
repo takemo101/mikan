@@ -18,25 +18,30 @@ import {
 	applyNoteInput,
 	archiveSelectedIssue,
 	BoardView,
+	beginSelectedIssueGitHubMirror,
 	buildArchivePromptViewModel,
 	buildBoardViewModel,
 	buildDetailPageViewModel,
 	buildDetailViewModel,
+	buildGitHubMirrorPromptViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
 	buildTuiModel,
 	buildTuiTheme,
 	ColumnPane,
+	confirmSelectedIssueGitHubMirror,
 	createTuiAppElement,
 	DetailPage,
 	DetailView,
 	Footer,
+	GitHubMirrorPrompt,
 	getAdjacentMoveTarget,
 	getMoveTargets,
 	getSelectedDetails,
 	Header,
 	IssueCard,
 	keyToDirection,
+	keyToTuiAction,
 	loadTuiModel,
 	MIN_COLUMN_WIDTH,
 	MovePrompt,
@@ -48,11 +53,15 @@ import {
 	renderTuiText,
 	TUI_VERSION,
 	TuiAppView,
+	type TuiGitHubMirrorOperations,
 	type TuiSelection,
 	visibleColumnCountForViewport,
 } from "../src/index.ts";
 
 const now = () => new Date("2026-05-30T00:00:00Z");
+type FakeGitHubOptions = Parameters<
+	NonNullable<TuiGitHubMirrorOperations["pushGitHubMirror"]>
+>[0];
 
 function collectElementTypes(element: unknown): unknown[] {
 	if (!element || typeof element !== "object") return [];
@@ -181,6 +190,66 @@ function findElementById(
 	const rendered =
 		typeof node.type === "function" ? node.type(node.props) : undefined;
 	return findElementById(rendered, id);
+}
+
+function configureGitHub(root: string, autoPush = false): void {
+	const configPath = join(root, ".mikan", "config.yaml");
+	writeFileSync(
+		configPath,
+		`${readFileSync(configPath, "utf8")}github:\n  repo: takemo101/mikan\n  auto_push_mirrors: ${autoPush}\n`,
+	);
+}
+
+function addGitHubMirrorFrontmatter(
+	root: string,
+	id: string,
+	number: number,
+): void {
+	const path = join(root, ".mikan", "ready", `${id}.md`);
+	writeFileSync(
+		path,
+		readFileSync(path, "utf8").replace(
+			"updated_at: 2026-05-30T00:00:00Z\n---",
+			`updated_at: 2026-05-30T00:00:00Z\ngithub_issue:\n  repo: takemo101/mikan\n  number: ${number}\n  url: https://github.com/takemo101/mikan/issues/${number}\n  last_mirrored_at: 2026-05-30T00:00:00Z\n---`,
+		),
+	);
+}
+
+function fakeTuiGithubMirror(number: number, calls: string[] = []) {
+	return {
+		mirrorIssueToGitHub: async (options: FakeGitHubOptions) => {
+			calls.push(`mirror:${options.id}`);
+			return {
+				ok: true as const,
+				value: {
+					issue_id: options.id,
+					action: "created" as const,
+					github_issue: {
+						repo: "takemo101/mikan",
+						number,
+						url: `https://github.com/takemo101/mikan/issues/${number}`,
+					},
+					warnings: [],
+				},
+			};
+		},
+		pushGitHubMirror: async (options: FakeGitHubOptions) => {
+			calls.push(`push:${options.id}`);
+			return {
+				ok: true as const,
+				value: {
+					issue_id: options.id,
+					action: "updated" as const,
+					github_issue: {
+						repo: "takemo101/mikan",
+						number,
+						url: `https://github.com/takemo101/mikan/issues/${number}`,
+					},
+					warnings: [],
+				},
+			};
+		},
+	};
 }
 
 function tempProject(): string {
@@ -675,6 +744,31 @@ describe("TUI model and navigation", () => {
 		expect(text).not.toContain("line 30");
 	});
 
+	test("renders detail GitHub Mirror metadata without board card markers", () => {
+		const cwd = tempProject();
+		configureGitHub(cwd);
+		addGitHubMirrorFrontmatter(cwd, "MIK-001", 123);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const page = buildDetailPageViewModel(model, selection);
+		const detailTree = TuiAppView({ model, selection });
+		const boardText = renderTuiText(model, { ...selection, detailOpen: false });
+
+		expect(model.githubRepo).toBe("takemo101/mikan");
+		expect(model.columns[1]?.cards[0]?.githubIssue).toMatchObject({
+			repo: "takemo101/mikan",
+			number: 123,
+		});
+		expect(page?.githubText).toBe("GitHub #123");
+		expect(collectTextContent(detailTree)).toContain("GitHub #123");
+		expect(boardText).not.toContain("GitHub #123");
+	});
+
 	test("renders detail label titles while preserving label IDs", () => {
 		const cwd = tempProject();
 		writeFileSync(
@@ -1019,9 +1113,11 @@ updated_at: 2026-05-30T00:00:00Z
 		);
 
 		expect(boardText).toContain(
-			"Board | ↑↓ card | ←→ column | enter detail | ? keys",
+			"Board | ↑↓ card | ←→ column | enter detail | g github | ? keys",
 		);
-		expect(detailText).toContain("Detail | ↑↓ scroll | esc board | ? keys");
+		expect(detailText).toContain(
+			"Detail | ↑↓ scroll | g github | esc board | ? keys",
+		);
 		expect(modalText).toContain("Modal | enter confirm | esc cancel | ? keys");
 		expect(detailText).not.toContain("j/k card");
 	});
@@ -1327,13 +1423,13 @@ updated_at: 2026-05-30T00:00:00Z
 			| undefined;
 
 		expect(footer?.props?.content).toBe(
-			"Board | ↑↓ card | ←→ column | enter detail | ? keys    MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | g github | ? keys    MIK-001 moved to backlog",
 		);
 		expect(
 			collectTextContent(tree).match(/MIK-001 moved to backlog/g) ?? [],
 		).toHaveLength(1);
 		expect(renderTuiText(model, selection)).toContain(
-			"Board | ↑↓ card | ←→ column | enter detail | ? keys    MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | g github | ? keys    MIK-001 moved to backlog",
 		);
 		expect(renderTuiText(model, selection)).not.toContain(
 			"\nMIK-001 moved to backlog\n\nBoard |",
@@ -1375,6 +1471,35 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(buildNotePromptViewModel(model, noteSelectionState)?.feedback).toBe(
 			undefined,
 		);
+	});
+
+	test("renders GitHub Mirror confirmation modal", async () => {
+		const cwd = tempProject();
+		configureGitHub(cwd);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			githubConfirmOpen: true,
+		};
+
+		const prompt = buildGitHubMirrorPromptViewModel(model, selection);
+		const tree = TuiAppView({ model, selection });
+		const text = collectTextContent(tree);
+
+		expect(prompt).toMatchObject({
+			title: "Create GitHub Mirror for MIK-001?",
+			focused: true,
+		});
+		expect(prompt?.body).toContain("Ready issue");
+		expect(prompt?.body).toContain("Repo: takemo101/mikan");
+		expect(prompt?.body).toContain(
+			"Local Markdown remains the source of truth",
+		);
+		expect(collectElementTypes(tree)).toContain(GitHubMirrorPrompt);
+		expect(findElementById(tree, "github-mirror-prompt")).toBeTruthy();
+		expect(text).toContain("enter create  esc cancel");
 	});
 
 	test("renders move and note interactions as centered modal overlays", () => {
@@ -1540,6 +1665,96 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(getSelectedDetails(result.model, result.selection)?.notes).toContain(
 			"Fresh note from TUI",
 		);
+	});
+
+	test("opens and cancels a GitHub Mirror confirmation modal", async () => {
+		const cwd = tempProject();
+		configureGitHub(cwd);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const opened = await beginSelectedIssueGitHubMirror({
+			cwd,
+			model,
+			selection,
+		});
+		const cancelled = moveSelection(model, opened.selection, "escape");
+
+		expect(keyToTuiAction("g")).toBe("github");
+		expect(opened.ok).toBe(true);
+		expect(opened.selection.githubConfirmOpen).toBe(true);
+		expect(cancelled.githubConfirmOpen).toBe(false);
+	});
+
+	test("creates and pushes GitHub Mirrors from the selected Issue", async () => {
+		const cwd = tempProject();
+		configureGitHub(cwd);
+		const calls: string[] = [];
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+			githubConfirmOpen: true,
+		};
+
+		const created = await confirmSelectedIssueGitHubMirror({
+			cwd,
+			model,
+			selection,
+			githubMirror: fakeTuiGithubMirror(123, calls),
+		});
+		addGitHubMirrorFrontmatter(cwd, "MIK-001", 123);
+		const pushed = await beginSelectedIssueGitHubMirror({
+			cwd,
+			model: loadTuiModel(cwd),
+			selection,
+			githubMirror: fakeTuiGithubMirror(123, calls),
+		});
+
+		expect(created.ok).toBe(true);
+		expect(created.message).toBe("GitHub mirror created #123");
+		expect(created.selection.githubConfirmOpen).toBe(false);
+		expect(pushed.ok).toBe(true);
+		expect(pushed.message).toBe("GitHub mirror pushed #123");
+		expect(calls).toEqual(["mirror:MIK-001", "push:MIK-001"]);
+	});
+
+	test("reports GitHub Mirror config and operation errors in the footer message", async () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+
+		const missingRepo = await beginSelectedIssueGitHubMirror({
+			cwd,
+			model,
+			selection,
+		});
+		configureGitHub(cwd);
+		const failed = await confirmSelectedIssueGitHubMirror({
+			cwd,
+			model: loadTuiModel(cwd),
+			selection: { ...selection, githubConfirmOpen: true },
+			githubMirror: {
+				mirrorIssueToGitHub: async () => ({
+					ok: false as const,
+					error: { kind: "github_error", message: "gh auth failed" },
+				}),
+			},
+		});
+
+		expect(missingRepo.ok).toBe(false);
+		expect(missingRepo.message).toContain("Set github.repo");
+		expect(failed.ok).toBe(false);
+		expect(failed.message).toBe("gh auth failed");
 	});
 
 	test("opens an archive confirmation modal before archiving", async () => {

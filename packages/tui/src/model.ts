@@ -7,6 +7,13 @@ import {
 } from "@mikan/core";
 import { loadProjectConfig } from "@mikan/project-config";
 
+export type TuiGithubIssue = {
+	repo: string;
+	number: number;
+	url: string;
+	lastMirroredAt: string;
+};
+
 export type TuiCard = {
 	id: string;
 	title: string;
@@ -16,6 +23,7 @@ export type TuiCard = {
 	dependsOn?: string[];
 	unmetDependencies?: string[];
 	dependencyStatus?: "ready" | "blocked";
+	githubIssue?: TuiGithubIssue;
 };
 
 export type TuiColumn = {
@@ -37,6 +45,7 @@ export type TuiModel = {
 	warnings: string[];
 	warningDetails?: TuiWarning[];
 	labelTitles?: Record<string, string>;
+	githubRepo?: string;
 };
 
 export type TuiDetails = {
@@ -57,12 +66,17 @@ export function loadTuiModel(cwd = process.cwd()): TuiModel {
 		config: loaded.value.config,
 	});
 	if (!board.ok) throw new Error(board.error.message);
-	return buildTuiModel(board.value, loaded.value.config.labels);
+	return buildTuiModel(
+		board.value,
+		loaded.value.config.labels,
+		loaded.value.config.github?.repo,
+	);
 }
 
 export function buildTuiModel(
 	board: BoardSnapshot,
 	labels: { id: string; title: string }[] = [],
+	githubRepo?: string,
 ): TuiModel {
 	return {
 		columns: board.columns.map((column) => ({
@@ -77,6 +91,7 @@ export function buildTuiModel(
 		labelTitles: Object.fromEntries(
 			labels.map((label) => [label.id, label.title]),
 		),
+		githubRepo,
 	};
 }
 
@@ -135,6 +150,16 @@ function formatCard(issue: BoardIssue): TuiCard {
 		dependsOn: issue.issue.dependencies.map(String),
 		unmetDependencies: issue.unmetDependencies.map(String),
 		dependencyStatus: issue.dependencyStatus,
+		...(issue.issue.githubIssue
+			? {
+					githubIssue: {
+						repo: issue.issue.githubIssue.repo,
+						number: issue.issue.githubIssue.number,
+						url: issue.issue.githubIssue.url,
+						lastMirroredAt: issue.issue.githubIssue.lastMirroredAt,
+					},
+				}
+			: {}),
 	};
 }
 

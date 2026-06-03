@@ -1,4 +1,10 @@
-import { appendIssue, moveIssue } from "@mikan/core";
+import { appendIssue, moveIssue, type Result } from "@mikan/core";
+import {
+	mirrorIssueToGitHub as defaultMirrorIssueToGitHub,
+	pushGitHubMirror as defaultPushGitHubMirror,
+	type GitHubMirrorOptions,
+	type GitHubMirrorResult,
+} from "@mikan/github";
 import { loadProjectConfig } from "@mikan/project-config";
 import { loadTuiModel, type TuiModel } from "./model.ts";
 import { getAdjacentMoveTarget } from "./navigation.ts";
@@ -13,6 +19,15 @@ export type TuiMutationResult = {
 	model: TuiModel;
 	selection: TuiSelection;
 	message: string;
+};
+
+export type TuiGitHubMirrorOperations = {
+	mirrorIssueToGitHub?: (
+		options: GitHubMirrorOptions,
+	) => Promise<Result<GitHubMirrorResult, { kind: string; message: string }>>;
+	pushGitHubMirror?: (
+		options: GitHubMirrorOptions,
+	) => Promise<Result<GitHubMirrorResult, { kind: string; message: string }>>;
 };
 
 export type MoveSelectedIssueResult = TuiMutationResult;
@@ -56,6 +71,9 @@ export function refreshTuiModel(options: {
 			noteDraft: stillSelected ? options.selection.noteDraft : undefined,
 			message: options.selection.message,
 			archiveOpen: stillSelected ? options.selection.archiveOpen : false,
+			githubConfirmOpen: stillSelected
+				? options.selection.githubConfirmOpen
+				: false,
 			warningsOpen: options.selection.warningsOpen,
 			helpOpen: options.selection.helpOpen,
 		},
@@ -178,6 +196,189 @@ export function archiveSelectedIssue(options: {
 				selection: { ...result.selection, archiveOpen: false },
 			}
 		: result;
+}
+
+export async function beginSelectedIssueGitHubMirror(options: {
+	cwd?: string;
+	model: TuiModel;
+	selection: TuiSelection;
+	now?: () => Date;
+	githubMirror?: TuiGitHubMirrorOperations;
+}): Promise<TuiMutationResult> {
+	const card = selectedCard(options.model, options.selection);
+	if (!card) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, githubConfirmOpen: false },
+			message: "No Issue selected",
+		};
+	}
+	const loaded = loadProjectConfig(options.cwd ?? process.cwd());
+	if (!loaded.ok) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, githubConfirmOpen: false },
+			message: loaded.error.message,
+		};
+	}
+	if (!loaded.value.config.github?.repo) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, githubConfirmOpen: false },
+			message: "Set github.repo in .mikan/config.yaml",
+		};
+	}
+	if (!card.githubIssue) {
+		return {
+			ok: true,
+			model: options.model,
+			selection: {
+				...options.selection,
+				githubConfirmOpen: true,
+				archiveOpen: false,
+				moveOpen: false,
+				noteOpen: false,
+			},
+			message: "",
+		};
+	}
+	return pushSelectedIssueGitHubMirror({
+		cwd: options.cwd,
+		model: options.model,
+		selection: options.selection,
+		now: options.now,
+		githubMirror: options.githubMirror,
+	});
+}
+
+export async function confirmSelectedIssueGitHubMirror(options: {
+	cwd?: string;
+	model: TuiModel;
+	selection: TuiSelection;
+	now?: () => Date;
+	githubMirror?: TuiGitHubMirrorOperations;
+}): Promise<TuiMutationResult> {
+	const card = selectedCard(options.model, options.selection);
+	if (!card) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, githubConfirmOpen: false },
+			message: "No Issue selected",
+		};
+	}
+	const loaded = loadProjectConfig(options.cwd ?? process.cwd());
+	if (!loaded.ok) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, githubConfirmOpen: false },
+			message: loaded.error.message,
+		};
+	}
+	const mirrorIssueToGitHub =
+		options.githubMirror?.mirrorIssueToGitHub ?? defaultMirrorIssueToGitHub;
+	const result = await mirrorIssueToGitHub({
+		projectRoot: loaded.value.projectRoot,
+		config: loaded.value.config,
+		id: card.id,
+		now: options.now,
+	});
+	if (!result.ok) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, githubConfirmOpen: false },
+			message: result.error.message,
+		};
+	}
+	return refreshAfterGitHubMirror({
+		cwd: options.cwd,
+		model: options.model,
+		selection: options.selection,
+		cardId: card.id,
+		message: `GitHub mirror created #${result.value.github_issue.number}`,
+	});
+}
+
+async function pushSelectedIssueGitHubMirror(options: {
+	cwd?: string;
+	model: TuiModel;
+	selection: TuiSelection;
+	now?: () => Date;
+	githubMirror?: TuiGitHubMirrorOperations;
+}): Promise<TuiMutationResult> {
+	const card = selectedCard(options.model, options.selection);
+	if (!card) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, githubConfirmOpen: false },
+			message: "No Issue selected",
+		};
+	}
+	const loaded = loadProjectConfig(options.cwd ?? process.cwd());
+	if (!loaded.ok) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, githubConfirmOpen: false },
+			message: loaded.error.message,
+		};
+	}
+	const pushGitHubMirror =
+		options.githubMirror?.pushGitHubMirror ?? defaultPushGitHubMirror;
+	const result = await pushGitHubMirror({
+		projectRoot: loaded.value.projectRoot,
+		config: loaded.value.config,
+		id: card.id,
+		now: options.now,
+	});
+	if (!result.ok) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, githubConfirmOpen: false },
+			message: result.error.message,
+		};
+	}
+	return refreshAfterGitHubMirror({
+		cwd: options.cwd,
+		model: options.model,
+		selection: options.selection,
+		cardId: card.id,
+		message: `GitHub mirror pushed #${result.value.github_issue.number}`,
+	});
+}
+
+function refreshAfterGitHubMirror(options: {
+	cwd?: string;
+	model: TuiModel;
+	selection: TuiSelection;
+	cardId: string;
+	message: string;
+}): TuiMutationResult {
+	const model = loadTuiModel(options.cwd);
+	const selection =
+		findSelectionByCardId(model, options.cardId) ??
+		clampSelection(model, options.selection);
+	return {
+		ok: true,
+		model,
+		selection: {
+			...selection,
+			detailOpen: options.selection.detailOpen,
+			githubConfirmOpen: false,
+		},
+		message: options.message,
+	};
+}
+
+function selectedCard(model: TuiModel, selection: TuiSelection) {
+	return model.columns[selection.columnIndex]?.cards[selection.cardIndex];
 }
 
 export function appendSelectedIssueNote(options: {

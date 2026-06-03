@@ -24,6 +24,13 @@ export type ArchivePromptViewModel = {
 	hint: string;
 };
 
+export type GitHubMirrorPromptViewModel = {
+	title: string;
+	focused: boolean;
+	body: string;
+	hint: string;
+};
+
 export function buildMovePromptViewModel(
 	model: TuiModel,
 	selection: TuiSelection,
@@ -67,5 +74,19 @@ export function buildArchivePromptViewModel(
 		focused: Boolean(selection.archiveOpen),
 		body: `${card.title}\nMove to archived. It will disappear from the default board.`,
 		hint: "enter archive  esc cancel",
+	};
+}
+
+export function buildGitHubMirrorPromptViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+): GitHubMirrorPromptViewModel | undefined {
+	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+	if (!card) return undefined;
+	return {
+		title: `Create GitHub Mirror for ${card.id}?`,
+		focused: Boolean(selection.githubConfirmOpen),
+		body: `${card.title}\nRepo: ${model.githubRepo ?? "(not configured)"}\nLocal Markdown remains the source of truth.`,
+		hint: "enter create  esc cancel",
 	};
 }

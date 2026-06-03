@@ -5,6 +5,7 @@ import { BoardView, Footer } from "./board-view.ts";
 import { DetailPage } from "./detail-view.ts";
 import {
 	ArchivePrompt,
+	GitHubMirrorPrompt,
 	HelpPanel,
 	MovePrompt,
 	NotePrompt,
@@ -14,6 +15,8 @@ import { getSelectedDetails, loadTuiModel } from "./model.ts";
 import {
 	appendSelectedIssueNote,
 	archiveSelectedIssue,
+	beginSelectedIssueGitHubMirror,
+	confirmSelectedIssueGitHubMirror,
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
 	refreshTuiModel,
@@ -74,6 +77,7 @@ export {
 } from "./formatting.ts";
 export {
 	ArchivePrompt,
+	GitHubMirrorPrompt,
 	HelpPanel,
 	MovePrompt,
 	NotePrompt,
@@ -83,6 +87,7 @@ export type {
 	TuiCard,
 	TuiColumn,
 	TuiDetails,
+	TuiGithubIssue,
 	TuiModel,
 	TuiWarning,
 } from "./model.ts";
@@ -93,6 +98,7 @@ export {
 } from "./model.ts";
 export type {
 	MoveSelectedIssueResult,
+	TuiGitHubMirrorOperations,
 	TuiMutationResult,
 	TuiRefreshResult,
 } from "./mutations.ts";
@@ -100,6 +106,8 @@ export type {
 export {
 	appendSelectedIssueNote,
 	archiveSelectedIssue,
+	beginSelectedIssueGitHubMirror,
+	confirmSelectedIssueGitHubMirror,
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
 	refreshTuiModel,
@@ -114,11 +122,13 @@ export {
 } from "./navigation.ts";
 export type {
 	ArchivePromptViewModel,
+	GitHubMirrorPromptViewModel,
 	MovePromptViewModel,
 	NotePromptViewModel,
 } from "./prompt-view-model.ts";
 export {
 	buildArchivePromptViewModel,
+	buildGitHubMirrorPromptViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
 } from "./prompt-view-model.ts";
@@ -191,6 +201,9 @@ export function TuiAppView({
 			: undefined,
 		selection.archiveOpen
 			? React.createElement(ArchivePrompt, { model, selection, theme })
+			: undefined,
+		selection.githubConfirmOpen
+			? React.createElement(GitHubMirrorPrompt, { model, selection, theme })
 			: undefined,
 		selection.warningsOpen
 			? React.createElement(WarningPanel, { model, theme })
@@ -305,6 +318,29 @@ export async function launchTui(
 				}
 				return;
 			}
+			if (selection.githubConfirmOpen) {
+				if (action === "help") {
+					setSelection((current) => moveSelection(model, current, action));
+					return;
+				}
+				if (action === "escape") {
+					setSelection((current) => moveSelection(model, current, action));
+					return;
+				}
+				if (action === "enter") {
+					void (async () => {
+						const result = await confirmSelectedIssueGitHubMirror({
+							cwd: options.cwd,
+							model,
+							selection,
+						});
+						setModel(result.model);
+						setSelection({ ...result.selection, message: result.message });
+					})();
+					return;
+				}
+				return;
+			}
 			if (!action) return;
 			if (action === "quit") {
 				stop();
@@ -354,6 +390,18 @@ export async function launchTui(
 			}
 			if (action === "archive") {
 				setSelection((current) => moveSelection(model, current, action));
+				return;
+			}
+			if (action === "github") {
+				void (async () => {
+					const result = await beginSelectedIssueGitHubMirror({
+						cwd: options.cwd,
+						model,
+						selection,
+					});
+					setModel(result.model);
+					setSelection({ ...result.selection, message: result.message });
+				})();
 				return;
 			}
 			setSelection((current) =>

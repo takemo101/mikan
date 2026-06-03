@@ -18,6 +18,7 @@ type TuiAction =
 	| "move-right"
 	| "append-note"
 	| "archive"
+	| "github"
 	| "warnings"
 	| "help"
 	| "reload"
@@ -30,6 +31,7 @@ type TuiSelectionAction =
 	| "move"
 	| "append-note"
 	| "archive"
+	| "github"
 	| "warnings"
 	| "help";
 
@@ -74,6 +76,9 @@ export function moveSelection(
 		if (selection.archiveOpen) {
 			return { ...selection, archiveOpen: false };
 		}
+		if (selection.githubConfirmOpen) {
+			return { ...selection, githubConfirmOpen: false };
+		}
 		if (selection.warningsOpen) {
 			return { ...selection, warningsOpen: false };
 		}
@@ -109,6 +114,16 @@ export function moveSelection(
 			archiveOpen: true,
 			moveOpen: false,
 			noteOpen: false,
+			githubConfirmOpen: false,
+		};
+	}
+	if (direction === "github") {
+		return {
+			...selection,
+			archiveOpen: false,
+			moveOpen: false,
+			noteOpen: false,
+			githubConfirmOpen: true,
 		};
 	}
 	if (direction === "warnings") {
@@ -181,7 +196,12 @@ export function applyNoteInput(
 }
 
 export function footerMode(selection: TuiSelection): FooterMode {
-	if (selection.moveOpen || selection.noteOpen || selection.archiveOpen) {
+	if (
+		selection.moveOpen ||
+		selection.noteOpen ||
+		selection.archiveOpen ||
+		selection.githubConfirmOpen
+	) {
 		return "modal";
 	}
 	return selection.detailOpen ? "detail" : "board";
@@ -223,6 +243,8 @@ export function keyToTuiAction(
 			return "append-note";
 		case "a":
 			return "archive";
+		case "g":
+			return "github";
 		case "w":
 			return "warnings";
 		case "?":
@@ -244,6 +266,7 @@ export function keyToDirection(
 		action === "move-right" ||
 		action === "append-note" ||
 		action === "archive" ||
+		action === "github" ||
 		action === "warnings" ||
 		action === "help" ||
 		action === "reload" ||
