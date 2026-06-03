@@ -7,7 +7,9 @@ export type TuiColumnsOption = "auto" | 2 | 3 | 4 | 5;
 
 export const DEFAULT_TUI_COLUMNS: TuiColumnsOption = "auto";
 
-const NUMERIC_TUI_COLUMNS: readonly number[] = [2, 3, 4, 5];
+// Accept only the literal "auto" or a bare digit 2-5. Using an exact pattern
+// (rather than Number()) rejects loose forms like "2.0", " 2", "0x2", or "3e0".
+const NUMERIC_TUI_COLUMNS = /^[2-5]$/;
 
 export type ParseTuiColumnsResult =
 	| { ok: true; value: TuiColumnsOption }
@@ -18,9 +20,8 @@ export function parseTuiColumnsOption(
 ): ParseTuiColumnsResult {
 	if (raw === undefined) return { ok: true, value: DEFAULT_TUI_COLUMNS };
 	if (raw === "auto") return { ok: true, value: "auto" };
-	const numeric = Number(raw);
-	if (Number.isInteger(numeric) && NUMERIC_TUI_COLUMNS.includes(numeric)) {
-		return { ok: true, value: numeric as TuiColumnsOption };
+	if (NUMERIC_TUI_COLUMNS.test(raw)) {
+		return { ok: true, value: Number(raw) as TuiColumnsOption };
 	}
 	return {
 		ok: false,

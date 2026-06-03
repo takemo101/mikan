@@ -506,7 +506,17 @@ describe("CLI read path", () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);
 
-		for (const value of ["1", "6", "9", "wide", "2.5"]) {
+		for (const value of [
+			"1",
+			"6",
+			"9",
+			"wide",
+			"2.5",
+			"2.0",
+			" 2",
+			"0x2",
+			"3e0",
+		]) {
 			const result = await cli(cwd, ["tui", "--columns", value]);
 			expect(result.exitCode).toBe(1);
 			expect(result.stdout).toBe("");

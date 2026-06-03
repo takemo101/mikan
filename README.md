@@ -157,12 +157,12 @@ The board page is primary. Detail mode renders the Issue body as Markdown with a
 TUI Column option:
 
 ```sh
-mikan tui --columns auto   # choose 2..5 visible Columns from terminal width (default)
-mikan tui --columns 2      # force a narrow two-Column viewport
-mikan tui --columns 5      # show up to five Status Columns when desired
+mikan tui --columns auto   # derive 2..5 visible Columns from terminal width (default)
+mikan tui --columns 2      # request a narrow two-Column viewport
+mikan tui --columns 5      # request up to five Status Columns
 ```
 
-`mikan tui` accepts `--columns <auto|2|3|4|5>` (default `auto`). The option controls only the visible TUI viewport; it does not change configured Statuses or the Markdown board.
+`mikan tui` accepts and validates `--columns <auto|2|3|4|5>` (default `auto`) today; invalid values are rejected with a pointer to `mikan help tui`. The option is scoped to the visible TUI viewport only and will never change configured Statuses or the Markdown board. Wiring the chosen count into the rendered viewport lands in a follow-up (MIK-104), so the flag does not yet change what you see on screen.
 
 ## MCP server
 
