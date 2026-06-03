@@ -12,15 +12,25 @@ import {
 	type UtcTimestamp,
 } from "./primitives.ts";
 
+export type GitHubIssueReference = {
+	repo: string;
+	number: number;
+	url: string;
+	lastMirroredAt: UtcTimestamp;
+};
+
 export type ParsedIssue = {
 	id: IssueId;
 	title: string;
 	labels: LabelId[];
 	dependencies: IssueId[];
+	githubIssue?: GitHubIssueReference;
 	createdAt: UtcTimestamp;
 	updatedAt: UtcTimestamp;
 	body: string;
 };
+
+const githubRepoPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 const frontmatterSchema = z
 	.object({
@@ -30,6 +40,7 @@ const frontmatterSchema = z
 		depends_on: z.array(z.string()).optional().default([]),
 		created_at: z.string().min(1),
 		updated_at: z.string().min(1),
+		github_issue: z.unknown().optional(),
 	})
 	.passthrough();
 
@@ -107,6 +118,15 @@ export function parseIssueDocument(
 	if (parsedUpdatedAt.ok) updatedAt = parsedUpdatedAt.value;
 	else errors.push(`updated_at: ${parsedUpdatedAt.error.message}`);
 
+	let githubIssue: GitHubIssueReference | undefined;
+	if (parsedFrontmatter.data.github_issue !== undefined) {
+		const parsedGitHubIssue = parseGitHubIssueReference(
+			parsedFrontmatter.data.github_issue,
+		);
+		if (parsedGitHubIssue.ok) githubIssue = parsedGitHubIssue.value;
+		else errors.push(...parsedGitHubIssue.error);
+	}
+
 	if (errors.length > 0 || !issueId || !createdAt || !updatedAt) {
 		return invalidFrontmatterResult(errors.join("; "));
 	}
@@ -120,6 +140,7 @@ export function parseIssueDocument(
 				title: parsedFrontmatter.data.title,
 				labels,
 				dependencies,
+				...(githubIssue ? { githubIssue } : {}),
 				createdAt,
 				updatedAt,
 				body: markdown.slice(frontmatter[0].length),
@@ -133,6 +154,56 @@ export function serializeIssue(input: {
 	body: string;
 }): string {
 	return `---\n${stringify(input.frontmatter).trim()}\n---\n${input.body.startsWith("\n") ? "" : "\n"}${input.body}`;
+}
+
+function parseGitHubIssueReference(
+	input: unknown,
+): Result<GitHubIssueReference, string[]> {
+	const errors: string[] = [];
+	if (!input || typeof input !== "object" || Array.isArray(input)) {
+		return {
+			ok: false,
+			error: ["github_issue must be an object"],
+		};
+	}
+	const raw = input as Record<string, unknown>;
+	const repo = typeof raw.repo === "string" ? raw.repo : "";
+	if (!githubRepoPattern.test(repo)) {
+		errors.push("github_issue.repo must look like owner/name");
+	}
+	const number = raw.number;
+	if (typeof number !== "number" || !Number.isInteger(number) || number <= 0) {
+		errors.push("github_issue.number must be a positive integer");
+	}
+	const url = typeof raw.url === "string" ? raw.url : "";
+	try {
+		new URL(url);
+	} catch {
+		errors.push("github_issue.url must be a URL");
+	}
+	const lastMirroredAt =
+		typeof raw.last_mirrored_at === "string" ? raw.last_mirrored_at : "";
+	const parsedLastMirroredAt = parseUtcTimestamp(lastMirroredAt);
+	const lastMirroredAtValue = parsedLastMirroredAt.ok
+		? parsedLastMirroredAt.value
+		: undefined;
+	if (!parsedLastMirroredAt.ok) {
+		errors.push(
+			`github_issue.last_mirrored_at: ${parsedLastMirroredAt.error.message}`,
+		);
+	}
+	if (errors.length > 0 || !lastMirroredAtValue) {
+		return { ok: false, error: errors };
+	}
+	return {
+		ok: true,
+		value: {
+			repo,
+			number: number as number,
+			url,
+			lastMirroredAt: lastMirroredAtValue,
+		},
+	};
 }
 
 function formatZodIssue(issue: z.core.$ZodIssue): string {

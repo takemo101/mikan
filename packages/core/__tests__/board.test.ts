@@ -156,6 +156,28 @@ describe("board scanner", () => {
 		).not.toContain("MIK-003");
 	});
 
+	test("warns and hides Issues with malformed GitHub Mirror frontmatter", () => {
+		const root = tempProject();
+		writeIssue(
+			root,
+			"ready",
+			"MIK-001",
+			`---\nid: MIK-001\ntitle: Mirrored\ngithub_issue:\n  repo: not-a-repo\n  number: 0\n  url: not a url\n  last_mirrored_at: yesterday\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Mirrored\n`,
+		);
+
+		const result = scanBoard({ projectRoot: root, config });
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected board");
+		expect(result.value.columns.flatMap((column) => column.issues)).toEqual([]);
+		expect(result.value.warnings).toContainEqual(
+			expect.objectContaining({
+				kind: "malformed_issue",
+			}),
+		);
+		expect(result.value.warnings[0]?.message).toContain("github_issue.repo");
+	});
+
 	test("derives dependency readiness and warns without hiding Issues", () => {
 		const root = tempProject();
 		mkdirSync(join(root, ".mikan", "completed"), { recursive: true });

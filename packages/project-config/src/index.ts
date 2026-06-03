@@ -27,6 +27,11 @@ export type HookConfig = {
 	on_transition?: Record<string, string[]>;
 };
 
+export type GitHubConfig = {
+	repo: string;
+	auto_push_mirrors: boolean;
+};
+
 export type ProjectConfig = {
 	project: {
 		key: string;
@@ -37,6 +42,7 @@ export type ProjectConfig = {
 	};
 	labels: LabelConfig[];
 	hooks?: HookConfig;
+	github?: GitHubConfig;
 };
 
 export type ProjectConfigError = {
@@ -69,6 +75,10 @@ export const DEFAULT_LABELS: LabelConfig[] = [
 ];
 
 const nonEmptyString = z.string().min(1);
+const githubRepoSchema = nonEmptyString.regex(
+	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/,
+	"github.repo must look like owner/name",
+);
 
 const columnSchema = z.object({
 	id: nonEmptyString,
@@ -85,6 +95,11 @@ const hookSchema = z.object({
 	on_transition: z.record(z.string(), z.array(z.string())).optional(),
 });
 
+const githubSchema = z.object({
+	repo: githubRepoSchema,
+	auto_push_mirrors: z.boolean().optional().default(false),
+});
+
 const projectConfigSchema = z
 	.object({
 		project: z.object({
@@ -96,6 +111,7 @@ const projectConfigSchema = z
 		}),
 		labels: z.array(labelSchema).optional().default([]),
 		hooks: hookSchema.optional(),
+		github: githubSchema.optional(),
 	})
 	.superRefine((config, context) => {
 		const projectKey = parseProjectKey(config.project.key);
