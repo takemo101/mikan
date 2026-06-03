@@ -28,7 +28,7 @@ export function visibleCardCountForViewport(viewportHeight: number): number {
 }
 
 /** Minimum width, in terminal columns, a single board Column needs to stay readable. */
-export const MIN_COLUMN_WIDTH = 24;
+export const MIN_COLUMN_WIDTH = 40;
 
 /** Minimum number of board Columns kept visible on narrow viewports. */
 export const MIN_VISIBLE_COLUMNS = 2;

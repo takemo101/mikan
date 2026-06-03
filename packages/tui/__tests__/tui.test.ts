@@ -415,15 +415,18 @@ describe("TUI model and navigation", () => {
 	});
 
 	test("derives responsive visible Column count clamped to 2..5", () => {
+		expect(MIN_COLUMN_WIDTH).toBe(40);
 		// Narrow viewports clamp up to the minimum of 2 Columns.
-		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH - 1)).toBe(2);
-		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 2)).toBe(2);
-		// Normal and wide viewports scale with the min Column width.
-		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 3)).toBe(3);
-		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 4)).toBe(4);
+		expect(visibleColumnCountForViewport(39)).toBe(2);
+		expect(visibleColumnCountForViewport(80)).toBe(2);
+		// Auto mode waits for wider terminals before showing 4 or 5 Columns.
+		expect(visibleColumnCountForViewport(120)).toBe(3);
+		expect(visibleColumnCountForViewport(159)).toBe(3);
+		expect(visibleColumnCountForViewport(160)).toBe(4);
+		expect(visibleColumnCountForViewport(199)).toBe(4);
+		expect(visibleColumnCountForViewport(200)).toBe(5);
 		// Very wide viewports clamp down to the maximum of 5 Columns.
-		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 5)).toBe(5);
-		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 12)).toBe(5);
+		expect(visibleColumnCountForViewport(480)).toBe(5);
 	});
 
 	test("auto-sizes the board Column viewport from viewport width", () => {
