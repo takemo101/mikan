@@ -13,8 +13,21 @@ describe("workspace scaffold", () => {
 		expect(pkg.type).toBe("module");
 		expect(pkg.workspaces).toEqual(["packages/*"]);
 		expect(Object.keys(pkg.scripts)).toEqual(
-			expect.arrayContaining(["build", "typecheck", "test", "check", "fix"]),
+			expect.arrayContaining([
+				"build",
+				"typecheck",
+				"test",
+				"check",
+				"fix",
+				"docs:dev",
+				"docs:build",
+				"docs:preview",
+			]),
 		);
+		expect(pkg.scripts["docs:dev"]).toBe("vitepress dev site");
+		expect(pkg.scripts["docs:build"]).toBe("vitepress build site");
+		expect(pkg.scripts["docs:preview"]).toBe("vitepress preview site");
+		expect(pkg.devDependencies.vitepress).toBe("1.6.4");
 	});
 
 	test("has a public launch README with install and quickstart", () => {
@@ -57,6 +70,23 @@ describe("workspace scaffold", () => {
 			expect(existsSync(join(root, "packages", name, "src", "index.ts"))).toBe(
 				true,
 			);
+		}
+	});
+
+	test("has a VitePress manual site scaffold", () => {
+		const manualSiteFiles = [
+			"site/.vitepress/config.ts",
+			"site/index.md",
+			"site/install.md",
+			"site/quickstart.md",
+			"site/cli.md",
+			"site/tui.md",
+			"site/mcp-and-skills.md",
+			"site/config.md",
+		];
+
+		for (const file of manualSiteFiles) {
+			expect(existsSync(join(root, file))).toBe(true);
 		}
 	});
 
