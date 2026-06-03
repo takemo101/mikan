@@ -24,7 +24,7 @@ export function formatLineRange(options: {
 }
 
 export function visibleCardCountForViewport(viewportHeight: number): number {
-	return Math.max(1, viewportHeight - 10);
+	return Math.max(1, viewportHeight - 4);
 }
 
 export function visibleDetailLineCount(viewportHeight: number): number {
