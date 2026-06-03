@@ -6,6 +6,10 @@
 	"bin": {
 		"mikan": "dist/bin.js"
 	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/takemo101/mikan"
+	},
 	"files": [
 		"dist"
 	],
