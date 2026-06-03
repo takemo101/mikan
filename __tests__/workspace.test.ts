@@ -62,6 +62,25 @@ describe("workspace scaffold", () => {
 		expect(workflow).toContain("npm publish --provenance --access public");
 	});
 
+	test("defines a GitHub Pages manual-site deployment workflow", () => {
+		const workflow = readFileSync(
+			join(root, ".github", "workflows", "pages.yml"),
+			"utf8",
+		);
+
+		expect(workflow).toContain("name: Deploy manual site");
+		expect(workflow).toContain("branches: [main]");
+		expect(workflow).toContain("pages: write");
+		expect(workflow).toContain("id-token: write");
+		expect(workflow).toContain("actions/configure-pages@v5");
+		expect(workflow).toContain("oven-sh/setup-bun@v2");
+		expect(workflow).toContain("bun install --frozen-lockfile");
+		expect(workflow).toContain("bun run docs:build");
+		expect(workflow).toContain("actions/upload-pages-artifact@v3");
+		expect(workflow).toContain("path: site/.vitepress/dist");
+		expect(workflow).toContain("actions/deploy-pages@v4");
+	});
+
 	test("creates the five v0 packages with source entrypoints", () => {
 		for (const name of packages) {
 			expect(existsSync(join(root, "packages", name, "package.json"))).toBe(
