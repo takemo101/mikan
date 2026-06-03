@@ -141,11 +141,16 @@ export function watchProject(
 		if (!loaded.ok) throw new Error(loaded.error.message);
 		logger?.(`watch started: ${loaded.value.projectRoot}`);
 	}
-	void runWatchOnce(watchOptions);
-	return setInterval(
-		() => void runWatchOnce(watchOptions),
-		options.intervalMs ?? 1000,
-	);
+	let running = false;
+	const tick = () => {
+		if (running) return;
+		running = true;
+		void runWatchOnce(watchOptions).finally(() => {
+			running = false;
+		});
+	};
+	tick();
+	return setInterval(tick, options.intervalMs ?? 1000);
 }
 
 function shouldPushGitHubMirrors(

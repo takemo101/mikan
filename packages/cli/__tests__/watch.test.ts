@@ -107,6 +107,10 @@ function fakeGithubPush(
 	};
 }
 
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 describe("watch hooks", () => {
 	test("logs observed transitions, placeholder appends, hook failures, and lock skips when requested", async () => {
 		const cwd = tempProject();
@@ -366,6 +370,61 @@ describe("watch hooks", () => {
 		expect(logs).toContain(
 			"github mirror pushed: MIK-001 https://github.com/takemo101/mikan/issues/1",
 		);
+	});
+
+	test("does not auto-push GitHub Mirrors by default", async () => {
+		const cwd = tempProject();
+		const calls: string[] = [];
+		await cli(cwd, ["init"]);
+		configureGitHub(cwd, false);
+		await cli(cwd, ["add", "Mirrored"]);
+		addGitHubMirrorFrontmatter(cwd, "MIK-001", 101);
+		await runWatchOnce({ cwd });
+
+		appendBody(cwd, "MIK-001", "Should stay local");
+		await runWatchOnce({ cwd, githubMirror: fakeGithubPush(calls) });
+
+		expect(calls).toEqual([]);
+	});
+
+	test("watchProject does not start overlapping auto-push scans", async () => {
+		const cwd = tempProject();
+		const calls: string[] = [];
+		await cli(cwd, ["init"]);
+		configureGitHub(cwd, true);
+		await cli(cwd, ["add", "Mirrored"]);
+		addGitHubMirrorFrontmatter(cwd, "MIK-001", 101);
+		await runWatchOnce({ cwd });
+		appendBody(cwd, "MIK-001", "Slow push");
+
+		const interval = watchProject({
+			cwd,
+			quiet: true,
+			intervalMs: 1,
+			githubMirror: {
+				pushGitHubMirror: async (options) => {
+					calls.push(options.id);
+					await sleep(30);
+					return {
+						ok: true as const,
+						value: {
+							issue_id: options.id,
+							action: "updated" as const,
+							github_issue: {
+								repo: "takemo101/mikan",
+								number: 101,
+								url: "https://github.com/takemo101/mikan/issues/101",
+							},
+							warnings: [],
+						},
+					};
+				},
+			},
+		});
+		await sleep(80);
+		clearInterval(interval);
+
+		expect(calls).toEqual(["MIK-001"]);
 	});
 
 	test("watch --github-push overrides config opt-in without publishing unmirrored Issues", async () => {
