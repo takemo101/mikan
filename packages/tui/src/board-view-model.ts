@@ -1,4 +1,7 @@
-import { visibleCardCountForViewport } from "./formatting.ts";
+import {
+	visibleCardCountForViewport,
+	visibleColumnCountForViewport,
+} from "./formatting.ts";
 import type { TuiCard, TuiModel } from "./model.ts";
 import { clamp, type TuiSelection } from "./selection.ts";
 
@@ -35,6 +38,7 @@ export type BoardViewOptions = {
 	visibleColumnCount?: number;
 	visibleCardCount?: number;
 	viewportHeight?: number;
+	viewportWidth?: number;
 };
 
 export function buildBoardViewModel(
@@ -88,7 +92,13 @@ export function buildBoardViewModel(
 					: "",
 		};
 	});
-	const visibleColumnCount = Math.max(1, options.visibleColumnCount ?? 3);
+	const visibleColumnCount = Math.max(
+		1,
+		options.visibleColumnCount ??
+			(options.viewportWidth
+				? visibleColumnCountForViewport(options.viewportWidth)
+				: 3),
+	);
 	const maxStart = Math.max(0, columns.length - visibleColumnCount);
 	const start = clamp(
 		selection.columnIndex - (visibleColumnCount - 1),

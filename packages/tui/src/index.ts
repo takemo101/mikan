@@ -66,6 +66,13 @@ export {
 } from "./detail-view-model.ts";
 export type { FooterMode } from "./formatting.ts";
 export {
+	MAX_VISIBLE_COLUMNS,
+	MIN_COLUMN_WIDTH,
+	MIN_VISIBLE_COLUMNS,
+	visibleCardCountForViewport,
+	visibleColumnCountForViewport,
+} from "./formatting.ts";
+export {
 	ArchivePrompt,
 	HelpPanel,
 	MovePrompt,
