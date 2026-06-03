@@ -110,7 +110,13 @@ export function getIssueTool(
 }
 
 export function createIssueTool(
-	args: { title: string; body?: string; status?: string; labels?: string[] },
+	args: {
+		title: string;
+		body?: string;
+		status?: string;
+		labels?: string[];
+		depends_on?: string[];
+	},
 	runtime: McpRuntime = {},
 ): McpToolResult<unknown> {
 	const loaded = load(runtime.cwd);
@@ -122,6 +128,7 @@ export function createIssueTool(
 		body: args.body,
 		status: args.status,
 		labels: args.labels,
+		dependencies: args.depends_on,
 		now: runtime.now,
 	});
 	if (!result.ok) return coreError(result.error.kind, result.error.message);
@@ -129,7 +136,13 @@ export function createIssueTool(
 }
 
 export function updateIssueTool(
-	args: { id: string; title?: string; labels?: string[]; body?: string },
+	args: {
+		id: string;
+		title?: string;
+		labels?: string[];
+		body?: string;
+		depends_on?: string[];
+	},
 	runtime: McpRuntime = {},
 ): McpToolResult<unknown> {
 	const loaded = load(runtime.cwd);
@@ -141,6 +154,7 @@ export function updateIssueTool(
 		title: args.title,
 		labels: args.labels,
 		body: args.body,
+		dependencies: args.depends_on,
 		now: runtime.now,
 	});
 	if (!result.ok) return coreError(result.error.kind, result.error.message);
@@ -216,18 +230,20 @@ export function createMikanMcpCli(runtime: McpRuntime = {}) {
 				body: z.string().optional(),
 				status: z.string().optional(),
 				labels: z.array(z.string()).optional(),
+				depends_on: z.array(z.string()).optional(),
 			}),
 			run: (context) =>
 				forIncur(context, createIssueTool(context.args, runtime)),
 		})
 		.command("update_issue", {
 			description:
-				"Update title, labels, or body through the core update primitive.",
+				"Update title, labels, dependencies, or body through the core update primitive.",
 			args: z.object({
 				id: z.string(),
 				title: z.string().optional(),
 				labels: z.array(z.string()).optional(),
 				body: z.string().optional(),
+				depends_on: z.array(z.string()).optional(),
 			}),
 			run: (context) =>
 				forIncur(context, updateIssueTool(context.args, runtime)),
