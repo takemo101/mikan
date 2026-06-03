@@ -1,4 +1,4 @@
-import type { BoardIssue, BoardWarning } from "./index.ts";
+import type { BoardIssue, BoardWarning } from "./board-scan.ts";
 import type { IssueId } from "./primitives.ts";
 
 export type DependencyStatus = "ready" | "blocked";
