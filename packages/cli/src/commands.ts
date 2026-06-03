@@ -172,14 +172,28 @@ export async function runGithub(
 	return fail("Usage: mikan github <mirror|push> ...");
 }
 
-export function runWatch(cwd: string, parsed: ParsedArgs): CliResult {
+export async function runWatch(
+	cwd: string,
+	parsed: ParsedArgs,
+	options: CliOptions,
+): Promise<CliResult> {
 	const lines: string[] = [];
-	runWatchOnce({
+	const errors: string[] = [];
+	await runWatchOnce({
 		cwd,
 		quiet: parsed.flags.has("quiet"),
+		githubPush: parsed.flags.has("github-push"),
+		githubMirror: options.githubMirror
+			? { pushGitHubMirror: options.githubMirror.pushGitHubMirror }
+			: undefined,
 		logger: (line) => lines.push(line),
+		errorLogger: (line) => errors.push(line),
 	});
-	return ok(lines.length > 0 ? `${lines.join("\n")}\n` : "");
+	return {
+		exitCode: 0,
+		stdout: lines.length > 0 ? `${lines.join("\n")}\n` : "",
+		stderr: errors.length > 0 ? `${errors.join("\n")}\n` : "",
+	};
 }
 
 export function runInit(cwd: string, parsed: ParsedArgs): CliResult {

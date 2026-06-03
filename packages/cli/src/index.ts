@@ -83,7 +83,7 @@ export async function runCli(
 				return ok("Starting mikan OpenTUI board\n");
 			}
 			case "watch":
-				return runWatch(cwd, parsed.value);
+				return await runWatch(cwd, parsed.value, options);
 			default:
 				return ok(helpText());
 		}
@@ -141,7 +141,10 @@ export async function runInteractiveCommand(
 				return fail(`${parsed.error}\n\nRun \`mikan help watch\` for usage.`);
 			}
 			const quiet = parsed.value.flags.has("quiet");
-			(options.launchWatch ?? (() => watchProject({ cwd, quiet })))();
+			const githubPush = parsed.value.flags.has("github-push");
+			(
+				options.launchWatch ?? (() => watchProject({ cwd, quiet, githubPush }))
+			)();
 			return ok("");
 		}
 	}
