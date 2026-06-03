@@ -80,7 +80,10 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 		{ name: "no-global", value: false },
 	],
 	tui: [{ name: "columns", short: "c", value: true }],
-	watch: [{ name: "quiet", short: "q", value: false }],
+	watch: [
+		{ name: "quiet", short: "q", value: false },
+		{ name: "github-push", value: false },
+	],
 };
 
 export function parseArgs(

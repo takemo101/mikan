@@ -163,8 +163,13 @@ Usage:
   mikan watch [options]
 
 Options:
-  -q, --quiet           Suppress watch log output
+  -q, --quiet           Suppress watch log output except GitHub Mirror failures
+  --github-push         Push changed Issues that already have github_issue
   -h, --help            Show this help
+
+Notes:
+  GitHub Mirror auto-push also runs when github.auto_push_mirrors is true.
+  It only pushes existing mirrors and never creates GitHub Issues.
 `;
 		case "mcp":
 			return `Start the stdio MCP server, register it with an agent, or print its manifest.

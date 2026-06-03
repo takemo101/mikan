@@ -124,12 +124,12 @@ describe("end-to-end smoke flow", () => {
 			join(cwd, ".mikan", "config.yaml"),
 			`${readFileSync(join(cwd, ".mikan", "config.yaml"), "utf8")}hooks:\n  on_enter:\n    completed:\n      - "echo {{issue_id}} {{to_status}} >> .mikan/.state/smoke-hook.log"\n`,
 		);
-		runWatchOnce({ cwd, now });
+		await runWatchOnce({ cwd, now });
 		renameSync(
 			join(cwd, ".mikan", "ready", "MIK-001.md"),
 			join(cwd, ".mikan", "completed", "MIK-001.md"),
 		);
-		runWatchOnce({ cwd, now });
+		await runWatchOnce({ cwd, now });
 		expect(
 			existsSync(join(cwd, ".mikan", ".state", "watcher-snapshot.json")),
 		).toBe(true);
