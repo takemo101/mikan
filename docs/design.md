@@ -9,7 +9,7 @@ mikan is a tiny, local-first micro-kanban for AI-assisted development. It gives 
 - Let humans observe and perform small Issue mutations through the TUI.
 - Keep the public command surface small and primitive.
 - Support optional status-transition hooks without making hooks authoritative.
-- Stay lightweight: no SQLite, no server, no GitHub sync, no agent/profile model in v0.
+- Stay lightweight: no SQLite, no server, no bidirectional GitHub sync, no agent/profile model in v0.
 
 ## Non-goals
 
@@ -421,8 +421,8 @@ Must not support initially:
 - full Markdown body editing;
 - drag/drop transitions;
 - user accounts;
-- remote sync;
-- GitHub sync.
+- remote source-of-truth sync;
+- bidirectional GitHub sync.
 
 ## Watch and hooks
 
@@ -566,18 +566,29 @@ This integration stays inside mikan's existing scope guards:
 - no modeled Agent/profile/role/team domain object in core;
 - no changes to existing `pi`, `antigravity`, or `jcode` adapter behavior except in an Issue that explicitly covers that adapter.
 
-## GitHub sync
+## GitHub Mirror
 
-Do not implement GitHub sync in v0.
+GitHub integration is limited to a one-way GitHub Mirror. A GitHub Mirror is a GitHub Issue representation of a mikan Issue for external visibility and discussion; the local mikan Markdown Issue remains authoritative.
 
-Possible later commands:
+See also: [`docs/adr/0002-github-mirror-is-one-way.md`](./adr/0002-github-mirror-is-one-way.md).
 
-```sh
-mikan import github https://github.com/owner/repo/issues/123
-mikan export github MIK-001
+Allowed direction:
+
+```txt
+.mikan/<status>/<issue-id>.md  →  GitHub Issue
 ```
 
-Do not implement bidirectional sync until there is a clear need.
+Do not implement bidirectional GitHub sync, GitHub Issues import, GitHub-as-source-of-truth behavior, or automatic creation of local Issues from unmapped GitHub Issues without a separate design decision.
+
+Planned GitHub Mirror behavior:
+
+- create a GitHub Mirror only through an explicit command, MCP tool, or confirmed TUI action;
+- store GitHub Issue correspondence in Issue frontmatter as `github_issue`;
+- update existing GitHub Mirrors from local mikan Issue title, body, Status metadata, and mikan-managed labels;
+- auto-create missing GitHub labels using mikan Label IDs, a fixed mikan color, and a description that records the mikan Label title and origin;
+- preserve GitHub labels that are not managed by current mikan config Labels;
+- keep GitHub open/closed state independent from mikan Status;
+- let `mikan watch` auto-push only Issues that already have `github_issue`, and only when explicitly enabled.
 
 ## MVP implementation order
 
