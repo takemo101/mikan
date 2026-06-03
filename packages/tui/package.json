@@ -13,6 +13,7 @@
 	},
 	"dependencies": {
 		"@mikan/core": "workspace:*",
+		"@mikan/github": "workspace:*",
 		"@mikan/project-config": "workspace:*",
 		"@opentui/core": "latest",
 		"@opentui/react": "latest",

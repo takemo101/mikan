@@ -10,6 +10,7 @@ import {
 } from "./formatting.ts";
 import {
 	renderArchiveInteraction,
+	renderGitHubMirrorInteraction,
 	renderKeyHelp,
 	renderMoveInteraction,
 	renderNoteInteraction,
@@ -43,6 +44,9 @@ export function renderTuiText(
 	}
 	if (selection.archiveOpen) {
 		lines.push("", ...renderArchiveInteraction(model, selection));
+	}
+	if (selection.githubConfirmOpen) {
+		lines.push("", ...renderGitHubMirrorInteraction(model, selection));
 	}
 	if (selection.warningsOpen) {
 		lines.push("", ...renderWarningDetails(model));

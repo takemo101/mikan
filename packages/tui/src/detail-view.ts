@@ -58,6 +58,9 @@ function detailMetaContent(
 	];
 	const dependency = detailDependencyText(page);
 	if (dependency) chunks.push(fg(theme.feedback.warning)(` · ${dependency}`));
+	if (page.githubText) {
+		chunks.push(fg(theme.base.muted)(` · ${page.githubText}`));
+	}
 	if (page.warningCount > 0) {
 		chunks.push(fg(theme.feedback.warning)(` · warnings ${page.warningCount}`));
 	}

@@ -3,6 +3,7 @@ import type { TuiAppViewProps } from "./app-view-props.ts";
 import type { TuiModel } from "./model.ts";
 import {
 	buildArchivePromptViewModel,
+	buildGitHubMirrorPromptViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
 } from "./prompt-view-model.ts";
@@ -75,6 +76,32 @@ export function ArchivePrompt(props: TuiAppViewProps): React.ReactElement {
 				content: renderArchiveInteraction(props.model, props.selection).join(
 					"\n",
 				),
+			}),
+		),
+	);
+}
+
+export function GitHubMirrorPrompt(props: TuiAppViewProps): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "github-mirror-modal-backdrop",
+			style: modalBackdropStyle(theme),
+		},
+		React.createElement(
+			"box",
+			{
+				id: "github-mirror-prompt",
+				title: "GitHub Mirror",
+				border: true,
+				style: modalStyle(theme),
+			},
+			React.createElement("text", {
+				content: renderGitHubMirrorInteraction(
+					props.model,
+					props.selection,
+				).join("\n"),
 			}),
 		),
 	);
@@ -190,6 +217,15 @@ export function renderArchiveInteraction(
 	return [view.title, view.body, view.hint];
 }
 
+export function renderGitHubMirrorInteraction(
+	model: TuiModel,
+	selection: TuiSelection,
+): string[] {
+	const view = buildGitHubMirrorPromptViewModel(model, selection);
+	if (!view) return ["GitHub Mirror", "No Issue selected"];
+	return [view.title, view.body, view.hint];
+}
+
 export function renderWarningDetails(model: TuiModel): string[] {
 	return [
 		"Warning details",
@@ -210,6 +246,7 @@ export function renderKeyHelp(): string[] {
 		"m move menu",
 		"n append Note",
 		"a archive Issue",
+		"g GitHub Mirror",
 		"w warning details",
 		"r reload",
 		"q quit",

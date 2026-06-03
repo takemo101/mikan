@@ -39,6 +39,7 @@ export type DetailPageViewModel = {
 	unmetDependenciesText: string;
 	dependencyStatus: "ready" | "blocked";
 	warningCount: number;
+	githubText: string;
 	markdown: string;
 	visibleMarkdownLines: string[];
 	hiddenLinesBefore: number;
@@ -84,6 +85,9 @@ export function buildDetailPageViewModel(
 		unmetDependenciesText: cardUnmetDependencies(details.card).join(", "),
 		dependencyStatus: cardDependencyStatus(details.card),
 		warningCount: warningCountForCard(model.warningDetails, details.card),
+		githubText: details.card.githubIssue
+			? `GitHub #${details.card.githubIssue.number}`
+			: "",
 		markdown,
 		visibleMarkdownLines,
 		hiddenLinesBefore: offset,
