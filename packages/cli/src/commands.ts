@@ -11,9 +11,13 @@ import {
 	scanBoard,
 	updateIssue,
 } from "@mikan/core";
-import { installMcpServerForAgent, installSkillForAgent } from "@mikan/mcp";
+import {
+	getMcpManifest,
+	installMcpServerForAgent,
+	installSkillForAgent,
+} from "@mikan/mcp";
 import { initProject, loadProjectConfig } from "@mikan/project-config";
-import type { ParsedArgs } from "./args.ts";
+import { type ParsedArgs, parseArgs } from "./args.ts";
 import type { CliOptions } from "./cli-options.ts";
 import { type CliResult, fail, ok } from "./cli-output.ts";
 import { runWatchOnce } from "./watch.ts";
@@ -45,6 +49,27 @@ export function runMcp(
 	} catch (error) {
 		return fail(error instanceof Error ? error.message : String(error));
 	}
+}
+
+export async function runMcpLlms(
+	cwd: string,
+	args: string[],
+): Promise<CliResult> {
+	const parsed = parseArgs(args, "mcp");
+	if (!parsed.ok) {
+		return fail(`${parsed.error}\n\nRun \`mikan help mcp\` for usage.`);
+	}
+	if (parsed.value.flags.has("agent")) {
+		return fail(
+			"incur-backed discovery only prints a manifest; it cannot install for a specific agent.\n" +
+				"Use `mikan mcp add --agent <agent>` for native MCP registration.",
+		);
+	}
+	const manifest = await getMcpManifest(
+		{ cwd },
+		{ full: parsed.value.flags.has("full") },
+	);
+	return ok(manifest.endsWith("\n") ? manifest : `${manifest}\n`);
 }
 
 export function runSkills(

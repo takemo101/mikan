@@ -9,6 +9,7 @@ import {
 	createMikanMcpCli,
 	getBoardTool,
 	getIssueTool,
+	getMcpManifest,
 	listIssuesTool,
 	moveIssueTool,
 	updateIssueTool,
@@ -40,6 +41,21 @@ describe("MCP tools", () => {
 		expect(stdout).toContain("move_issue");
 		expect(stdout).toContain("depends_on");
 		expect(stdout).not.toContain("complete_issue");
+	});
+
+	test("getMcpManifest returns the incur-backed discovery manifest", async () => {
+		const manifest = await getMcpManifest({ cwd: tempProject(), now });
+		expect(manifest).toContain("get_board");
+		expect(manifest).toContain("create_issue");
+		expect(manifest).toContain("append_issue");
+
+		const full = await getMcpManifest(
+			{ cwd: tempProject(), now },
+			{ full: true },
+		);
+		expect(full).toContain("create_issue");
+		// The full manifest is more detailed than the summary manifest.
+		expect(full.length).toBeGreaterThan(manifest.length);
 	});
 
 	test("read tools return board, list, get, archived filtering, and warnings", () => {
