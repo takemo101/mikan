@@ -10,7 +10,12 @@ import {
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-export type McpAgent = "pi" | "antigravity" | "jcode" | "claude-code";
+export type McpAgent =
+	| "pi"
+	| "antigravity"
+	| "jcode"
+	| "claude-code"
+	| "opencode";
 
 export type McpAgentInstallOptions = {
 	global?: boolean;

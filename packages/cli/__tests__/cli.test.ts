@@ -87,7 +87,7 @@ describe("CLI read path", () => {
 		expect(helpAdd.stdout).toBe(addHelp.stdout);
 		expect(mcpHelp.exitCode).toBe(0);
 		expect(mcpHelp.stdout).toContain(
-			"Agent to configure: pi, antigravity, jcode, claude-code",
+			"Agent to configure: pi, antigravity, jcode, claude-code, opencode",
 		);
 	});
 
@@ -491,6 +491,10 @@ describe("CLI read path", () => {
 					home,
 				},
 			);
+			const opencode = await runCli(
+				["mcp", "add", "--agent", "opencode", "--no-global"],
+				{ cwd, home },
+			);
 			const unsupported = await runCli(["mcp", "add", "--agent", "claude"], {
 				cwd,
 				home,
@@ -505,6 +509,10 @@ describe("CLI read path", () => {
 			expect(claudeCode.exitCode).toBe(0);
 			expect(claudeCode.stdout).toContain(
 				"Registered MCP server 'mikan' for claude-code",
+			);
+			expect(opencode.exitCode).toBe(0);
+			expect(opencode.stdout).toContain(
+				"Registered MCP server 'mikan' for opencode",
 			);
 			expect(unsupported.exitCode).toBe(1);
 			expect(unsupported.stderr).toContain("Unsupported MCP agent: claude");
@@ -526,6 +534,14 @@ describe("CLI read path", () => {
 				JSON.parse(readFileSync(join(home, ".claude.json"), "utf8")).mcpServers
 					.mikan,
 			).toEqual({ command: "mikan", args: ["mcp"] });
+			expect(
+				JSON.parse(readFileSync(join(cwd, "opencode.json"), "utf8")).mcp.mikan,
+			).toEqual({
+				type: "local",
+				command: ["mikan", "mcp"],
+				enabled: true,
+				environment: {},
+			});
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 		}

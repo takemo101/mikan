@@ -165,12 +165,66 @@ describe("MCP agent installers", () => {
 		}
 	});
 
+	test("registers mikan for opencode in global and project config", () => {
+		const home = tempDir("mikan-oc-home-");
+		const cwd = tempDir("mikan-oc-cwd-");
+		try {
+			// Pre-seed a realistic global opencode.json so the merge must preserve
+			// unrelated config and existing MCP servers under the `mcp` key.
+			const configDir = join(home, ".config", "opencode");
+			const configPath = join(configDir, "opencode.json");
+			mkdirSync(configDir, { recursive: true });
+			writeFileSync(
+				configPath,
+				JSON.stringify({
+					model: "openai/gpt-5.5",
+					mcp: {
+						other: {
+							type: "local",
+							command: ["other", "--mcp"],
+							enabled: true,
+						},
+					},
+				}),
+			);
+
+			const global = installMcpServerForAgent("opencode", { home });
+			const workspace = installMcpServerForAgent("opencode", {
+				cwd,
+				global: false,
+			});
+			const globalConfig = JSON.parse(readFileSync(global.path, "utf8"));
+			const workspaceConfig = JSON.parse(readFileSync(workspace.path, "utf8"));
+
+			expect(global.path).toBe(configPath);
+			expect(global.scope).toBe("global");
+			expect(workspace.path).toBe(join(cwd, "opencode.json"));
+			expect(workspace.scope).toBe("workspace");
+			// Verified opencode local stdio format: type local + command array +
+			// enabled + environment, all under the `mcp` key.
+			expect(globalConfig.mcp.mikan).toEqual({
+				type: "local",
+				command: ["mikan", "mcp"],
+				enabled: true,
+				environment: {},
+			});
+			// Unrelated config and other servers are preserved.
+			expect(globalConfig.model).toBe("openai/gpt-5.5");
+			expect(globalConfig.mcp.other.command).toEqual(["other", "--mcp"]);
+			expect(workspaceConfig.mcp.mikan.command).toEqual(["mikan", "mcp"]);
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
 	test("exposes registry metadata and rejects unsupported agents", () => {
 		expect(mcpAgentInstallers.map((installer) => installer.agent)).toEqual([
 			"pi",
 			"antigravity",
 			"jcode",
 			"claude-code",
+			"opencode",
 		]);
 		expect(() => installMcpServerForAgent("claude", {})).toThrow(
 			"Unsupported MCP agent: claude",
@@ -192,18 +246,30 @@ describe("MCP agent installers", () => {
 					env: { MIKAN_ENV: "test" },
 				});
 				const config = JSON.parse(readFileSync(result.path, "utf8"));
-				const serversKey = agent === "jcode" ? "servers" : "mcpServers";
+				const serversKey =
+					agent === "jcode"
+						? "servers"
+						: agent === "opencode"
+							? "mcp"
+							: "mcpServers";
 				const entry = config[serversKey]["mikan-dev"];
 
 				expect(result.serverName).toBe("mikan-dev");
-				expect(entry.command).toBe("bun");
-				expect(entry.args).toEqual(["run", "mcp"]);
-				// antigravity and jcode include the shared spec env;
-				// pi and claude-code use the minimal { command, args } entry.
-				if (agent === "antigravity" || agent === "jcode") {
-					expect(entry.env).toEqual({ MIKAN_ENV: "test" });
+				if (agent === "opencode") {
+					// opencode combines command + args into a single command array
+					// and stores env under `environment`.
+					expect(entry.command).toEqual(["bun", "run", "mcp"]);
+					expect(entry.environment).toEqual({ MIKAN_ENV: "test" });
 				} else {
-					expect(entry.env).toBeUndefined();
+					expect(entry.command).toBe("bun");
+					expect(entry.args).toEqual(["run", "mcp"]);
+					// antigravity and jcode include the shared spec env;
+					// pi and claude-code use the minimal { command, args } entry.
+					if (agent === "antigravity" || agent === "jcode") {
+						expect(entry.env).toEqual({ MIKAN_ENV: "test" });
+					} else {
+						expect(entry.env).toBeUndefined();
+					}
 				}
 			} finally {
 				rmSync(cwd, { recursive: true, force: true });
