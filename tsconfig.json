@@ -17,7 +17,14 @@
 		"esModuleInterop": true,
 		"allowSyntheticDefaultImports": true,
 		"forceConsistentCasingInFileNames": true,
-		"verbatimModuleSyntax": true
+		"verbatimModuleSyntax": true,
+		"baseUrl": ".",
+		"paths": {
+			"@mikan/core": ["packages/core/src/index.ts"],
+			"@mikan/mcp": ["packages/mcp/src/index.ts"],
+			"@mikan/project-config": ["packages/project-config/src/index.ts"],
+			"@mikan/tui": ["packages/tui/src/index.ts"]
+		}
 	},
 	"include": [
 		"packages/*/src/**/*.ts",
