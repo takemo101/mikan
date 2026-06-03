@@ -12,6 +12,7 @@ import {
 	runMcp,
 	runMove,
 	runShow,
+	runSkills,
 	runUpdate,
 	runWatch,
 } from "./commands.ts";
@@ -65,6 +66,8 @@ export async function runCli(
 				return runAppend(cwd, parsed.value, options);
 			case "mcp":
 				return runMcp(cwd, parsed.value, options);
+			case "skills":
+				return runSkills(cwd, parsed.value, options);
 			case "tui":
 				return ok("Starting mikan OpenTUI board\n");
 			case "watch":

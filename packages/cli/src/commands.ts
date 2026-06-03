@@ -11,7 +11,7 @@ import {
 	scanBoard,
 	updateIssue,
 } from "@mikan/core";
-import { installMcpServerForAgent } from "@mikan/mcp";
+import { installMcpServerForAgent, installSkillForAgent } from "@mikan/mcp";
 import { initProject, loadProjectConfig } from "@mikan/project-config";
 import type { ParsedArgs } from "./args.ts";
 import type { CliOptions } from "./cli-options.ts";
@@ -41,6 +41,30 @@ export function runMcp(
 				: "";
 		return ok(
 			`Registered MCP server '${result.serverName}' for ${result.agent}${scope}: ${result.path}\n${hint}`,
+		);
+	} catch (error) {
+		return fail(error instanceof Error ? error.message : String(error));
+	}
+}
+
+export function runSkills(
+	cwd: string,
+	parsed: ParsedArgs,
+	options: CliOptions,
+): CliResult {
+	if (parsed.positionals[0] !== "add") {
+		return fail("Usage: mikan skills add --agent <agent>");
+	}
+	const agent = parsed.flags.get("agent")?.at(-1);
+	if (!agent) return fail("Usage: mikan skills add --agent <agent>");
+	try {
+		const result = installSkillForAgent(agent, {
+			cwd,
+			home: options.home,
+			global: !parsed.flags.has("no-global"),
+		});
+		return ok(
+			`Installed mikan skill for ${result.agent} (${result.scope}): ${result.path}\n`,
 		);
 	} catch (error) {
 		return fail(error instanceof Error ? error.message : String(error));

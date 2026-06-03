@@ -23,6 +23,17 @@ export {
 	installMcpServerForAgent,
 	mcpAgentInstallers,
 } from "./installers/index.ts";
+export type {
+	SkillAgent,
+	SkillAgentInstaller,
+	SkillAgentInstallOptions,
+	SkillAgentInstallResult,
+	SkillScope,
+} from "./skills/index.ts";
+export {
+	installSkillForAgent,
+	skillAgentInstallers,
+} from "./skills/index.ts";
 
 export type McpRuntime = {
 	cwd?: string;

@@ -75,11 +75,15 @@ describe("CLI read path", () => {
 		const addHelp = await cli(cwd, ["add", "--help"]);
 		const helpAdd = await cli(cwd, ["help", "add"]);
 		const mcpHelp = await cli(cwd, ["help", "mcp"]);
+		const skillsHelp = await cli(cwd, ["help", "skills"]);
 
 		expect(globalHelp.exitCode).toBe(0);
 		expect(globalHelp.stdout).toContain("mikan — local-first Issue board");
 		expect(globalHelp.stdout).toContain("Usage:");
 		expect(globalHelp.stdout).toContain("Commands:");
+		expect(globalHelp.stdout).toContain(
+			"skills    Install agent-facing mikan usage guidance",
+		);
 		expect(addHelp.exitCode).toBe(0);
 		expect(addHelp.stdout).toContain("Usage:\n  mikan add <title>");
 		expect(addHelp.stdout).toContain("-s, --status <status>");
@@ -90,6 +94,14 @@ describe("CLI read path", () => {
 			"Agent to configure: pi, antigravity, jcode, claude-code, opencode, codex",
 		);
 		expect(mcpHelp.stdout).toContain("codex registers in global");
+		expect(skillsHelp.exitCode).toBe(0);
+		expect(skillsHelp.stdout).toContain(
+			"Usage:\n  mikan skills add --agent <agent> [--no-global]",
+		);
+		expect(skillsHelp.stdout).toContain(
+			"Agent to install the mikan skill for: claude-code, opencode, codex",
+		);
+		expect(skillsHelp.stdout).toContain("never changes MCP config");
 	});
 
 	test("supports short options and equals syntax", async () => {
@@ -593,6 +605,58 @@ describe("CLI read path", () => {
 					readFileSync(join(home, ".config", "mcp", "mcp.json"), "utf8"),
 				).mcpServers.mikan.args,
 			).toEqual(["mcp"]);
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
+	test("skills add installs guidance and rejects unsupported agents", async () => {
+		const cwd = tempProject();
+		const home = mkdtempSync(join(tmpdir(), "mikan-cli-skills-home-"));
+		try {
+			// Long flag, short flag, and --no-global all parse.
+			const claudeCode = await runCli(
+				["skills", "add", "--agent", "claude-code"],
+				{ cwd, home },
+			);
+			const opencode = await runCli(["skills", "add", "-a", "opencode"], {
+				cwd,
+				home,
+			});
+			const codexWorkspace = await runCli(
+				["skills", "add", "--agent", "codex", "--no-global"],
+				{ cwd, home },
+			);
+			const missingAgent = await runCli(["skills", "add"], { cwd, home });
+			const unsupported = await runCli(["skills", "add", "--agent", "pi"], {
+				cwd,
+				home,
+			});
+
+			expect(claudeCode.exitCode).toBe(0);
+			expect(claudeCode.stdout).toContain(
+				"Installed mikan skill for claude-code (global)",
+			);
+			expect(
+				readFileSync(join(home, ".mikan", "skills", "claude-code.md"), "utf8"),
+			).toContain("mikan");
+			expect(opencode.exitCode).toBe(0);
+			expect(opencode.stdout).toContain(
+				"Installed mikan skill for opencode (global)",
+			);
+			expect(codexWorkspace.exitCode).toBe(0);
+			expect(codexWorkspace.stdout).toContain(
+				"Installed mikan skill for codex (workspace)",
+			);
+			expect(existsSync(join(cwd, ".mikan", "skills", "codex.md"))).toBe(true);
+			expect(missingAgent.exitCode).toBe(1);
+			expect(missingAgent.stderr).toContain(
+				"Usage: mikan skills add --agent <agent>",
+			);
+			expect(unsupported.exitCode).toBe(1);
+			expect(unsupported.stderr).toContain(
+				"Unsupported skill agent: pi. Supported agents: claude-code, opencode, codex",
+			);
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 		}
