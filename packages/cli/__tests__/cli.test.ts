@@ -87,8 +87,9 @@ describe("CLI read path", () => {
 		expect(helpAdd.stdout).toBe(addHelp.stdout);
 		expect(mcpHelp.exitCode).toBe(0);
 		expect(mcpHelp.stdout).toContain(
-			"Agent to configure: pi, antigravity, jcode, claude-code, opencode",
+			"Agent to configure: pi, antigravity, jcode, claude-code, opencode, codex",
 		);
+		expect(mcpHelp.stdout).toContain("codex registers in global");
 	});
 
 	test("supports short options and equals syntax", async () => {
@@ -495,6 +496,14 @@ describe("CLI read path", () => {
 				["mcp", "add", "--agent", "opencode", "--no-global"],
 				{ cwd, home },
 			);
+			const codex = await runCli(["mcp", "add", "--agent", "codex"], {
+				cwd,
+				home,
+			});
+			const codexWorkspace = await runCli(
+				["mcp", "add", "--agent", "codex", "--no-global"],
+				{ cwd, home },
+			);
 			const unsupported = await runCli(["mcp", "add", "--agent", "claude"], {
 				cwd,
 				home,
@@ -513,6 +522,12 @@ describe("CLI read path", () => {
 			expect(opencode.exitCode).toBe(0);
 			expect(opencode.stdout).toContain(
 				"Registered MCP server 'mikan' for opencode",
+			);
+			expect(codex.exitCode).toBe(0);
+			expect(codex.stdout).toContain("Registered MCP server 'mikan' for codex");
+			expect(codexWorkspace.exitCode).toBe(1);
+			expect(codexWorkspace.stderr).toContain(
+				"Codex MCP configuration is global-only",
 			);
 			expect(unsupported.exitCode).toBe(1);
 			expect(unsupported.stderr).toContain("Unsupported MCP agent: claude");
@@ -542,6 +557,13 @@ describe("CLI read path", () => {
 				enabled: true,
 				environment: {},
 			});
+			const codexToml = readFileSync(
+				join(home, ".codex", "config.toml"),
+				"utf8",
+			);
+			expect(codexToml).toContain("[mcp_servers.mikan]");
+			expect(codexToml).toContain('command = "mikan"');
+			expect(codexToml).toContain('args = ["mcp"]');
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 		}

@@ -142,9 +142,12 @@ Usage:
   mikan mcp add --agent <agent> [--no-global]
 
 Options:
-  -a, --agent <agent>   Agent to configure: pi, antigravity, jcode, claude-code, opencode
+  -a, --agent <agent>   Agent to configure: pi, antigravity, jcode, claude-code, opencode, codex
   --no-global           Write workspace-local config instead of global config
   -h, --help            Show this help
+
+Notes:
+  codex registers in global ~/.codex/config.toml only; --no-global is rejected.
 
 Examples:
   mikan mcp add --agent pi
@@ -152,6 +155,7 @@ Examples:
   mikan mcp add -a jcode
   mikan mcp add --agent claude-code
   mikan mcp add --agent opencode --no-global
+  mikan mcp add --agent codex
 `;
 	}
 }

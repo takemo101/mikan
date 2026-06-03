@@ -218,6 +218,147 @@ describe("MCP agent installers", () => {
 		}
 	});
 
+	test("registers mikan for codex in the global TOML config", () => {
+		const home = tempDir("mikan-codex-home-");
+		try {
+			const result = installMcpServerForAgent("codex", { home });
+			const text = readFileSync(result.path, "utf8");
+
+			expect(result.path).toBe(join(home, ".codex", "config.toml"));
+			expect(result.scope).toBe("global");
+			// Verified Codex format: a [mcp_servers.<name>] table with command/args.
+			expect(text).toContain("[mcp_servers.mikan]");
+			expect(text).toContain('command = "mikan"');
+			expect(text).toContain('args = ["mcp"]');
+			// No env line when env is empty (matches the real cuekit entry).
+			expect(text).not.toContain("env =");
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
+	test("codex upserts its table, preserving other tables and comments", () => {
+		const home = tempDir("mikan-codex-merge-home-");
+		try {
+			const configDir = join(home, ".codex");
+			const configPath = join(configDir, "config.toml");
+			mkdirSync(configDir, { recursive: true });
+			writeFileSync(
+				configPath,
+				[
+					"# Codex configuration",
+					'[projects."/Users/me/work"]',
+					'trust_level = "trusted"',
+					"",
+					"[mcp_servers.other]",
+					'command = "other"',
+					'args = [ "--mcp" ]',
+					"",
+				].join("\n"),
+			);
+			chmodSync(configPath, 0o640);
+
+			// First install appends the mikan table.
+			installMcpServerForAgent("codex", { home });
+			// Second install updates in place rather than duplicating.
+			const result = installMcpServerForAgent("codex", {
+				home,
+				command: "bun",
+				args: ["run", "mcp"],
+			});
+			const text = readFileSync(result.path, "utf8");
+
+			// Unrelated content and comments are preserved.
+			expect(text).toContain("# Codex configuration");
+			expect(text).toContain('[projects."/Users/me/work"]');
+			expect(text).toContain("[mcp_servers.other]");
+			// Exactly one mikan table, reflecting the latest command/args.
+			expect(text.match(/\[mcp_servers\.mikan\]/g)?.length).toBe(1);
+			expect(text).toContain('command = "bun"');
+			expect(text).toContain('args = ["run", "mcp"]');
+			// File mode is preserved through the atomic write.
+			expect(statSync(configPath).mode & 0o777).toBe(0o640);
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
+	test("codex writes an env inline table when env overrides are provided", () => {
+		const home = tempDir("mikan-codex-env-home-");
+		try {
+			const result = installMcpServerForAgent("codex", {
+				home,
+				env: { MIKAN_ENV: "test" },
+			});
+			const text = readFileSync(result.path, "utf8");
+			expect(text).toContain('env = { MIKAN_ENV = "test" }');
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
+	test("codex rejects workspace-local scope with a clear error", () => {
+		const home = tempDir("mikan-codex-ws-home-");
+		const cwd = tempDir("mikan-codex-ws-cwd-");
+		try {
+			expect(() =>
+				installMcpServerForAgent("codex", { home, cwd, global: false }),
+			).toThrow("Codex MCP configuration is global-only");
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("codex fails clearly on an unmergeable parent-table mikan definition", () => {
+		const home = tempDir("mikan-codex-conflict-home-");
+		try {
+			const configDir = join(home, ".codex");
+			const configPath = join(configDir, "config.toml");
+			mkdirSync(configDir, { recursive: true });
+			const original = [
+				"[mcp_servers]",
+				'mikan = { command = "old", args = ["old"] }',
+				"",
+			].join("\n");
+			writeFileSync(configPath, original);
+
+			expect(() => installMcpServerForAgent("codex", { home })).toThrow(
+				"cannot safely merge",
+			);
+			// The file is left untouched rather than corrupted into invalid TOML.
+			expect(readFileSync(configPath, "utf8")).toBe(original);
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
+	test("codex appends safely beside an unrelated [mcp_servers] parent table", () => {
+		const home = tempDir("mikan-codex-parent-home-");
+		try {
+			const configDir = join(home, ".codex");
+			const configPath = join(configDir, "config.toml");
+			mkdirSync(configDir, { recursive: true });
+			writeFileSync(
+				configPath,
+				[
+					"[mcp_servers]",
+					'other = { command = "other", args = ["--mcp"] }',
+					"",
+				].join("\n"),
+			);
+
+			const result = installMcpServerForAgent("codex", { home });
+			const text = readFileSync(result.path, "utf8");
+			// Only a mikan definition lives under a different key, so appending the
+			// canonical table is valid TOML and must not be rejected.
+			expect(text).toContain("[mcp_servers.mikan]");
+			expect(text).toContain("other = {");
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
 	test("exposes registry metadata and rejects unsupported agents", () => {
 		expect(mcpAgentInstallers.map((installer) => installer.agent)).toEqual([
 			"pi",
@@ -225,6 +366,7 @@ describe("MCP agent installers", () => {
 			"jcode",
 			"claude-code",
 			"opencode",
+			"codex",
 		]);
 		expect(() => installMcpServerForAgent("claude", {})).toThrow(
 			"Unsupported MCP agent: claude",
@@ -232,9 +374,10 @@ describe("MCP agent installers", () => {
 	});
 
 	test("shared server spec honors serverName/command/args/env overrides for every adapter", () => {
-		for (const agent of mcpAgentInstallers.map(
-			(installer) => installer.agent,
-		)) {
+		// codex is global-only TOML; its overrides are covered in its own test.
+		for (const agent of mcpAgentInstallers
+			.map((installer) => installer.agent)
+			.filter((agent) => agent !== "codex")) {
 			const cwd = tempDir(`mikan-${agent}-override-`);
 			try {
 				const result = installMcpServerForAgent(agent, {
