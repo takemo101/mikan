@@ -32,9 +32,9 @@ mikan show MIK-001
 mikan tui
 ```
 
-## Planned TUI columns
+## TUI columns
 
-A planned `mikan tui --columns <auto|2|3|4|5>` option will make the visible Column viewport responsive. `auto` will choose between 2 and 5 visible Status Columns from terminal width. Fixed values will be available for users who want an explicit viewport width:
+`mikan tui --columns <auto|2|3|4|5>` (default `auto`) controls how many Status Columns the board shows at once. `auto` derives between 2 and 5 visible Columns from terminal width and keeps the sliding viewport. Fixed values pin an explicit count:
 
 ```sh
 mikan tui --columns auto
@@ -44,7 +44,7 @@ mikan tui --columns 4
 mikan tui --columns 5
 ```
 
-The option will change only how many Columns are visible at once; it will not change configured Statuses or Issue files.
+The option changes only how many Columns are visible at once; it never changes configured Statuses or Issue files.
 
 ## Agent setup
 

@@ -559,6 +559,29 @@ describe("CLI read path", () => {
 		expect(launched).toBe(true);
 	});
 
+	test("tui interactive launch forwards the parsed --columns to the callback", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		const forwarded: unknown[] = [];
+
+		const fixed = await runInteractiveCommand(["tui", "--columns", "5"], {
+			cwd,
+			launchTui: async (launchOptions) => {
+				forwarded.push(launchOptions.columns);
+			},
+		});
+		const auto = await runInteractiveCommand(["tui"], {
+			cwd,
+			launchTui: async (launchOptions) => {
+				forwarded.push(launchOptions.columns);
+			},
+		});
+
+		expect(fixed).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+		expect(auto).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+		expect(forwarded).toEqual([5, "auto"]);
+	});
+
 	test("tui help documents the --columns option", async () => {
 		const result = await cli(tempProject(), ["help", "tui"]);
 

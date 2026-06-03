@@ -133,8 +133,9 @@ Examples:
   mikan tui -c 5
 
 Notes:
-  --columns is accepted and validated now; applying it to the rendered
-  viewport is a follow-up. auto derives the count from terminal width.
+  --columns sets how many Status Columns the board shows at once. auto
+  derives 2..5 Columns from terminal width and keeps the sliding viewport;
+  a fixed 2..5 pins that count. It never changes configured Statuses.
 `;
 		case "watch":
 			return `Run the polling watcher.

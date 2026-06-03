@@ -476,6 +476,54 @@ describe("TUI model and navigation", () => {
 		]);
 	});
 
+	test("fixed columns mode renders up to five configured Columns", () => {
+		const model = loadTuiModel(tempProject());
+		const tree = TuiAppView({
+			model,
+			selection: { columnIndex: 0, cardIndex: 0, detailOpen: false },
+			columns: 5,
+			viewportWidth: MIN_COLUMN_WIDTH * 2,
+		});
+
+		// Fixed count wins over the narrow viewport width: all five Columns show.
+		expect(findElementById(tree, "column-backlog")).toBeTruthy();
+		expect(findElementById(tree, "column-ready")).toBeTruthy();
+		expect(findElementById(tree, "column-active")).toBeTruthy();
+		expect(findElementById(tree, "column-blocked")).toBeTruthy();
+		expect(findElementById(tree, "column-completed")).toBeTruthy();
+		expect(collectTextContent(tree)).toContain(
+			"Columns: Backlog / Ready / Active / Blocked / Completed",
+		);
+	});
+
+	test("auto columns mode derives visible Columns from viewport width", () => {
+		const model = loadTuiModel(tempProject());
+		const selection = { columnIndex: 0, cardIndex: 0, detailOpen: false };
+
+		const narrow = TuiAppView({
+			model,
+			selection,
+			columns: "auto",
+			viewportWidth: MIN_COLUMN_WIDTH * 2,
+		});
+		const wide = TuiAppView({
+			model,
+			selection,
+			columns: "auto",
+			viewportWidth: MIN_COLUMN_WIDTH * 12,
+		});
+
+		// Narrow auto viewport clamps to two visible Columns.
+		expect(findElementById(narrow, "column-backlog")).toBeTruthy();
+		expect(findElementById(narrow, "column-ready")).toBeTruthy();
+		expect(findElementById(narrow, "column-active")).toBeUndefined();
+		// Wide auto viewport reveals all five configured Columns.
+		expect(findElementById(wide, "column-completed")).toBeTruthy();
+		expect(collectTextContent(wide)).toContain(
+			"Columns: Backlog / Ready / Active / Blocked / Completed",
+		);
+	});
+
 	test("renders Column viewport indicators when offscreen Columns exist", () => {
 		const model = loadTuiModel(tempProject());
 
