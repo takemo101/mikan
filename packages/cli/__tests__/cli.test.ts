@@ -28,6 +28,10 @@ describe("CLI read path", () => {
 		expect(packageJson.version).toBe("0.0.3");
 		expect(packageJson.private).toBe(false);
 		expect(packageJson.bin).toEqual({ mikan: "dist/bin.js" });
+		expect(packageJson.repository).toEqual({
+			type: "git",
+			url: "https://github.com/takemo101/mikan",
+		});
 		expect(packageJson.files).toEqual(["dist"]);
 		expect(packageJson.optionalDependencies).toMatchObject({
 			"@opentui/core-darwin-arm64": "0.3.0",
