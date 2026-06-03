@@ -86,14 +86,55 @@ Labels are descriptive only. They do not assign agents, profiles, priority, or w
 
 ## Hooks
 
-Hooks are optional local automation. `mikan watch` observes Status transitions and runs matching commands.
+Hooks are optional local automation. `mikan watch` observes Status transitions and runs matching commands from `.mikan/config.yaml`.
 
-Supported placeholder examples:
+There are two hook maps:
 
-- `{{issue_id}}`
-- `{{issue_path}}`
-- `{{from_status}}`
-- `{{to_status}}`
+| Hook map | When it runs | Example key |
+| --- | --- | --- |
+| `hooks.on_enter` | When an Issue enters a Status from any other Status. | `active` |
+| `hooks.on_transition` | When an Issue moves between one exact Status pair. | `ready->active` |
+
+Example:
+
+```yaml
+hooks:
+  on_enter:
+    active:
+      - "echo '{{issue_id}} entered {{to_status}}'"
+  on_transition:
+    ready->active:
+      - "echo '{{issue_path}} moved from {{from_status}} to {{to_status}}'"
+```
+
+Run the watcher from a terminal:
+
+```sh
+mikan watch
+```
+
+Use quiet mode when you want to suppress watch log output:
+
+```sh
+mikan watch --quiet
+```
+
+Supported placeholders:
+
+- <code v-pre>{{issue_id}}</code> — stable Issue ID, such as `MIK-001`.
+- <code v-pre>{{issue_path}}</code> — path to the moved Issue Markdown file.
+- <code v-pre>{{from_status}}</code> — previous Status directory.
+- <code v-pre>{{to_status}}</code> — new Status directory.
+- <code v-pre>{{project_root}}</code> — project root directory.
+
+A macOS notification hook can be written as:
+
+```yaml
+hooks:
+  on_enter:
+    completed:
+      - "osascript -e 'display notification \"{{issue_id}}: {{from_status}} → {{to_status}}\" with title \"mikan\" subtitle \"Entered Completed\"'"
+```
 
 Hook failures are recorded in `.mikan/.state/hook-log.ndjson` and surfaced as warnings. They never roll back Issue status and never become authoritative state.
 
