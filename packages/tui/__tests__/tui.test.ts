@@ -516,11 +516,11 @@ describe("TUI model and navigation", () => {
 			{ viewportHeight: 36 },
 		);
 
-		expect(shortView.columns[0]?.visibleCards).toHaveLength(12);
-		expect(tallView.columns[0]?.visibleCards).toHaveLength(20);
-		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(32);
+		expect(shortView.columns[0]?.visibleCards).toHaveLength(10);
+		expect(tallView.columns[0]?.visibleCards).toHaveLength(18);
+		expect(screenshotHeightView.columns[0]?.visibleCards).toHaveLength(30);
 		expect(screenshotHeightView.columns[0]?.cardRangeText).toBe(
-			"1-32/40 | ↑0 | ↓8",
+			"1-30/40 | ↑0 | ↓10",
 		);
 	});
 
