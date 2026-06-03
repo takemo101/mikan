@@ -47,6 +47,10 @@ mikan tui --columns 5
 
 The option changes only how many Columns are visible at once; it never changes configured Statuses or Issue files.
 
+## GitHub Mirror
+
+GitHub Mirror is one-way publication from local Markdown Issues to GitHub Issues. Configure `github.repo`, run `gh auth login`, then use `mikan github mirror`, `mikan github push`, the TUI `g` action, or MCP Mirror tools. The full manual is at <https://takemo101.github.io/mikan/github-mirror>.
+
 ## Agent setup
 
 mikan wires into AI coding agents two independent ways. Neither models agents or adds a runtime: mikan stays **stdio MCP only** — no HTTP server, port, auth, scheduler, or workflow engine.

@@ -580,15 +580,18 @@ Allowed direction:
 
 Do not implement bidirectional GitHub sync, GitHub Issues import, GitHub-as-source-of-truth behavior, or automatic creation of local Issues from unmapped GitHub Issues without a separate design decision.
 
-Planned GitHub Mirror behavior:
+GitHub Mirror behavior:
 
+- configure the target repo with `github.repo` in `.mikan/config.yaml`; mikan uses the user's authenticated `gh` CLI and does not store tokens;
 - create a GitHub Mirror only through an explicit command, MCP tool, or confirmed TUI action;
 - store GitHub Issue correspondence in Issue frontmatter as `github_issue`;
 - update existing GitHub Mirrors from local mikan Issue title, body, Status metadata, and mikan-managed labels;
 - auto-create missing GitHub labels using mikan Label IDs, a fixed mikan color, and a description that records the mikan Label title and origin;
+- treat label creation failures as warnings, skipping that label while continuing the Issue create/update;
 - preserve GitHub labels that are not managed by current mikan config Labels;
 - keep GitHub open/closed state independent from mikan Status;
-- let `mikan watch` auto-push only Issues that already have `github_issue`, and only when explicitly enabled.
+- let `mikan watch` auto-push only Issues that already have `github_issue`, and only when explicitly enabled by `github.auto_push_mirrors: true` or `mikan watch --github-push`;
+- show `GitHub #number` in TUI Detail metadata while keeping dense Board Cards free of GitHub Mirror markers.
 
 ## MVP implementation order
 

@@ -1,6 +1,6 @@
 # Config
 
-A mikan project is configured by `.mikan/config.yaml`. The config defines project identity, board Columns, labels, and optional local hooks.
+A mikan project is configured by `.mikan/config.yaml`. The config defines project identity, board Columns, labels, optional local hooks, and optional GitHub Mirror settings.
 
 ## Generated project layout
 
@@ -57,6 +57,10 @@ hooks:
   on_transition:
     ready->active:
       - "echo '{{issue_path}} moved from {{from_status}} to {{to_status}}'"
+
+github:
+  repo: owner/name
+  auto_push_mirrors: false
 ```
 
 ## Project
@@ -139,6 +143,20 @@ hooks:
 ```
 
 Hook failures are recorded in `.mikan/.state/hook-log.ndjson` and surfaced as warnings. They never roll back Issue status and never become authoritative state.
+
+## GitHub Mirror
+
+GitHub Mirror settings are optional:
+
+```yaml
+github:
+  repo: owner/name
+  auto_push_mirrors: false
+```
+
+`github.repo` is the GitHub repository used by `mikan github`, the TUI `g` action, MCP Mirror tools, and watch auto-push. `github.auto_push_mirrors` defaults to `false`; set it to `true` only when `mikan watch` should push changed Issues that already have `github_issue` frontmatter.
+
+See [GitHub Mirror](./github-mirror.md) for CLI, TUI, MCP, labels, and source-of-truth rules.
 
 ## Dependencies
 
