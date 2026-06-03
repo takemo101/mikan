@@ -10,6 +10,7 @@ import {
 	runInit,
 	runList,
 	runMcp,
+	runMcpLlms,
 	runMove,
 	runShow,
 	runSkills,
@@ -93,6 +94,9 @@ export async function runInteractiveCommand(
 ): Promise<CliResult> {
 	const cwd = options.cwd ?? process.cwd();
 	if (!argv.some(isHelpFlag)) {
+		if (argv[0] === "mcp" && argv[1] === "llms") {
+			return runMcpLlms(cwd, argv.slice(2));
+		}
 		if (argv[0] === "mcp" && argv[1] !== "add") {
 			await (options.launchMcp ?? (() => startMcpServer({ cwd })))();
 			return ok("");

@@ -542,11 +542,18 @@ Skills add dispatches to its own installer registry, parallel to the MCP install
 
 ### incur-backed discovery and fallback
 
-mikan already builds its stdio MCP server with `incur`. Where incur provides a discovery or manifest capability that fits mikan (for example an incur agent target, manifest command, or sync path), expose it as an additional documented and tested path rather than reimplementing it. Constraints:
+mikan already builds its stdio MCP server with `incur`. incur gives every CLI a token-efficient LLM manifest via `--llms` / `--llms-full`. mikan exposes this as `mikan mcp llms [--full]`: the incur-backed discovery path for agents that read incur manifests directly, rather than reimplementing it.
 
-- The incur-backed path must not break the existing `mikan mcp` stdio server or the custom `mikan mcp add` UX.
-- When incur cannot perform a requested installation from the custom mikan CLI, fail with a clear explanation that points to the supported native installer path instead of silently doing nothing.
-- Verify actual incur behavior before relying on it; document when to use native agent installers versus incur-backed discovery.
+- `mikan mcp llms` prints the incur manifest for the mikan MCP tools; `--full` prints the fuller per-argument manifest.
+- The incur-backed path is discovery only. It must not break the existing `mikan mcp` stdio server or the custom `mikan mcp add` UX, and it never registers a server itself.
+- Installation stays with the native installers. Discovery cannot install: passing `--agent` to `mikan mcp llms` fails with a clear message that points to `mikan mcp add --agent <agent>` instead of silently doing nothing.
+
+When to use which:
+
+- Use `mikan mcp add` / `mikan skills add` for native, per-agent registration with each agent's verified config/skill convention.
+- Use `mikan mcp llms` for incur-backed discovery when an agent or tool can consume an incur manifest directly and does not need a config file written.
+
+Verify actual incur behavior before relying on it.
 
 ### Scope guardrails for agent integration
 

@@ -136,19 +136,25 @@ Options:
   -h, --help            Show this help
 `;
 		case "mcp":
-			return `Start the stdio MCP server or register it with an agent.
+			return `Start the stdio MCP server, register it with an agent, or print its manifest.
 
 Usage:
   mikan mcp
   mikan mcp add --agent <agent> [--no-global]
+  mikan mcp llms [--full]
 
 Options:
   -a, --agent <agent>   Agent to configure: pi, antigravity, jcode, claude-code, opencode, codex
   --no-global           Write workspace-local config instead of global config
+  --full                With llms: print the full incur manifest
   -h, --help            Show this help
 
 Notes:
   codex registers in global ~/.codex/config.toml only; --no-global is rejected.
+  Use mikan mcp add for native per-agent registration. Use mikan mcp llms for
+  incur-backed discovery: it prints a manifest for agents that read incur
+  manifests directly and never installs anything. Passing --agent to llms is
+  rejected; install with mikan mcp add --agent <agent> instead.
 
 Examples:
   mikan mcp add --agent pi
@@ -157,6 +163,8 @@ Examples:
   mikan mcp add --agent claude-code
   mikan mcp add --agent opencode --no-global
   mikan mcp add --agent codex
+  mikan mcp llms
+  mikan mcp llms --full
 `;
 		case "skills":
 			return `Install agent-facing mikan usage guidance.

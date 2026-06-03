@@ -94,6 +94,8 @@ describe("CLI read path", () => {
 			"Agent to configure: pi, antigravity, jcode, claude-code, opencode, codex",
 		);
 		expect(mcpHelp.stdout).toContain("codex registers in global");
+		expect(mcpHelp.stdout).toContain("mikan mcp llms [--full]");
+		expect(mcpHelp.stdout).toContain("incur-backed discovery");
 		expect(skillsHelp.exitCode).toBe(0);
 		expect(skillsHelp.stdout).toContain(
 			"Usage:\n  mikan skills add --agent <agent> [--no-global]",
@@ -611,6 +613,38 @@ describe("CLI read path", () => {
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 		}
+	});
+
+	test("mcp llms prints the incur manifest without starting the server", async () => {
+		const cwd = tempProject();
+		let launched = false;
+
+		const manifest = await runInteractiveCommand(["mcp", "llms"], {
+			cwd,
+			launchMcp: async () => {
+				launched = true;
+			},
+		});
+		const full = await runInteractiveCommand(["mcp", "llms", "--full"], {
+			cwd,
+		});
+		// Requesting installation through the discovery path fails clearly and
+		// points to the native installer.
+		const installAttempt = await runInteractiveCommand(
+			["mcp", "llms", "--agent", "claude-code"],
+			{ cwd },
+		);
+
+		// Discovery prints the incur manifest and never starts the stdio server.
+		expect(launched).toBe(false);
+		expect(manifest.exitCode).toBe(0);
+		expect(manifest.stdout).toContain("get_board");
+		expect(manifest.stdout).toContain("create_issue");
+		expect(manifest.stdout).toContain("append_issue");
+		expect(full.exitCode).toBe(0);
+		expect(full.stdout.length).toBeGreaterThan(manifest.stdout.length);
+		expect(installAttempt.exitCode).toBe(1);
+		expect(installAttempt.stderr).toContain("mikan mcp add --agent <agent>");
 	});
 
 	test("skills add installs guidance and rejects unsupported agents", async () => {

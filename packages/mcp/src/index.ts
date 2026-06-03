@@ -287,6 +287,29 @@ export async function startMcpServer(runtime: McpRuntime = {}): Promise<void> {
 	await createMikanMcpCli(runtime).serve(["--mcp"]);
 }
 
+/**
+ * Return incur's LLM-readable manifest for the mikan MCP server. This is the
+ * incur-backed discovery path: agents that understand incur manifests can read
+ * the tool surface without a separate MCP/skill installation. Discovery only —
+ * it never registers the server; native `mikan mcp add` does that.
+ */
+export async function getMcpManifest(
+	runtime: McpRuntime = {},
+	options: { full?: boolean } = {},
+): Promise<string> {
+	let manifest = "";
+	await createMikanMcpCli(runtime).serve(
+		[options.full ? "--llms-full" : "--llms"],
+		{
+			stdout: (chunk: string) => {
+				manifest += chunk;
+			},
+			exit: () => {},
+		},
+	);
+	return manifest;
+}
+
 function formatColumn(
 	column: BoardConfig["board"]["columns"][number] & { issues: BoardIssue[] },
 ) {

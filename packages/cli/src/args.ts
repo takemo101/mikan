@@ -70,6 +70,7 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 	mcp: [
 		{ name: "agent", short: "a", value: true },
 		{ name: "no-global", value: false },
+		{ name: "full", value: false },
 	],
 	skills: [
 		{ name: "agent", short: "a", value: true },
