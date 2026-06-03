@@ -20,6 +20,10 @@ _Avoid_: Profile, role, priority
 A structured prerequisite relationship from one **Issue** to another, stored as an Issue ID in frontmatter `depends_on`. A Dependency is satisfied only when the prerequisite Issue is in **Completed**. Dependencies guide implementation order; they do not automatically move or schedule Issues.
 _Avoid_: Parent task, blocking edge, scheduler rule
 
+**GitHub Mirror**:
+A GitHub Issue representation of a mikan **Issue** used for external visibility and discussion. The mikan Issue remains authoritative; the GitHub Mirror is not a second source of truth.
+_Avoid_: GitHub sync, bidirectional sync, GitHub source of truth
+
 **Unmet Dependency**:
 A declared **Dependency** whose prerequisite Issue is missing, malformed, archived, cyclic, self-referential, or not yet **Completed**. Unmet Dependencies are warnings/read-model information, not hard transition validation.
 _Avoid_: Lock, enforced gate, workflow rule
