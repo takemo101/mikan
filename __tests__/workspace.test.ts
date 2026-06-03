@@ -3,7 +3,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
-const packages = ["core", "project-config", "cli", "mcp", "tui"] as const;
+const packages = [
+	"core",
+	"project-config",
+	"github",
+	"cli",
+	"mcp",
+	"tui",
+] as const;
 
 describe("workspace scaffold", () => {
 	test("defines the expected Bun workspace and root scripts", () => {
@@ -81,7 +88,7 @@ describe("workspace scaffold", () => {
 		expect(workflow).toContain("actions/deploy-pages@v4");
 	});
 
-	test("creates the five v0 packages with source entrypoints", () => {
+	test("creates the v0 packages with source entrypoints", () => {
 		for (const name of packages) {
 			expect(existsSync(join(root, "packages", name, "package.json"))).toBe(
 				true,
@@ -120,6 +127,7 @@ describe("workspace scaffold", () => {
 
 		expect(Object.keys(deps)).not.toContain("mikan");
 		expect(Object.keys(deps)).not.toContain("@mikan/project-config");
+		expect(Object.keys(deps)).not.toContain("@mikan/github");
 		expect(Object.keys(deps)).not.toContain("@mikan/mcp");
 		expect(Object.keys(deps)).not.toContain("@mikan/tui");
 		expect(Object.keys(deps)).not.toContain("@opentui/core");

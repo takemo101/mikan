@@ -8,6 +8,8 @@ import type * as cliTypes from "../packages/cli/src/index.ts";
 import * as cli from "../packages/cli/src/index.ts";
 import type * as coreTypes from "../packages/core/src/index.ts";
 import * as core from "../packages/core/src/index.ts";
+import type * as githubTypes from "../packages/github/src/index.ts";
+import * as github from "../packages/github/src/index.ts";
 import type * as mcpTypes from "../packages/mcp/src/index.ts";
 import * as mcp from "../packages/mcp/src/index.ts";
 import type * as projectConfigTypes from "../packages/project-config/src/index.ts";
@@ -32,12 +34,14 @@ const CORE_FACADE = [
 	"isWriteLocked",
 	"moveIssue",
 	"parseIssueId",
+	"parseIssueDocument",
 	"parseIssueMarkdown",
 	"parseLabelId",
 	"parseProjectKey",
 	"parseStatusId",
 	"parseUtcTimestamp",
 	"scanBoard",
+	"serializeIssue",
 	"updateIssue",
 ] as const;
 
@@ -47,6 +51,12 @@ const PROJECT_CONFIG_FACADE = [
 	"findProjectConfig",
 	"initProject",
 	"loadProjectConfig",
+] as const;
+
+const GITHUB_FACADE = [
+	"defaultGhApiRunner",
+	"mirrorIssueToGitHub",
+	"pushGitHubMirror",
 ] as const;
 
 const CLI_FACADE = [
@@ -120,6 +130,7 @@ describe("package facade safety checks (MIK-076)", () => {
 	const cases: Array<[string, Record<string, unknown>, readonly string[]]> = [
 		["@mikan/core", core, CORE_FACADE],
 		["@mikan/project-config", projectConfig, PROJECT_CONFIG_FACADE],
+		["@mikan/github", github, GITHUB_FACADE],
 		["@takemo101/mikan (cli)", cli, CLI_FACADE],
 		["@mikan/mcp", mcp, MCP_FACADE],
 		["@mikan/tui", tui, TUI_FACADE],
@@ -140,6 +151,7 @@ describe("package facade safety checks (MIK-076)", () => {
 		// lists here in the same change so the intent stays explicit.
 		expect(CORE_FACADE.length).toBeGreaterThan(0);
 		expect(PROJECT_CONFIG_FACADE.length).toBeGreaterThan(0);
+		expect(GITHUB_FACADE.length).toBeGreaterThan(0);
 		expect(CLI_FACADE.length).toBeGreaterThan(0);
 		expect(MCP_FACADE.length).toBeGreaterThan(0);
 		expect(TUI_FACADE.length).toBeGreaterThan(0);
@@ -156,6 +168,8 @@ type _CoreTypeFacade = [
 	coreTypes.ProjectKey,
 	coreTypes.UtcTimestamp,
 	coreTypes.IssueParseError,
+	coreTypes.GitHubIssueReference,
+	coreTypes.IssueFrontmatter,
 	coreTypes.ParsedIssue,
 	coreTypes.ColumnConfig,
 	coreTypes.LabelConfig,
@@ -183,6 +197,14 @@ type _ProjectConfigTypeFacade = [
 	projectConfigTypes.ProjectConfigError,
 	projectConfigTypes.ProjectConfigLocation,
 	projectConfigTypes.LoadedProjectConfig,
+];
+
+type _GitHubTypeFacade = [
+	githubTypes.GhApiRequest,
+	githubTypes.GhApiRunner,
+	githubTypes.GitHubMirrorOptions,
+	githubTypes.GitHubMirrorResult,
+	githubTypes.GitHubMirrorError,
 ];
 
 type _CliTypeFacade = [
@@ -232,6 +254,7 @@ type _TuiTypeFacade = [
 export type FacadeTypeGuards = [
 	_CoreTypeFacade,
 	_ProjectConfigTypeFacade,
+	_GitHubTypeFacade,
 	_CliTypeFacade,
 	_McpTypeFacade,
 	_TuiTypeFacade,
