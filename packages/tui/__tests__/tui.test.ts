@@ -38,6 +38,7 @@ import {
 	IssueCard,
 	keyToDirection,
 	loadTuiModel,
+	MIN_COLUMN_WIDTH,
 	MovePrompt,
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
@@ -48,6 +49,7 @@ import {
 	TUI_VERSION,
 	TuiAppView,
 	type TuiSelection,
+	visibleColumnCountForViewport,
 } from "../src/index.ts";
 
 const now = () => new Date("2026-05-30T00:00:00Z");
@@ -410,6 +412,68 @@ describe("TUI model and navigation", () => {
 			empty: true,
 			emptyText: "No Issues",
 		});
+	});
+
+	test("derives responsive visible Column count clamped to 2..5", () => {
+		// Narrow viewports clamp up to the minimum of 2 Columns.
+		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH - 1)).toBe(2);
+		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 2)).toBe(2);
+		// Normal and wide viewports scale with the min Column width.
+		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 3)).toBe(3);
+		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 4)).toBe(4);
+		// Very wide viewports clamp down to the maximum of 5 Columns.
+		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 5)).toBe(5);
+		expect(visibleColumnCountForViewport(MIN_COLUMN_WIDTH * 12)).toBe(5);
+	});
+
+	test("auto-sizes the board Column viewport from viewport width", () => {
+		const model = loadTuiModel(tempProject());
+		const selection = { columnIndex: 0, cardIndex: 0, detailOpen: false };
+
+		const narrowView = buildBoardViewModel(model, selection, {
+			viewportWidth: MIN_COLUMN_WIDTH,
+		});
+		const normalView = buildBoardViewModel(model, selection, {
+			viewportWidth: MIN_COLUMN_WIDTH * 3,
+		});
+		const wideView = buildBoardViewModel(model, selection, {
+			viewportWidth: MIN_COLUMN_WIDTH * 4,
+		});
+		const veryWideView = buildBoardViewModel(model, selection, {
+			viewportWidth: MIN_COLUMN_WIDTH * 12,
+		});
+
+		expect(narrowView.visibleColumns).toHaveLength(2);
+		expect(normalView.visibleColumns.map((column) => column.id)).toEqual([
+			"backlog",
+			"ready",
+			"active",
+		]);
+		expect(wideView.visibleColumns).toHaveLength(4);
+		// All five configured Columns fit on a very wide viewport.
+		expect(veryWideView.visibleColumns.map((column) => column.id)).toEqual([
+			"backlog",
+			"ready",
+			"active",
+			"blocked",
+			"completed",
+		]);
+	});
+
+	test("explicit visibleColumnCount overrides responsive viewport width", () => {
+		const model = loadTuiModel(tempProject());
+		const selection = { columnIndex: 0, cardIndex: 0, detailOpen: false };
+
+		const fixedView = buildBoardViewModel(model, selection, {
+			visibleColumnCount: 3,
+			viewportWidth: MIN_COLUMN_WIDTH * 12,
+		});
+
+		expect(fixedView.visibleColumns.map((column) => column.id)).toEqual([
+			"backlog",
+			"ready",
+			"active",
+		]);
 	});
 
 	test("renders Column viewport indicators when offscreen Columns exist", () => {
