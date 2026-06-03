@@ -36,6 +36,7 @@ export type TuiModel = {
 	columns: TuiColumn[];
 	warnings: string[];
 	warningDetails?: TuiWarning[];
+	labelTitles?: Record<string, string>;
 };
 
 export type TuiDetails = {
@@ -56,10 +57,13 @@ export function loadTuiModel(cwd = process.cwd()): TuiModel {
 		config: loaded.value.config,
 	});
 	if (!board.ok) throw new Error(board.error.message);
-	return buildTuiModel(board.value);
+	return buildTuiModel(board.value, loaded.value.config.labels);
 }
 
-export function buildTuiModel(board: BoardSnapshot): TuiModel {
+export function buildTuiModel(
+	board: BoardSnapshot,
+	labels: { id: string; title: string }[] = [],
+): TuiModel {
 	return {
 		columns: board.columns.map((column) => ({
 			id: column.id,
@@ -70,6 +74,9 @@ export function buildTuiModel(board: BoardSnapshot): TuiModel {
 		...(board.warnings.length > 0
 			? { warningDetails: board.warnings.map(formatTuiWarning) }
 			: {}),
+		labelTitles: Object.fromEntries(
+			labels.map((label) => [label.id, label.title]),
+		),
 	};
 }
 

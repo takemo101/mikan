@@ -79,7 +79,7 @@ export function buildDetailPageViewModel(
 		id: details.card.id,
 		title: details.card.title,
 		status: details.card.status,
-		labelsText: details.card.labels.join(", "),
+		labelsText: formatDetailLabels(model, details.card),
 		dependsOnText: cardDependsOn(details.card).join(", "),
 		unmetDependenciesText: cardUnmetDependencies(details.card).join(", "),
 		dependencyStatus: cardDependencyStatus(details.card),
@@ -107,7 +107,7 @@ export function buildDetailViewModel(
 	return {
 		selected: {
 			...details.card,
-			labelsText: details.card.labels.join(", "),
+			labelsText: formatDetailLabels(model, details.card),
 		},
 		groups: model.columns.map((column, columnIndex) => ({
 			status: column.id,
@@ -128,6 +128,15 @@ export function buildDetailViewModel(
 			herdr: details.herdr,
 		},
 	};
+}
+
+function formatDetailLabels(model: TuiModel, card: TuiCard): string {
+	return card.labels
+		.map((label) => {
+			const title = model.labelTitles?.[label];
+			return title && title !== label ? `${title} (${label})` : label;
+		})
+		.join(", ");
 }
 
 function warningCountForCard(
