@@ -82,6 +82,46 @@ describe("Issue Markdown parsing", () => {
 		expect(result.value.dependencies.map(String)).toEqual([]);
 	});
 
+	test("parses optional GitHub Mirror frontmatter", () => {
+		const result = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\ngithub_issue:\n  repo: takemo101/mikan\n  number: 123\n  url: https://github.com/takemo101/mikan/issues/123\n  last_mirrored_at: 2026-06-03T22:00:00Z\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected valid Issue");
+		expect(result.value.githubIssue).toMatchObject({
+			repo: "takemo101/mikan",
+			number: 123,
+			url: "https://github.com/takemo101/mikan/issues/123",
+		});
+		expect(String(result.value.githubIssue?.lastMirroredAt)).toBe(
+			"2026-06-03T22:00:00Z",
+		);
+	});
+
+	test("rejects malformed GitHub Mirror frontmatter", () => {
+		const result = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\ngithub_issue:\n  repo: not-a-repo\n  number: 0\n  url: not a url\n  last_mirrored_at: yesterday\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid Issue");
+		expect(result.error.message).toContain("github_issue.repo");
+		expect(result.error.message).toContain("github_issue.number");
+		expect(result.error.message).toContain("github_issue.url");
+		expect(result.error.message).toContain("github_issue.last_mirrored_at");
+	});
+
+	test("rejects non-object GitHub Mirror frontmatter", () => {
+		const result = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\ngithub_issue: https://github.com/takemo101/mikan/issues/123\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid Issue");
+		expect(result.error.message).toContain("github_issue must be an object");
+	});
+
 	test("rejects missing required fields", () => {
 		const result = parseIssueMarkdown(
 			`---\ntitle: Missing ID\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,

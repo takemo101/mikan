@@ -295,6 +295,52 @@ describe("core mutations", () => {
 		expect(readIssue(root, "backlog")).toContain("priority: manual");
 	});
 
+	test("update, move, and append preserve GitHub Mirror frontmatter", () => {
+		const root = tempProject();
+		writeFileSync(
+			join(root, ".mikan", "backlog", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Seed\ngithub_issue:\n  repo: takemo101/mikan\n  number: 123\n  url: https://github.com/takemo101/mikan/issues/123\n  last_mirrored_at: 2026-06-03T22:00:00Z\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Seed\n`,
+		);
+
+		expect(
+			updateIssue({
+				projectRoot: root,
+				config,
+				id: "MIK-001",
+				title: "Updated",
+				now: t2,
+			}).ok,
+		).toBe(true);
+		expect(
+			moveIssue({
+				projectRoot: root,
+				config,
+				id: "MIK-001",
+				status: "ready",
+				now: t2,
+			}).ok,
+		).toBe(true);
+		expect(
+			appendIssue({
+				projectRoot: root,
+				config,
+				id: "MIK-001",
+				section: "Notes",
+				body: "Still mirrored",
+				now: t2,
+			}).ok,
+		).toBe(true);
+
+		const markdown = readIssue(root, "ready");
+		expect(markdown).toContain("github_issue:");
+		expect(markdown).toContain("repo: takemo101/mikan");
+		expect(markdown).toContain("number: 123");
+		expect(markdown).toContain(
+			"url: https://github.com/takemo101/mikan/issues/123",
+		);
+		expect(markdown).toContain("last_mirrored_at: 2026-06-03T22:00:00Z");
+	});
+
 	test("move changes status and appends Status Log", () => {
 		const root = tempProject();
 		seed(root);

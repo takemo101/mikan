@@ -28,7 +28,7 @@ export {
 	scanBoard,
 } from "./board-scan.ts";
 export type { DependencyStatus } from "./dependency.ts";
-export type { ParsedIssue } from "./issue-markdown.ts";
+export type { GitHubIssueReference, ParsedIssue } from "./issue-markdown.ts";
 export { parseIssueMarkdown } from "./issue-markdown.ts";
 export type {
 	AppendIssueOptions,

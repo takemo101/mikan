@@ -180,6 +180,57 @@ describe("project config", () => {
 		expect(result.error.message).toContain("duplicate label id");
 	});
 
+	test("loads optional GitHub Mirror config", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\ngithub:\n  repo: takemo101/mikan\n  auto_push_mirrors: true\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected valid config");
+		expect(result.value.config.github).toEqual({
+			repo: "takemo101/mikan",
+			auto_push_mirrors: true,
+		});
+	});
+
+	test("defaults GitHub Mirror watch auto-push to false", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\ngithub:\n  repo: takemo101/mikan\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected valid config");
+		expect(result.value.config.github).toEqual({
+			repo: "takemo101/mikan",
+			auto_push_mirrors: false,
+		});
+	});
+
+	test("returns a typed error for malformed GitHub Mirror repo", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\ngithub:\n  repo: not-a-repo\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid config");
+		expect(result.error.kind).toBe("invalid_config");
+		expect(result.error.message).toContain(
+			"github.repo must look like owner/name",
+		);
+	});
+
 	test("writes config yaml with default columns and labels", () => {
 		const root = tempProject();
 		initProject(root, { key: "MIK", name: "mikan" });
