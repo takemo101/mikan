@@ -154,15 +154,15 @@ Key bindings:
 
 The board page is primary. Detail mode renders the Issue body as Markdown with a fixed header. Move, Note, and Archive interactions use focused modal overlays.
 
-Planned TUI Column option:
+TUI Column option:
 
 ```sh
-mikan tui --columns auto   # choose 2..5 visible Columns from terminal width
+mikan tui --columns auto   # choose 2..5 visible Columns from terminal width (default)
 mikan tui --columns 2      # force a narrow two-Column viewport
 mikan tui --columns 5      # show up to five Status Columns when desired
 ```
 
-This planned `--columns` option will control only the visible TUI viewport. It will not change configured Statuses or the Markdown board.
+`mikan tui` accepts `--columns <auto|2|3|4|5>` (default `auto`). The option controls only the visible TUI viewport; it does not change configured Statuses or the Markdown board.
 
 ## MCP server
 

@@ -76,7 +76,7 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 		{ name: "agent", short: "a", value: true },
 		{ name: "no-global", value: false },
 	],
-	tui: [],
+	tui: [{ name: "columns", short: "c", value: true }],
 	watch: [{ name: "quiet", short: "q", value: false }],
 };
 

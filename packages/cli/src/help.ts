@@ -120,10 +120,17 @@ Options:
 			return `Open the read-only board.
 
 Usage:
-  mikan tui
+  mikan tui [options]
 
 Options:
+  -c, --columns <auto|2|3|4|5> Number of board columns to show (default: auto)
   -h, --help            Show this help
+
+Examples:
+  mikan tui
+  mikan tui --columns auto
+  mikan tui --columns 3
+  mikan tui -c 5
 `;
 		case "watch":
 			return `Run the polling watcher.
