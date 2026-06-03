@@ -18,6 +18,7 @@ import {
 	runWatch,
 } from "./commands.ts";
 import { commandHelp, helpText } from "./help.ts";
+import { parseTuiColumnsOption } from "./tui-options.ts";
 import { watchProject } from "./watch.ts";
 
 export type { CliOptions, InteractiveCommandOptions } from "./cli-options.ts";
@@ -69,8 +70,15 @@ export async function runCli(
 				return runMcp(cwd, parsed.value, options);
 			case "skills":
 				return runSkills(cwd, parsed.value, options);
-			case "tui":
+			case "tui": {
+				const columns = parseTuiColumnsOption(
+					parsed.value.flags.get("columns")?.at(-1),
+				);
+				if (!columns.ok) {
+					return fail(`${columns.error}\n\nRun \`mikan help tui\` for usage.`);
+				}
 				return ok("Starting mikan OpenTUI board\n");
+			}
 			case "watch":
 				return runWatch(cwd, parsed.value);
 			default:
@@ -102,6 +110,18 @@ export async function runInteractiveCommand(
 			return ok("");
 		}
 		if (argv[0] === "tui") {
+			const parsed = parseArgs(argv.slice(1), "tui");
+			if (!parsed.ok) {
+				return fail(`${parsed.error}\n\nRun \`mikan help tui\` for usage.`);
+			}
+			// Validate --columns here so invalid values fail before launching.
+			// Wiring the resolved column count into launchTui is MIK-104.
+			const columns = parseTuiColumnsOption(
+				parsed.value.flags.get("columns")?.at(-1),
+			);
+			if (!columns.ok) {
+				return fail(`${columns.error}\n\nRun \`mikan help tui\` for usage.`);
+			}
 			const loaded = loadProjectConfig(cwd);
 			if (!loaded.ok) return fail(loaded.error.message);
 			await (options.launchTui ?? (() => launchTui({ cwd })))();

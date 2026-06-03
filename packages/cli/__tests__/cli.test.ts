@@ -476,6 +476,98 @@ describe("CLI read path", () => {
 		expect(launched).toBe(true);
 	});
 
+	test("tui defaults to auto columns", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+
+		const result = await cli(cwd, ["tui"]);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toContain("OpenTUI board");
+	});
+
+	test("tui accepts --columns auto and numeric 2..5", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+
+		for (const value of ["auto", "2", "3", "4", "5"]) {
+			const result = await cli(cwd, ["tui", "--columns", value]);
+			expect(result.exitCode).toBe(0);
+			expect(result.stdout).toContain("OpenTUI board");
+			expect(result.stderr).toBe("");
+		}
+
+		const inline = await cli(cwd, ["tui", "--columns=4"]);
+		expect(inline.exitCode).toBe(0);
+		expect(inline.stdout).toContain("OpenTUI board");
+	});
+
+	test("tui rejects invalid --columns values and points to help", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+
+		for (const value of [
+			"1",
+			"6",
+			"9",
+			"wide",
+			"2.5",
+			"2.0",
+			" 2",
+			"0x2",
+			"3e0",
+		]) {
+			const result = await cli(cwd, ["tui", "--columns", value]);
+			expect(result.exitCode).toBe(1);
+			expect(result.stdout).toBe("");
+			expect(result.stderr).toContain(`Invalid --columns value: ${value}`);
+			expect(result.stderr).toContain("mikan help tui");
+		}
+	});
+
+	test("tui interactive launch rejects invalid --columns before launching", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		let launched = false;
+
+		const result = await runInteractiveCommand(["tui", "--columns", "9"], {
+			cwd,
+			launchTui: async () => {
+				launched = true;
+			},
+		});
+
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain("Invalid --columns value: 9");
+		expect(result.stderr).toContain("mikan help tui");
+		expect(launched).toBe(false);
+	});
+
+	test("tui interactive launch accepts valid --columns", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		let launched = false;
+
+		const result = await runInteractiveCommand(["tui", "--columns", "3"], {
+			cwd,
+			launchTui: async () => {
+				launched = true;
+			},
+		});
+
+		expect(result).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+		expect(launched).toBe(true);
+	});
+
+	test("tui help documents the --columns option", async () => {
+		const result = await cli(tempProject(), ["help", "tui"]);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toContain("--columns");
+		expect(result.stdout).toContain("auto");
+		expect(result.stdout).toContain("mikan tui --columns 3");
+	});
+
 	test("mcp command advertises stdio server startup", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);

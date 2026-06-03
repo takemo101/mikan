@@ -120,10 +120,21 @@ Options:
 			return `Open the read-only board.
 
 Usage:
-  mikan tui
+  mikan tui [options]
 
 Options:
+  -c, --columns <auto|2|3|4|5> Preferred visible Column count (default: auto)
   -h, --help            Show this help
+
+Examples:
+  mikan tui
+  mikan tui --columns auto
+  mikan tui --columns 3
+  mikan tui -c 5
+
+Notes:
+  --columns is accepted and validated now; applying it to the rendered
+  viewport is a follow-up. auto derives the count from terminal width.
 `;
 		case "watch":
 			return `Run the polling watcher.
