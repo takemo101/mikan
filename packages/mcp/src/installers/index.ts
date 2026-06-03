@@ -1,6 +1,7 @@
 import { antigravityInstaller } from "./antigravity.ts";
 import { claudeCodeInstaller } from "./claude-code.ts";
 import { jcodeInstaller } from "./jcode.ts";
+import { opencodeInstaller } from "./opencode.ts";
 import { piInstaller } from "./pi.ts";
 import type {
 	McpAgentInstaller,
@@ -23,6 +24,7 @@ export const mcpAgentInstallers: McpAgentInstaller[] = [
 	antigravityInstaller,
 	jcodeInstaller,
 	claudeCodeInstaller,
+	opencodeInstaller,
 ];
 
 export function installMcpServerForAgent(

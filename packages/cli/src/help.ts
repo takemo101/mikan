@@ -142,7 +142,7 @@ Usage:
   mikan mcp add --agent <agent> [--no-global]
 
 Options:
-  -a, --agent <agent>   Agent to configure: pi, antigravity, jcode, claude-code
+  -a, --agent <agent>   Agent to configure: pi, antigravity, jcode, claude-code, opencode
   --no-global           Write workspace-local config instead of global config
   -h, --help            Show this help
 
@@ -151,6 +151,7 @@ Examples:
   mikan mcp add --agent antigravity --no-global
   mikan mcp add -a jcode
   mikan mcp add --agent claude-code
+  mikan mcp add --agent opencode --no-global
 `;
 	}
 }
