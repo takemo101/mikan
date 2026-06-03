@@ -358,12 +358,12 @@ mikan update MIK-002 --title "Prototype dispatcher" --label automation --label h
 mikan move MIK-001 ready --log "Ready to implement"
 mikan append MIK-001 --section Reports --source docs-scout --body "..."
 mikan append MIK-001 --section Notes --body "..."
-mikan tui
+mikan tui [--columns auto|2|3|4|5]
 mikan watch
 mikan mcp
 ```
 
-Do not add separate `block`, `complete`, `report`, `note`, `dependencies set`, or `labels set` commands in v0. They are expressed through `move`, `update`, and `append`. `add` and `update` may accept repeated `--depends-on <issue-id>` flags to write frontmatter dependencies.
+Do not add separate `block`, `complete`, `report`, `note`, `dependencies set`, or `labels set` commands in v0. They are expressed through `move`, `update`, and `append`. `add` and `update` may accept repeated `--depends-on <issue-id>` flags to write frontmatter dependencies. `tui --columns` controls only the visible Column viewport width; it does not change configured Statuses or the board source of truth.
 
 ## MCP surface
 
@@ -400,6 +400,8 @@ Must support:
 - discover project by walking upward for `.mikan/config.yaml`;
 - display configured columns, excluding `archived` by default, as Status panes with Issue counts;
 - show a sliding horizontal Column viewport rather than forcing every configured Status onscreen at once;
+- default to `mikan tui --columns auto`, deriving the visible Column count from terminal width with a minimum of 2 and a maximum of 5;
+- accept fixed `mikan tui --columns 2`, `3`, `4`, or `5` for users who want to override the responsive viewport;
 - shift the visible Column viewport as focus moves, for example `Backlog / Ready / Active` → `Ready / Active / Blocked` → `Active / Blocked / Completed`;
 - show Cards from corresponding directories with compact Issue ID, title, labels, and focused Card styling;
 - highlight the selected Card/Column and keep empty Columns visible with a muted empty state;
