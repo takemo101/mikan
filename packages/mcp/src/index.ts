@@ -18,11 +18,11 @@ export type {
 	McpAgentInstaller,
 	McpAgentInstallOptions,
 	McpAgentInstallResult,
-} from "./installers.ts";
+} from "./installers/index.ts";
 export {
 	installMcpServerForAgent,
 	mcpAgentInstallers,
-} from "./installers.ts";
+} from "./installers/index.ts";
 
 export type McpRuntime = {
 	cwd?: string;
