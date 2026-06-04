@@ -14,12 +14,9 @@
     },
     "packages/cli": {
       "name": "@takemo101/mikan",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "bin": {
         "mikan": "dist/bin.js",
-      },
-      "dependencies": {
-        "@mikan/github": "workspace:*",
       },
       "optionalDependencies": {
         "@opentui/core-darwin-arm64": "0.3.0",

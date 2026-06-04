@@ -33,7 +33,7 @@ async function cli(
 describe("CLI read path", () => {
 	test("package metadata targets scoped npm dist bin", () => {
 		expect(packageJson.name).toBe("@takemo101/mikan");
-		expect(packageJson.version).toBe("0.0.3");
+		expect(packageJson.version).toBe("0.0.4");
 		expect(packageJson.private).toBe(false);
 		expect(packageJson.bin).toEqual({ mikan: "dist/bin.js" });
 		expect(packageJson.repository).toEqual({
@@ -41,6 +41,7 @@ describe("CLI read path", () => {
 			url: "https://github.com/takemo101/mikan",
 		});
 		expect(packageJson.files).toEqual(["dist"]);
+		expect(packageJson).not.toHaveProperty("dependencies");
 		expect(packageJson.optionalDependencies).toMatchObject({
 			"@opentui/core-darwin-arm64": "0.3.0",
 			"@opentui/core-darwin-x64": "0.3.0",
@@ -63,7 +64,11 @@ describe("CLI read path", () => {
 		const pack =
 			await $`npm pack --dry-run --json ${join(import.meta.dir, "..")}`.quiet();
 		const [packed] = JSON.parse(pack.stdout.toString()) as [
-			{ files: Array<{ path: string }>; name: string; version: string },
+			{
+				files: Array<{ path: string }>;
+				name: string;
+				version: string;
+			},
 		];
 		const packedFiles = packed.files.map((file) => file.path);
 
@@ -73,7 +78,7 @@ describe("CLI read path", () => {
 			true,
 		);
 		expect(packed.name).toBe("@takemo101/mikan");
-		expect(packed.version).toBe("0.0.3");
+		expect(packed.version).toBe("0.0.4");
 		expect(packedFiles).toContain("dist/bin.js");
 		expect(packedFiles).toContain("package.json");
 		expect(packedFiles).toContain("README.md");
