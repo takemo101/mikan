@@ -50,10 +50,9 @@ Agents can use explicit tools for primitive board operations:
 | `update_issue` | Update title, labels, body, or dependencies. |
 | `move_issue` | Move an Issue to another Status and optionally append a Status Log entry. |
 | `append_issue` | Append Markdown to `Notes`, `Reports`, or another section. |
-| `mirror_issue_to_github` | Explicit external-publication operation: create or update the GitHub Issue mirror for one local Issue. |
-| `push_github_mirror` | Explicit external-publication operation: update an already-mirrored Issue without creating a new GitHub Issue. |
+| `mirror_issue_to_github` | Explicit external-publication operation: create the GitHub Issue mirror when missing or update it when it already exists. |
 
-GitHub Mirror tools are one-way publication helpers. Markdown remains the source of truth; agents should not import GitHub Issues or treat GitHub as authoritative. See [GitHub Mirror](./github-mirror.md) for setup, label behavior, and watch auto-push.
+GitHub Mirror is a one-way publication helper. Markdown remains the source of truth; agents should not import GitHub Issues or treat GitHub as authoritative. See [GitHub Mirror](./github-mirror.md) for setup, label behavior, and watch auto-push.
 
 ## Install agent skills
 

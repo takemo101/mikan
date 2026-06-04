@@ -45,7 +45,7 @@ export type SkillAgentAdapter = {
 // follow the SKILL.md convention shared by Claude Code, opencode, and Codex.
 export const skillDocument = `---
 name: mikan
-description: mikan is a local-first Issue board for AI-assisted development. Use it to read the board; create, update, move, and append to Issues; and explicitly publish GitHub Mirrors through the mikan MCP tools. Trigger when the user wants to see the board, add or change an Issue, move an Issue to another Status, record a Report or Note, publish or push a GitHub Mirror, or decide what to work on next.
+description: mikan is a local-first Issue board for AI-assisted development. Use it to read the board; create, update, move, and append to Issues; and explicitly publish GitHub Mirrors through the mikan MCP tools. Trigger when the user wants to see the board, add or change an Issue, move an Issue to another Status, record a Report or Note, publish a GitHub Mirror, or decide what to work on next.
 ---
 
 # mikan
@@ -62,8 +62,7 @@ directly:
 - \`update_issue\` — update an Issue's title, labels, dependencies, or body.
 - \`move_issue\` — move an Issue to another Status, including \`blocked\` and \`completed\`.
 - \`append_issue\` — append a Report (with a source) or a Note to an Issue.
-- \`mirror_issue_to_github\` — explicit external-publication operation that creates or updates the GitHub Issue mirror for one local Issue.
-- \`push_github_mirror\` — explicit external-publication operation that updates an already-mirrored Issue; it must not create a new GitHub Issue.
+- \`mirror_issue_to_github\` — explicit external-publication operation that creates the GitHub Issue mirror when missing or updates it when it already exists.
 
 GitHub Mirror is one-way: mikan Markdown remains the source of truth, and GitHub
 Issues are external mirrors only. Do not import GitHub Issues or treat GitHub as

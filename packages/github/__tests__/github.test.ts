@@ -28,7 +28,7 @@ const config: BoardConfig & {
 	github: { repo: "takemo101/mikan", auto_push_mirrors: false },
 };
 
-const now = () => new Date("2026-06-03T22:00:00Z");
+const now = () => new Date("2026-06-03T22:00:00.432Z");
 
 type RecordedCall = GhApiRequest;
 

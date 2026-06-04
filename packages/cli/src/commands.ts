@@ -12,11 +12,7 @@ import {
 	scanBoard,
 	updateIssue,
 } from "@mikan/core";
-import {
-	type GitHubMirrorResult,
-	mirrorIssueToGitHub,
-	pushGitHubMirror,
-} from "@mikan/github";
+import { type GitHubMirrorResult, mirrorIssueToGitHub } from "@mikan/github";
 import {
 	getMcpManifest,
 	installMcpServerForAgent,
@@ -111,7 +107,6 @@ export async function runGithub(
 	const id = parsed.positionals[1];
 	const operations = options.githubMirror ?? {
 		mirrorIssueToGitHub,
-		pushGitHubMirror,
 	};
 	const loaded = loadProjectConfig(cwd);
 	if (!loaded.ok) return fail(loaded.error.message);
@@ -127,49 +122,7 @@ export async function runGithub(
 			"mirrored",
 		);
 	}
-	if (subcommand === "push") {
-		if (parsed.flags.has("all")) {
-			const board = scanBoard({
-				projectRoot: loaded.value.projectRoot,
-				config: loaded.value.config,
-				includeArchived: true,
-			});
-			if (!board.ok) return fail(board.error.message);
-			const mirroredIssues = board.value.columns
-				.flatMap((column) => column.issues)
-				.filter((issue) => issue.issue.githubIssue)
-				.map((issue) => String(issue.issue.id));
-			const outputs: string[] = [];
-			const warnings: string[] = [];
-			for (const issueId of mirroredIssues) {
-				const result = await operations.pushGitHubMirror({
-					projectRoot: loaded.value.projectRoot,
-					config: loaded.value.config,
-					id: issueId,
-					now: options.now,
-				});
-				if (!result.ok) return fail(result.error.message);
-				outputs.push(formatGitHubMirrorSuccess(result.value, "pushed"));
-				warnings.push(...result.value.warnings);
-			}
-			return {
-				exitCode: 0,
-				stdout: outputs.length > 0 ? `${outputs.join("\n")}\n` : "",
-				stderr: formatGitHubMirrorWarnings(warnings),
-			};
-		}
-		if (!id) return fail("Usage: mikan github push <issue-id>|--all");
-		return formatGitHubMirrorCliResult(
-			await operations.pushGitHubMirror({
-				projectRoot: loaded.value.projectRoot,
-				config: loaded.value.config,
-				id,
-				now: options.now,
-			}),
-			"pushed",
-		);
-	}
-	return fail("Usage: mikan github <mirror|push> ...");
+	return fail("Usage: mikan github mirror <issue-id>");
 }
 
 export async function runWatch(
@@ -183,7 +136,7 @@ export async function runWatch(
 		cwd,
 		quiet: parsed.flags.has("quiet"),
 		githubPush: parsed.flags.has("github-push"),
-		githubMirror: options.githubMirror
+		githubMirror: options.githubMirror?.pushGitHubMirror
 			? { pushGitHubMirror: options.githubMirror.pushGitHubMirror }
 			: undefined,
 		logger: (line) => lines.push(line),

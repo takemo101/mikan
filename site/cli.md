@@ -13,7 +13,7 @@ mikan's CLI is intentionally small. Commands are primitive operations over local
 | `mikan update <id>` | Update title, labels, body, or dependencies. |
 | `mikan move <id> <status>` | Move an Issue to another Status and optionally append a Status Log entry. |
 | `mikan append <id>` | Append Markdown to a section such as `Notes` or `Reports`. |
-| `mikan github` | Create or push one-way GitHub Mirrors. |
+| `mikan github` | Create or update one-way GitHub Mirrors. |
 | `mikan tui` | Open the keyboard-first board. |
 | `mikan watch` | Run polling hooks for local automation. |
 | `mikan mcp` | Start the stdio MCP server, register it, or print its discovery manifest. |
@@ -36,8 +36,6 @@ GitHub Mirror publishes local Markdown Issues outward to GitHub Issues without m
 
 ```sh
 mikan github mirror MIK-001
-mikan github push MIK-001
-mikan github push --all
 ```
 
 Configure `github.repo` first and run `gh auth login`. See [GitHub Mirror](./github-mirror.md) for source-of-truth, label, watch, TUI, and MCP details.

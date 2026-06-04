@@ -87,6 +87,7 @@ describe("skill agent installers", () => {
 			expect(doc).toContain("local-first");
 			expect(doc).toContain("Issue board");
 			// Tells agents to use the MCP tools for reads, mutations, and appends.
+			expect(doc).not.toContain("push_github_mirror");
 			for (const tool of [
 				"get_board",
 				"list_issues",
@@ -96,7 +97,6 @@ describe("skill agent installers", () => {
 				"move_issue",
 				"append_issue",
 				"mirror_issue_to_github",
-				"push_github_mirror",
 			]) {
 				expect(doc).toContain(tool);
 			}

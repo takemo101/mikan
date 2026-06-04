@@ -474,7 +474,7 @@ describe("watch hooks", () => {
 			join(cwd, ".mikan", ".state", "hook-log.ndjson"),
 			"utf8",
 		);
-		expect(hookLog).toContain('"command":"github push MIK-002"');
+		expect(hookLog).toContain('"command":"github auto-push MIK-002"');
 		expect(hookLog).toContain("gh auth failed");
 	});
 

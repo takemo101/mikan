@@ -69,7 +69,7 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 		{ name: "body", short: "b", value: true },
 		{ name: "source", short: "s", value: true },
 	],
-	github: [{ name: "all", value: false }],
+	github: [],
 	mcp: [
 		{ name: "agent", short: "a", value: true },
 		{ name: "no-global", value: false },

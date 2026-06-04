@@ -115,7 +115,7 @@ The CLI exposes small primitive operations:
 | `mikan update <id>` | Update title, labels, or body. |
 | `mikan move <id> <status>` | Move an Issue to another Status and optionally append a Status Log entry. |
 | `mikan append <id>` | Append Markdown to a section such as `Notes` or `Reports`. |
-| `mikan github` | Create or push one-way GitHub Mirrors. |
+| `mikan github` | Create or update one-way GitHub Mirrors. |
 | `mikan tui` | Open the keyboard-first board. |
 | `mikan watch` | Run polling hooks for local automation. |
 | `mikan mcp` | Start the stdio MCP server, register it (`mcp add`), or print its manifest (`mcp llms`). |
@@ -149,7 +149,7 @@ Key bindings:
 - `Enter`: open full-page Markdown detail
 - `n`: append a Note in a modal prompt
 - `a`: confirm Archive in a modal prompt
-- `g`: create or push a one-way GitHub Mirror
+- `g`: create or update a one-way GitHub Mirror
 - `r`: reload from disk
 - `Esc`: back/cancel
 - `q`: quit
@@ -168,7 +168,7 @@ mikan tui --columns 5      # request up to five Status Columns
 
 ## GitHub Mirror
 
-GitHub Mirror publishes local mikan Issues outward to GitHub Issues for external visibility while keeping Markdown authoritative. Configure `github.repo`, run `gh auth login`, then use `mikan github mirror`, `mikan github push`, the TUI `g` action, or the MCP Mirror tools.
+GitHub Mirror publishes local mikan Issues outward to GitHub Issues for external visibility while keeping Markdown authoritative. Configure `github.repo`, run `gh auth login`, then use `mikan github mirror`, the TUI `g` action, or the MCP Mirror tool.
 
 Full setup, watch auto-push, label behavior, and source-of-truth rules are documented in the manual: <https://takemo101.github.io/mikan/github-mirror>
 
@@ -185,10 +185,9 @@ Available tools:
 - `update_issue(id, title?, labels?, body?, depends_on?)`
 - `move_issue(id, status, log?)`
 - `append_issue(id, section, body, source?)`
-- `mirror_issue_to_github(id)` — explicit one-way publication to create or update the GitHub Issue mirror.
-- `push_github_mirror(id)` — explicit one-way publication to update an existing mirror only.
+- `mirror_issue_to_github(id)` — explicit one-way publication to create the GitHub Issue mirror when missing or update it when it already exists.
 
-GitHub Mirror tools keep Markdown authoritative. They publish outward to GitHub Issues; they do not import GitHub state.
+GitHub Mirror keeps Markdown authoritative. It publishes outward to GitHub Issues; it does not import GitHub state.
 
 The MCP surface intentionally mirrors CLI primitives. mikan stays **stdio MCP only**: there is no HTTP server, port, auth, scheduler, workflow engine, or delegation runtime.
 
