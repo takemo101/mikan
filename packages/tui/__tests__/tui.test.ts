@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createIssue, moveIssue } from "@mikan/core";
 import { initProject, loadProjectConfig } from "@mikan/project-config";
-import packageJson from "../package.json" with { type: "json" };
+import cliPackageJson from "../../cli/package.json" with { type: "json" };
 import {
 	ArchivePrompt,
 	appendSelectedIssueNote,
@@ -956,9 +956,10 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(findElementById(tree, "mikan-header")?.props?.style).toMatchObject({
 			color: theme.interactive.accent,
 		});
-		expect(packageJson.version).toBe("0.0.3");
-		expect(TUI_VERSION).toBe(packageJson.version);
-		expect(collectTextContent(tree)).toContain("🍊 mikan v0.0.3");
+		expect(TUI_VERSION).toBe(cliPackageJson.version);
+		expect(collectTextContent(tree)).toContain(
+			`🍊 mikan v${cliPackageJson.version}`,
+		);
 		expect(findElementById(tree, "mikan-main")?.props?.style).toMatchObject({
 			flexGrow: 1,
 		});
