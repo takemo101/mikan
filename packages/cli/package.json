@@ -1,6 +1,6 @@
 {
 	"name": "@takemo101/mikan",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"private": false,
 	"type": "module",
 	"bin": {
@@ -15,9 +15,6 @@
 	],
 	"publishConfig": {
 		"access": "public"
-	},
-	"dependencies": {
-		"@mikan/github": "workspace:*"
 	},
 	"optionalDependencies": {
 		"@opentui/core-darwin-arm64": "0.3.0",
