@@ -74,6 +74,7 @@ export function refreshTuiModel(options: {
 			githubConfirmOpen: stillSelected
 				? options.selection.githubConfirmOpen
 				: false,
+			githubBusy: stillSelected ? options.selection.githubBusy : false,
 			warningsOpen: options.selection.warningsOpen,
 			helpOpen: options.selection.helpOpen,
 		},
@@ -205,6 +206,7 @@ export async function beginSelectedIssueGitHubMirror(options: {
 	now?: () => Date;
 	githubMirror?: TuiGitHubMirrorOperations;
 }): Promise<TuiMutationResult> {
+	if (options.selection.githubBusy) return githubAlreadyRunning(options);
 	const card = selectedCard(options.model, options.selection);
 	if (!card) {
 		return {
@@ -261,6 +263,7 @@ export async function confirmSelectedIssueGitHubMirror(options: {
 	now?: () => Date;
 	githubMirror?: TuiGitHubMirrorOperations;
 }): Promise<TuiMutationResult> {
+	if (options.selection.githubBusy) return githubAlreadyRunning(options);
 	const card = selectedCard(options.model, options.selection);
 	if (!card) {
 		return {
@@ -372,6 +375,7 @@ function refreshAfterGitHubMirror(options: {
 			...selection,
 			detailOpen: options.selection.detailOpen,
 			githubConfirmOpen: false,
+			githubBusy: false,
 		},
 		message: options.message,
 	};
@@ -379,6 +383,18 @@ function refreshAfterGitHubMirror(options: {
 
 function selectedCard(model: TuiModel, selection: TuiSelection) {
 	return model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+}
+
+function githubAlreadyRunning(options: {
+	model: TuiModel;
+	selection: TuiSelection;
+}): TuiMutationResult {
+	return {
+		ok: false,
+		model: options.model,
+		selection: options.selection,
+		message: "GitHub mirror already running",
+	};
 }
 
 export function appendSelectedIssueNote(options: {

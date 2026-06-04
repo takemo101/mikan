@@ -248,6 +248,7 @@ export async function launchTui(
 		});
 		const modelRef = React.useRef(model);
 		const selectionRef = React.useRef(selection);
+		const githubBusyRef = React.useRef(false);
 		modelRef.current = model;
 		selectionRef.current = selection;
 
@@ -328,14 +329,21 @@ export async function launchTui(
 					return;
 				}
 				if (action === "enter") {
+					if (githubBusyRef.current) return;
+					githubBusyRef.current = true;
+					setSelection((current) => ({ ...current, githubBusy: true }));
 					void (async () => {
-						const result = await confirmSelectedIssueGitHubMirror({
-							cwd: options.cwd,
-							model,
-							selection,
-						});
-						setModel(result.model);
-						setSelection({ ...result.selection, message: result.message });
+						try {
+							const result = await confirmSelectedIssueGitHubMirror({
+								cwd: options.cwd,
+								model,
+								selection,
+							});
+							setModel(result.model);
+							setSelection({ ...result.selection, message: result.message });
+						} finally {
+							githubBusyRef.current = false;
+						}
 					})();
 					return;
 				}
@@ -393,14 +401,21 @@ export async function launchTui(
 				return;
 			}
 			if (action === "github") {
+				if (githubBusyRef.current) return;
+				githubBusyRef.current = true;
+				setSelection((current) => ({ ...current, githubBusy: true }));
 				void (async () => {
-					const result = await beginSelectedIssueGitHubMirror({
-						cwd: options.cwd,
-						model,
-						selection,
-					});
-					setModel(result.model);
-					setSelection({ ...result.selection, message: result.message });
+					try {
+						const result = await beginSelectedIssueGitHubMirror({
+							cwd: options.cwd,
+							model,
+							selection,
+						});
+						setModel(result.model);
+						setSelection({ ...result.selection, message: result.message });
+					} finally {
+						githubBusyRef.current = false;
+					}
 				})();
 				return;
 			}

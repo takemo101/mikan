@@ -10,6 +10,7 @@ export type TuiSelection = {
 	noteDraft?: string;
 	archiveOpen?: boolean;
 	githubConfirmOpen?: boolean;
+	githubBusy?: boolean;
 	warningsOpen?: boolean;
 	helpOpen?: boolean;
 	detailScrollOffset?: number;

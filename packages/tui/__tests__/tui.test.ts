@@ -1724,6 +1724,29 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(calls).toEqual(["mirror:MIK-001", "push:MIK-001"]);
 	});
 
+	test("ignores duplicate GitHub Mirror submissions while one is running", async () => {
+		const cwd = tempProject();
+		configureGitHub(cwd);
+		const calls: string[] = [];
+		const model = loadTuiModel(cwd);
+		const result = await confirmSelectedIssueGitHubMirror({
+			cwd,
+			model,
+			selection: {
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: true,
+				githubConfirmOpen: true,
+				githubBusy: true,
+			},
+			githubMirror: fakeTuiGithubMirror(123, calls),
+		});
+
+		expect(result.ok).toBe(false);
+		expect(result.message).toBe("GitHub mirror already running");
+		expect(calls).toEqual([]);
+	});
+
 	test("reports GitHub Mirror config and operation errors in the footer message", async () => {
 		const cwd = tempProject();
 		const model = loadTuiModel(cwd);
