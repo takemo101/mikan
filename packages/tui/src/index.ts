@@ -1,5 +1,5 @@
 import React from "react";
-import packageJson from "../package.json" with { type: "json" };
+import packageJson from "../../cli/package.json" with { type: "json" };
 import type { TuiAppViewProps, TuiColumnsMode } from "./app-view-props.ts";
 import { BoardView, Footer } from "./board-view.ts";
 import { DetailPage } from "./detail-view.ts";
