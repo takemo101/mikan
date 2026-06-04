@@ -18,6 +18,7 @@ import {
 	applyNoteInput,
 	archiveSelectedIssue,
 	BoardView,
+	beginGitHubMirrorSubmission,
 	beginSelectedIssueGitHubMirror,
 	buildArchivePromptViewModel,
 	buildBoardViewModel,
@@ -1688,6 +1689,19 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(opened.ok).toBe(true);
 		expect(opened.selection.githubConfirmOpen).toBe(true);
 		expect(cancelled.githubConfirmOpen).toBe(false);
+	});
+
+	test("closes the GitHub Mirror modal while submission is running", () => {
+		const selection = beginGitHubMirrorSubmission({
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+			githubConfirmOpen: true,
+		});
+
+		expect(selection.githubConfirmOpen).toBe(false);
+		expect(selection.githubBusy).toBe(true);
+		expect(selection.message).toBe("GitHub mirror running...");
 	});
 
 	test("creates and pushes GitHub Mirrors from the selected Issue", async () => {

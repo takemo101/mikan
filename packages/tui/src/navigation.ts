@@ -156,6 +156,17 @@ export function moveSelection(
 	return { ...selection, columnIndex, cardIndex };
 }
 
+export function beginGitHubMirrorSubmission(
+	selection: TuiSelection,
+): TuiSelection {
+	return {
+		...selection,
+		githubConfirmOpen: false,
+		githubBusy: true,
+		message: "GitHub mirror running...",
+	};
+}
+
 export function getMoveTargets(
 	model: TuiModel,
 	selection: TuiSelection,

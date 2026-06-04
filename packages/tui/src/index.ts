@@ -23,6 +23,7 @@ import {
 } from "./mutations.ts";
 import {
 	applyNoteInput,
+	beginGitHubMirrorSubmission,
 	footerMode,
 	getMoveTargets,
 	keyToTuiAction,
@@ -114,6 +115,7 @@ export {
 } from "./mutations.ts";
 export {
 	applyNoteInput,
+	beginGitHubMirrorSubmission,
 	getAdjacentMoveTarget,
 	getMoveTargets,
 	keyToDirection,
@@ -331,7 +333,7 @@ export async function launchTui(
 				if (action === "enter") {
 					if (githubBusyRef.current) return;
 					githubBusyRef.current = true;
-					setSelection((current) => ({ ...current, githubBusy: true }));
+					setSelection((current) => beginGitHubMirrorSubmission(current));
 					void (async () => {
 						try {
 							const result = await confirmSelectedIssueGitHubMirror({
@@ -403,7 +405,11 @@ export async function launchTui(
 			if (action === "github") {
 				if (githubBusyRef.current) return;
 				githubBusyRef.current = true;
-				setSelection((current) => ({ ...current, githubBusy: true }));
+				const card =
+					model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+				if (card?.githubIssue) {
+					setSelection((current) => beginGitHubMirrorSubmission(current));
+				}
 				void (async () => {
 					try {
 						const result = await beginSelectedIssueGitHubMirror({
