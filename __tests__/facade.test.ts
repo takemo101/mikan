@@ -78,7 +78,6 @@ const MCP_FACADE = [
 	"mcpAgentInstallers",
 	"mirrorIssueToGitHubTool",
 	"moveIssueTool",
-	"pushGitHubMirrorTool",
 	"startMcpServer",
 	"updateIssueTool",
 ] as const;
@@ -104,6 +103,7 @@ const TUI_FACADE = [
 	"appendSelectedIssueNote",
 	"applyNoteInput",
 	"archiveSelectedIssue",
+	"beginGitHubMirrorSubmission",
 	"beginSelectedIssueGitHubMirror",
 	"buildArchivePromptViewModel",
 	"buildBoardViewModel",

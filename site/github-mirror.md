@@ -20,7 +20,7 @@ github:
   auto_push_mirrors: false
 ```
 
-- `github.repo` is required before creating or pushing a Mirror.
+- `github.repo` is required before publishing a Mirror.
 - `github.auto_push_mirrors` defaults to `false`. Set it to `true` only when you want `mikan watch` to push changes for Issues that already have `github_issue` frontmatter.
 
 ## What gets stored locally
@@ -45,25 +45,13 @@ Create or update one Mirror explicitly:
 mikan github mirror MIK-001
 ```
 
-Push an Issue that already has `github_issue`:
-
-```sh
-mikan github push MIK-001
-```
-
-Push every local Issue that already has `github_issue`:
-
-```sh
-mikan github push --all
-```
-
-`push` and `push --all` never create new GitHub Issues. Use `mirror` for the first publication.
+If the Issue has no `github_issue`, `mirror` creates the GitHub Issue and stores the reference locally. If the Issue already has `github_issue`, `mirror` updates that GitHub Issue from the local Markdown source.
 
 ## TUI action
 
 In `mikan tui`, press `g` on the selected Issue in either Board or Detail mode.
 
-- If the Issue already has `github_issue`, mikan pushes it immediately and shows `GitHub mirror pushed #123` in the footer.
+- If the Issue already has `github_issue`, mikan updates it immediately and shows `GitHub mirror pushed #123` in the footer.
 - If the Issue has no `github_issue`, mikan opens a confirmation modal showing the Issue ID, title, target repo, and a source-of-truth note. Press `Enter` to create the Mirror or `Esc` to cancel.
 - If `github.repo` is unset, mikan shows a footer message instead of opening a config UI.
 
@@ -71,12 +59,11 @@ Detail mode shows mirrored Issues as `GitHub #123` in the metadata line. Dense B
 
 ## MCP tools
 
-Agents can publish Mirrors through explicit MCP tools:
+Agents can publish Mirrors through one explicit MCP tool:
 
-- `mirror_issue_to_github` — create or update the GitHub Issue Mirror for one local Issue.
-- `push_github_mirror` — push one already-mirrored Issue; it does not create a new GitHub Issue.
+- `mirror_issue_to_github` — create the GitHub Issue Mirror when missing or update it when it already exists.
 
-These tools are external-publication operations. Agents should still read and mutate the local mikan Issue as the source of truth.
+This tool is an external-publication operation. Agents should still read and mutate the local mikan Issue as the source of truth.
 
 ## Watch auto-push
 

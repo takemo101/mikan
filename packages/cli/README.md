@@ -18,7 +18,7 @@ mikan is currently built for Bun-based execution. The npm package installs the `
 - **Markdown source of truth**: each Issue is a file such as `.mikan/ready/MIK-001.md`.
 - **Primitive CLI commands**: `init`, `add`, `list`, `show`, `update`, `move`, `append`, `github`, `tui`, `watch`, `mcp`, `skills`.
 - **Keyboard TUI**: board-first flow with detail view, Note modal, Move shortcuts, and Archive confirmation.
-- **MCP server**: stdio tools for agents: `get_board`, `list_issues`, `get_issue`, `create_issue`, `update_issue`, `move_issue`, `append_issue`, `mirror_issue_to_github`, `push_github_mirror`.
+- **MCP server**: stdio tools for agents: `get_board`, `list_issues`, `get_issue`, `create_issue`, `update_issue`, `move_issue`, `append_issue`, `mirror_issue_to_github`.
 - **GitHub Mirror**: explicit one-way publication from local Markdown Issues to GitHub Issues.
 - **Agent setup**: register the MCP server or install agent guidance for common AI agents.
 - **Watch hooks**: optional local automation on Status entry/transition.
@@ -49,7 +49,7 @@ The option changes only how many Columns are visible at once; it never changes c
 
 ## GitHub Mirror
 
-GitHub Mirror is one-way publication from local Markdown Issues to GitHub Issues. Configure `github.repo`, run `gh auth login`, then use `mikan github mirror`, `mikan github push`, the TUI `g` action, or MCP Mirror tools. The full manual is at <https://takemo101.github.io/mikan/github-mirror>.
+GitHub Mirror is one-way publication from local Markdown Issues to GitHub Issues. Configure `github.repo`, run `gh auth login`, then use `mikan github mirror`, the TUI `g` action, or the MCP Mirror tool. The full manual is at <https://takemo101.github.io/mikan/github-mirror>.
 
 ## Agent setup
 

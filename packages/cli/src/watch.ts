@@ -290,7 +290,7 @@ function recordGitHubMirrorPushFailure(
 	appendHookFailure(projectRoot, {
 		timestamp: utcNow(options.now),
 		issue_id: issueId,
-		command: `github push ${issueId}`,
+		command: `github auto-push ${issueId}`,
 		exit_code: 1,
 		error: message,
 	});

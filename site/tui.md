@@ -20,7 +20,7 @@ Key bindings:
 | `Enter` | Open the selected Issue detail page |
 | `n` | Append a Note in a modal prompt |
 | `a` | Confirm Archive in a modal prompt |
-| `g` | Create or push a GitHub Mirror for the selected Issue |
+| `g` | Create or update a GitHub Mirror for the selected Issue |
 | `r` | Reload from disk |
 | `?` | Show key help |
 | `Esc` | Back or cancel |
@@ -52,14 +52,14 @@ The TUI performs the same small mutations exposed by the CLI:
 - Move selected Issue to a neighboring Status.
 - Append a Note.
 - Archive with confirmation.
-- Create or push a one-way GitHub Mirror with `g`.
+- Create or update a one-way GitHub Mirror with `g`.
 - Reload from disk after external edits.
 
 mikan writes through the same project-local lock used by the CLI and MCP server.
 
 ## GitHub Mirror
 
-Press `g` on the selected Issue in Board or Detail mode. If the Issue is already mirrored, mikan pushes it immediately. If it has no `github_issue`, mikan opens a confirmation modal showing the Issue ID, title, configured GitHub repo, and a note that local Markdown remains the source of truth.
+Press `g` on the selected Issue in Board or Detail mode. If the Issue is already mirrored, mikan updates it immediately. If it has no `github_issue`, mikan opens a confirmation modal showing the Issue ID, title, configured GitHub repo, and a note that local Markdown remains the source of truth.
 
 Mirrored Issues show `GitHub #123` in Detail metadata. Dense Board Cards stay focused on Issue ID, title, labels, and dependency hints. See [GitHub Mirror](./github-mirror.md) for setup and rules.
 

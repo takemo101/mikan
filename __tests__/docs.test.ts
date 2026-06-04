@@ -86,10 +86,8 @@ describe("manual site documentation", () => {
 			"github.auto_push_mirrors",
 			"gh auth login",
 			"mikan github mirror MIK-001",
-			"mikan github push --all",
 			"TUI action",
 			"mirror_issue_to_github",
-			"push_github_mirror",
 			"mikan watch --github-push",
 			"label creation fails",
 			"GitHub state is never authoritative",
@@ -101,6 +99,8 @@ describe("manual site documentation", () => {
 	test("GitHub Mirror docs avoid sync framing and are linked from docs surfaces", () => {
 		expect(githubMirrorManual).not.toContain("bidirectional sync");
 		expect(githubMirrorManual).not.toContain("GitHub sync");
+		expect(githubMirrorManual).not.toContain("push_github_mirror");
+		expect(githubMirrorManual).not.toContain("mikan github push");
 		expect(readme).toContain("https://takemo101.github.io/mikan/github-mirror");
 		expect(packageReadme).toContain(
 			"https://takemo101.github.io/mikan/github-mirror",

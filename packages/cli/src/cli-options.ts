@@ -6,7 +6,7 @@ export type GitHubMirrorCliOperations = {
 	mirrorIssueToGitHub: (
 		options: GitHubMirrorOptions,
 	) => Promise<Result<GitHubMirrorResult, { kind: string; message: string }>>;
-	pushGitHubMirror: (
+	pushGitHubMirror?: (
 		options: GitHubMirrorOptions,
 	) => Promise<Result<GitHubMirrorResult, { kind: string; message: string }>>;
 };
