@@ -64,7 +64,10 @@ If a package-specific command is more appropriate for a small Issue slice, use t
 When preparing an npm release, follow the existing dist-package model unless the user explicitly chooses a different packaging strategy.
 
 - Publish the CLI package from `packages/cli`; keep the workspace root private.
+- Bump the published CLI package version in `packages/cli/package.json`; private workspace package versions are not the release version users see.
 - Bump published package versions after a broken release; npm versions are immutable, so do not try to republish the same version.
+- User-facing version displays must read the published CLI package version, not private workspace package metadata. In particular, the TUI header should display `packages/cli/package.json`'s version, not `packages/tui/package.json`.
+- Update tests that pin release metadata, including CLI package metadata, packed package assertions, and any TUI/user-facing version display assertions.
 - Regenerate and validate `packages/cli/dist/` before publishing, but keep generated dist files ignored/uncommitted unless the packaging strategy changes.
 - Verify the packed package, not only the workspace. At minimum run `npm pack --dry-run --json packages/cli` and confirm the tarball contains `dist/bin.js`, `README.md`, and `package.json`, and excludes TypeScript source when using dist-only publishing.
 - For bundled CLIs that use native/optional runtime packages, make sure the published `packages/cli/package.json` declares the platform packages npm must install. In particular, `mikan tui` depends on OpenTUI native packages such as `@opentui/core-darwin-arm64`; missing optional dependencies can pass local workspace tests but fail after global install.
