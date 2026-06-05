@@ -64,7 +64,7 @@ Canonical terms are defined in [`CONTEXT.md`](../CONTEXT.md). The most important
 - **Issue ID**: stable project-key sequence such as `MIK-001`.
 - **Status**: lifecycle position: `backlog`, `ready`, `active`, `blocked`, `completed`, `archived`.
 - **Column**: board lane for a Status.
-- **Label**: configured descriptive tag, not workflow behavior.
+- **Label**: configured descriptive tag used for filtering, grouping, and selecting optional hook commands; not an agent profile, role, priority, scheduler rule, or success behavior.
 - **Report**: append-only finding from a named source.
 - **Note**: lightweight free-form context.
 - **Card**: TUI representation of an Issue.
@@ -191,6 +191,10 @@ hooks:
   on_enter:
     active:
       - "zx scripts/on-active.mjs {{issue_path}}"
+      - command: "zx scripts/start-automation.mjs {{issue_path}}"
+        when:
+          labels_include:
+            - automation
   on_transition:
     ready->active:
       - "zx scripts/spawn-agent.mjs {{issue_path}}"
@@ -439,6 +443,28 @@ Behavior:
 - If watch observes a direct file move without a matching `Moved from <from> to <to>` or watcher placeholder Status Log entry, append a placeholder once.
 - Do not process transitions while the mikan write lock is held.
 - In long-running watch mode, log startup and events only; do not emit repeated no-op polling summaries such as `watch observed N issue(s), 0 transition(s)`.
+
+Hook entries may be unconditional command strings, or command objects with a small filter:
+
+```yaml
+hooks:
+  on_enter:
+    active:
+      - "zx scripts/on-active.mjs {{issue_path}}"
+      - command: "zx scripts/start-automation.mjs {{project_root}} {{issue_path}} {{issue_id}}"
+        when:
+          labels_include:
+            - automation
+```
+
+Filter semantics:
+
+- string entries are unconditional hook commands;
+- object entries with `command` and no `when` are also unconditional hook commands;
+- `when.labels_include` is an include-all filter: every listed Label ID must be present on the Issue for that command to run;
+- `when.labels_include` must not be empty;
+- config-unknown Label IDs in `when.labels_include` produce a watch warning on stderr and skip that hook command;
+- skipped hook commands are normal no-ops and are not written to `hook-log.ndjson`.
 
 Hook template variables in v0:
 

@@ -21,6 +21,7 @@ import {
 	type GitHubMirrorResult,
 } from "@mikan/github";
 import {
+	type HookEntry,
 	type LoadedProjectConfig,
 	loadProjectConfig,
 } from "@mikan/project-config";
@@ -251,7 +252,9 @@ function fireHooks(
 		...(hooks?.on_enter?.[toStatus] ?? []),
 		...(hooks?.on_transition?.[`${fromStatus}->${toStatus}`] ?? []),
 	];
-	for (const command of commands) {
+	for (const entry of commands) {
+		const command = hookCommandForIssue(entry, loaded, issue, options);
+		if (!command) continue;
 		const rendered = renderHookCommand(command, {
 			project_root: loaded.projectRoot,
 			issue_path: issue.path,
@@ -279,6 +282,33 @@ function fireHooks(
 			);
 		}
 	}
+}
+
+function hookCommandForIssue(
+	entry: HookEntry,
+	loaded: LoadedProjectConfig,
+	issue: BoardIssue,
+	options: WatchOptions,
+): string | undefined {
+	if (typeof entry === "string") return entry;
+	const labelsInclude = entry.when?.labels_include;
+	if (!labelsInclude) return entry.command;
+
+	const knownLabels = new Set(loaded.config.labels.map((label) => label.id));
+	for (const label of labelsInclude) {
+		if (!knownLabels.has(label)) {
+			emitError(
+				options,
+				`hook skipped: ${String(issue.issue.id)} references unknown label in hook filter: ${label}`,
+			);
+			return undefined;
+		}
+	}
+
+	const issueLabels = new Set(issue.issue.labels.map(String));
+	return labelsInclude.every((label) => issueLabels.has(label))
+		? entry.command
+		: undefined;
 }
 
 function recordGitHubMirrorPushFailure(
