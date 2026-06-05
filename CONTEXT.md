@@ -13,7 +13,7 @@ A short stable identifier for an **Issue**, formed from the project key and a se
 _Avoid_: Slug, title ID, filename ID
 
 **Label**:
-A configured lightweight tag on an **Issue** used for filtering and grouping. Labels are descriptive only; they do not assign agent profiles or workflow behavior.
+A configured lightweight tag on an **Issue** used for filtering, grouping, and selecting optional hook commands. Labels are descriptive only; they do not assign agent profiles, roles, priority, scheduling, or success behavior.
 _Avoid_: Profile, role, priority
 
 **Dependency**:

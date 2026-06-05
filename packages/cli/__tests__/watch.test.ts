@@ -174,6 +174,72 @@ describe("watch hooks", () => {
 		).toContain('"exit_code":7');
 	});
 
+	test("filters object hook commands by included labels", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		writeFileSync(
+			join(cwd, ".mikan", "config.yaml"),
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\n    - id: ready\n      title: Ready\nlabels:\n  - id: automation\n    title: Automation\n  - id: herdr\n    title: Herdr\nhooks:\n  on_enter:\n    ready:\n      - command: "echo unconditional {{issue_id}} >> .mikan/.state/hooks.txt"\n      - command: "echo automation {{issue_id}} >> .mikan/.state/hooks.txt"\n        when:\n          labels_include:\n            - automation\n      - command: "echo automation-herdr {{issue_id}} >> .mikan/.state/hooks.txt"\n        when:\n          labels_include:\n            - automation\n            - herdr\n`,
+		);
+		await cli(cwd, ["add", "First", "--label", "automation"]);
+		await cli(cwd, [
+			"add",
+			"Second",
+			"--label",
+			"automation",
+			"--label",
+			"herdr",
+		]);
+		await runWatchOnce({ cwd });
+
+		renameSync(
+			join(cwd, ".mikan", "backlog", "MIK-001.md"),
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+		);
+		renameSync(
+			join(cwd, ".mikan", "backlog", "MIK-002.md"),
+			join(cwd, ".mikan", "ready", "MIK-002.md"),
+		);
+		await runWatchOnce({ cwd });
+
+		const hooks = readFileSync(
+			join(cwd, ".mikan", ".state", "hooks.txt"),
+			"utf8",
+		);
+		expect(hooks).toContain("unconditional MIK-001");
+		expect(hooks).toContain("automation MIK-001");
+		expect(hooks).not.toContain("automation-herdr MIK-001");
+		expect(hooks).toContain("unconditional MIK-002");
+		expect(hooks).toContain("automation MIK-002");
+		expect(hooks).toContain("automation-herdr MIK-002");
+	});
+
+	test("warns and skips hook commands with config-unknown label filters", async () => {
+		const cwd = tempProject();
+		const errors: string[] = [];
+		await cli(cwd, ["init"]);
+		writeFileSync(
+			join(cwd, ".mikan", "config.yaml"),
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\n    - id: ready\n      title: Ready\nlabels:\n  - id: automation\n    title: Automation\nhooks:\n  on_enter:\n    ready:\n      - command: "echo missing-label {{issue_id}} >> .mikan/.state/hooks.txt"\n        when:\n          labels_include:\n            - missing\n`,
+		);
+		await cli(cwd, ["add", "First", "--label", "automation"]);
+		await runWatchOnce({ cwd });
+
+		renameSync(
+			join(cwd, ".mikan", "backlog", "MIK-001.md"),
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+		);
+		await runWatchOnce({ cwd, errorLogger: (line) => errors.push(line) });
+
+		expect(errors).toContain(
+			"hook skipped: MIK-001 references unknown label in hook filter: missing",
+		);
+		expect(existsSync(join(cwd, ".mikan", ".state", "hooks.txt"))).toBe(false);
+		expect(existsSync(join(cwd, ".mikan", ".state", "hook-log.ndjson"))).toBe(
+			false,
+		);
+	});
+
 	test("watchProject logs startup without no-op scan summaries", async () => {
 		const cwd = tempProject();
 		const logs: string[] = [];

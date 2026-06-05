@@ -180,6 +180,42 @@ describe("project config", () => {
 		expect(result.error.message).toContain("duplicate label id");
 	});
 
+	test("loads hook command objects with optional label filters", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\nhooks:\n  on_enter:\n    backlog:\n      - "echo always"\n      - command: "echo object always"\n      - command: "echo automation"\n        when:\n          labels_include:\n            - automation\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected valid config");
+		expect(result.value.config.hooks?.on_enter?.backlog).toEqual([
+			"echo always",
+			{ command: "echo object always" },
+			{
+				command: "echo automation",
+				when: { labels_include: ["automation"] },
+			},
+		]);
+	});
+
+	test("returns a typed error for empty hook label filters", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\nhooks:\n  on_enter:\n    backlog:\n      - command: "echo automation"\n        when:\n          labels_include: []\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid config");
+		expect(result.error.kind).toBe("invalid_config");
+		expect(result.error.message).toContain("labels_include");
+	});
+
 	test("loads optional GitHub Mirror config", () => {
 		const root = tempProject();
 		writeConfig(

@@ -249,10 +249,16 @@ hooks:
   on_enter:
     active:
       - "bun scripts/on-active.ts {{issue_path}}"
+      - command: "bun scripts/start-automation.ts {{issue_path}}"
+        when:
+          labels_include:
+            - automation
   on_transition:
     ready->active:
       - "bun scripts/spawn-agent.ts {{issue_path}}"
 ```
+
+String entries are unconditional hook commands. Object entries use `command`; optional `when.labels_include` is an include-all Label filter, so every listed Label ID must be present on the Issue for that command to run.
 
 Hook failures are written to `.mikan/.state/hook-log.ndjson`. They do not roll back Issue moves because Markdown files remain the source of truth.
 

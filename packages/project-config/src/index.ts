@@ -22,9 +22,18 @@ export type LabelConfig = {
 	title: string;
 };
 
+export type HookEntry = string | HookCommandConfig;
+
+export type HookCommandConfig = {
+	command: string;
+	when?: {
+		labels_include?: string[];
+	};
+};
+
 export type HookConfig = {
-	on_enter?: Record<string, string[]>;
-	on_transition?: Record<string, string[]>;
+	on_enter?: Record<string, HookEntry[]>;
+	on_transition?: Record<string, HookEntry[]>;
 };
 
 export type GitHubConfig = {
@@ -90,9 +99,21 @@ const labelSchema = z.object({
 	title: nonEmptyString,
 });
 
+const hookEntrySchema = z.union([
+	nonEmptyString,
+	z.object({
+		command: nonEmptyString,
+		when: z
+			.object({
+				labels_include: z.array(nonEmptyString).min(1).optional(),
+			})
+			.optional(),
+	}),
+]);
+
 const hookSchema = z.object({
-	on_enter: z.record(z.string(), z.array(z.string())).optional(),
-	on_transition: z.record(z.string(), z.array(z.string())).optional(),
+	on_enter: z.record(z.string(), z.array(hookEntrySchema)).optional(),
+	on_transition: z.record(z.string(), z.array(hookEntrySchema)).optional(),
 });
 
 const githubSchema = z.object({
