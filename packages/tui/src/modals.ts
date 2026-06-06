@@ -49,10 +49,12 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 				props.onNoteSubmit?.(props.noteTextareaRef?.current?.plainText ?? "");
 			},
 			style: {
+				alignSelf: "stretch",
 				backgroundColor: props.theme?.base.canvas,
 				textColor: props.theme?.base.text,
 				focusedBackgroundColor: props.theme?.base.canvas,
 				focusedTextColor: props.theme?.base.text,
+				width: "auto",
 			},
 		}),
 		React.createElement("text", {
