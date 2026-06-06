@@ -1143,11 +1143,9 @@ updated_at: 2026-05-30T00:00:00Z
 		);
 
 		expect(boardText).toContain(
-			"Board | ↑↓ card | ←→ column | enter detail | e labels | g github | ? keys",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys",
 		);
-		expect(detailText).toContain(
-			"Detail | ↑↓ scroll | e labels | g github | esc board | ? keys",
-		);
+		expect(detailText).toContain("Detail | ↑↓ scroll | esc board | ? keys");
 		expect(modalText).toContain("Modal | enter confirm | esc cancel | ? keys");
 		expect(detailText).not.toContain("j/k card");
 	});
@@ -1454,13 +1452,13 @@ updated_at: 2026-05-30T00:00:00Z
 			| undefined;
 
 		expect(footer?.props?.content).toBe(
-			"Board | ↑↓ card | ←→ column | enter detail | e labels | g github | ? keys    MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys    MIK-001 moved to backlog",
 		);
 		expect(
 			collectTextContent(tree).match(/MIK-001 moved to backlog/g) ?? [],
 		).toHaveLength(1);
 		expect(renderTuiText(model, selection)).toContain(
-			"Board | ↑↓ card | ←→ column | enter detail | e labels | g github | ? keys    MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | ? keys    MIK-001 moved to backlog",
 		);
 		expect(renderTuiText(model, selection)).not.toContain(
 			"\nMIK-001 moved to backlog\n\nBoard |",
