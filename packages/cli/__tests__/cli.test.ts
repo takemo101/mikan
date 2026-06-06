@@ -89,6 +89,8 @@ describe("CLI read path", () => {
 		const cwd = tempProject();
 
 		const globalHelp = await cli(cwd, ["--help"]);
+		const version = await cli(cwd, ["--version"]);
+		const shortVersion = await cli(cwd, ["-v"]);
 		const addHelp = await cli(cwd, ["add", "--help"]);
 		const helpAdd = await cli(cwd, ["help", "add"]);
 		const mcpHelp = await cli(cwd, ["help", "mcp"]);
@@ -98,9 +100,12 @@ describe("CLI read path", () => {
 		expect(globalHelp.stdout).toContain("mikan — local-first Issue board");
 		expect(globalHelp.stdout).toContain("Usage:");
 		expect(globalHelp.stdout).toContain("Commands:");
+		expect(globalHelp.stdout).toContain("-v, --version");
 		expect(globalHelp.stdout).toContain(
 			"skills    Install agent-facing mikan usage guidance",
 		);
+		expect(version).toMatchObject({ exitCode: 0, stdout: "0.0.7\n" });
+		expect(shortVersion).toMatchObject({ exitCode: 0, stdout: "0.0.7\n" });
 		expect(addHelp.exitCode).toBe(0);
 		expect(addHelp.stdout).toContain("Usage:\n  mikan add <title>");
 		expect(addHelp.stdout).toContain("-s, --status <status>");
