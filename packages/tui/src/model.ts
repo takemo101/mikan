@@ -40,10 +40,16 @@ export type TuiWarning = {
 	path?: string;
 };
 
+export type TuiLabel = {
+	id: string;
+	title: string;
+};
+
 export type TuiModel = {
 	columns: TuiColumn[];
 	warnings: string[];
 	warningDetails?: TuiWarning[];
+	labels?: TuiLabel[];
 	labelTitles?: Record<string, string>;
 	githubRepo?: string;
 };
@@ -88,6 +94,7 @@ export function buildTuiModel(
 		...(board.warnings.length > 0
 			? { warningDetails: board.warnings.map(formatTuiWarning) }
 			: {}),
+		labels: labels.map((label) => ({ id: label.id, title: label.title })),
 		labelTitles: Object.fromEntries(
 			labels.map((label) => [label.id, label.title]),
 		),

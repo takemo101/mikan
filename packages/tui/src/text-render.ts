@@ -12,6 +12,7 @@ import {
 	renderArchiveInteraction,
 	renderGitHubMirrorInteraction,
 	renderKeyHelp,
+	renderLabelInteraction,
 	renderMoveInteraction,
 	renderNoteInteraction,
 	renderWarningDetails,
@@ -41,6 +42,9 @@ export function renderTuiText(
 	}
 	if (selection.noteOpen) {
 		lines.push("", ...renderNoteInteraction(model, selection));
+	}
+	if (selection.labelOpen) {
+		lines.push("", ...renderLabelInteraction(model, selection));
 	}
 	if (selection.archiveOpen) {
 		lines.push("", ...renderArchiveInteraction(model, selection));

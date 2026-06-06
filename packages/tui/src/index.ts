@@ -7,6 +7,7 @@ import {
 	ArchivePrompt,
 	GitHubMirrorPrompt,
 	HelpPanel,
+	LabelPrompt,
 	MovePrompt,
 	NotePrompt,
 	WarningPanel,
@@ -20,6 +21,7 @@ import {
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
 	refreshTuiModel,
+	updateSelectedIssueLabels,
 } from "./mutations.ts";
 import {
 	applyNoteInput,
@@ -27,7 +29,9 @@ import {
 	footerMode,
 	getMoveTargets,
 	keyToTuiAction,
+	moveLabelFocus,
 	moveSelection,
+	toggleFocusedLabel,
 } from "./navigation.ts";
 import { clamp, type TuiSelection } from "./selection.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
@@ -80,6 +84,7 @@ export {
 	ArchivePrompt,
 	GitHubMirrorPrompt,
 	HelpPanel,
+	LabelPrompt,
 	MovePrompt,
 	NotePrompt,
 	WarningPanel,
@@ -89,6 +94,7 @@ export type {
 	TuiColumn,
 	TuiDetails,
 	TuiGithubIssue,
+	TuiLabel,
 	TuiModel,
 	TuiWarning,
 } from "./model.ts";
@@ -112,6 +118,7 @@ export {
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
 	refreshTuiModel,
+	updateSelectedIssueLabels,
 } from "./mutations.ts";
 export {
 	applyNoteInput,
@@ -120,17 +127,21 @@ export {
 	getMoveTargets,
 	keyToDirection,
 	keyToTuiAction,
+	moveLabelFocus,
 	moveSelection,
+	toggleFocusedLabel,
 } from "./navigation.ts";
 export type {
 	ArchivePromptViewModel,
 	GitHubMirrorPromptViewModel,
+	LabelPromptViewModel,
 	MovePromptViewModel,
 	NotePromptViewModel,
 } from "./prompt-view-model.ts";
 export {
 	buildArchivePromptViewModel,
 	buildGitHubMirrorPromptViewModel,
+	buildLabelPromptViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
 } from "./prompt-view-model.ts";
@@ -200,6 +211,9 @@ export function TuiAppView({
 			: undefined,
 		selection.noteOpen
 			? React.createElement(NotePrompt, { model, selection, theme })
+			: undefined,
+		selection.labelOpen
+			? React.createElement(LabelPrompt, { model, selection, theme })
 			: undefined,
 		selection.archiveOpen
 			? React.createElement(ArchivePrompt, { model, selection, theme })
@@ -347,6 +361,35 @@ export async function launchTui(
 							githubBusyRef.current = false;
 						}
 					})();
+					return;
+				}
+				return;
+			}
+			if (selection.labelOpen) {
+				if (action === "help") {
+					setSelection((current) => moveSelection(model, current, action));
+					return;
+				}
+				if (action === "escape") {
+					setSelection((current) => moveSelection(model, current, action));
+					return;
+				}
+				if (action === "up" || action === "down") {
+					setSelection((current) => moveLabelFocus(model, current, action));
+					return;
+				}
+				if (key.name === "space") {
+					setSelection((current) => toggleFocusedLabel(model, current));
+					return;
+				}
+				if (action === "enter") {
+					const result = updateSelectedIssueLabels({
+						cwd: options.cwd,
+						model,
+						selection,
+					});
+					setModel(result.model);
+					setSelection({ ...result.selection, message: result.message });
 					return;
 				}
 				return;

@@ -1,4 +1,4 @@
-import { appendIssue, moveIssue, type Result } from "@mikan/core";
+import { appendIssue, moveIssue, type Result, updateIssue } from "@mikan/core";
 import {
 	mirrorIssueToGitHub as defaultMirrorIssueToGitHub,
 	pushGitHubMirror as defaultPushGitHubMirror,
@@ -69,6 +69,13 @@ export function refreshTuiModel(options: {
 				: undefined,
 			noteOpen: stillSelected ? options.selection.noteOpen : false,
 			noteDraft: stillSelected ? options.selection.noteDraft : undefined,
+			labelOpen: stillSelected ? options.selection.labelOpen : false,
+			labelFocusIndex: stillSelected
+				? options.selection.labelFocusIndex
+				: undefined,
+			labelDraftIds: stillSelected
+				? options.selection.labelDraftIds
+				: undefined,
 			message: options.selection.message,
 			archiveOpen: stillSelected ? options.selection.archiveOpen : false,
 			githubConfirmOpen: stillSelected
@@ -197,6 +204,69 @@ export function archiveSelectedIssue(options: {
 				selection: { ...result.selection, archiveOpen: false },
 			}
 		: result;
+}
+
+export function updateSelectedIssueLabels(options: {
+	cwd?: string;
+	model: TuiModel;
+	selection: TuiSelection;
+	now?: () => Date;
+}): TuiMutationResult {
+	const card = selectedCard(options.model, options.selection);
+	if (!card) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, labelOpen: false },
+			message: "No Issue selected",
+		};
+	}
+	const loaded = loadProjectConfig(options.cwd ?? process.cwd());
+	if (!loaded.ok) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, labelOpen: false },
+			message: loaded.error.message,
+		};
+	}
+	const selectedKnown = new Set(options.selection.labelDraftIds ?? []);
+	const configuredIds = loaded.value.config.labels.map((label) => label.id);
+	const configuredSet = new Set(configuredIds);
+	const knownLabels = configuredIds.filter((label) => selectedKnown.has(label));
+	const unknownLabels = card.labels.filter(
+		(label) => !configuredSet.has(label),
+	);
+	const updated = updateIssue({
+		projectRoot: loaded.value.projectRoot,
+		config: loaded.value.config,
+		id: card.id,
+		labels: [...knownLabels, ...unknownLabels],
+		preserveUnknownLabels: true,
+		now: options.now,
+	});
+	if (!updated.ok) {
+		return {
+			ok: false,
+			model: options.model,
+			selection: { ...options.selection, labelOpen: false },
+			message: updated.error.message,
+		};
+	}
+	const model = loadTuiModel(options.cwd);
+	const selection =
+		findSelectionByCardId(model, card.id) ??
+		clampSelection(model, options.selection);
+	return {
+		ok: true,
+		model,
+		selection: {
+			...selection,
+			detailOpen: options.selection.detailOpen,
+			labelOpen: false,
+		},
+		message: `${card.id} Labels updated`,
+	};
 }
 
 export async function beginSelectedIssueGitHubMirror(options: {

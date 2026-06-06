@@ -17,6 +17,20 @@ export type NotePromptViewModel = {
 	hint: string;
 };
 
+export type LabelPromptViewModel = {
+	title: string;
+	focused: boolean;
+	labels: {
+		id: string;
+		title: string;
+		checked: boolean;
+		focused: boolean;
+	}[];
+	unknownLabels: string[];
+	emptyMessage?: string;
+	hint: string;
+};
+
 export type ArchivePromptViewModel = {
 	title: string;
 	focused: boolean;
@@ -60,6 +74,38 @@ export function buildNotePromptViewModel(
 		focused: Boolean(selection.noteOpen),
 		draft: selection.noteDraft ?? "",
 		hint: "enter append  esc cancel",
+	};
+}
+
+export function buildLabelPromptViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+): LabelPromptViewModel | undefined {
+	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+	if (!card) return undefined;
+	const configuredLabels = model.labels ?? [];
+	const draft = new Set(selection.labelDraftIds ?? card.labels);
+	const known = new Set(configuredLabels.map((label) => label.id));
+	return {
+		title: `Edit Labels for ${card.id}`,
+		focused: Boolean(selection.labelOpen),
+		labels: configuredLabels.map((label, index) => ({
+			id: label.id,
+			title: label.title,
+			checked: draft.has(label.id),
+			focused: index === (selection.labelFocusIndex ?? 0),
+		})),
+		unknownLabels: card.labels.filter((label) => !known.has(label)),
+		...(configuredLabels.length === 0
+			? {
+					emptyMessage:
+						"No Labels configured. Add Labels in .mikan/config.yaml.",
+				}
+			: {}),
+		hint:
+			configuredLabels.length === 0
+				? "esc close"
+				: "space toggle  enter save  esc cancel",
 	};
 }
 

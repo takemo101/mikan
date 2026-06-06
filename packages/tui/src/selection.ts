@@ -8,6 +8,9 @@ export type TuiSelection = {
 	moveTargetIndex?: number;
 	noteOpen?: boolean;
 	noteDraft?: string;
+	labelOpen?: boolean;
+	labelFocusIndex?: number;
+	labelDraftIds?: string[];
 	archiveOpen?: boolean;
 	githubConfirmOpen?: boolean;
 	githubBusy?: boolean;

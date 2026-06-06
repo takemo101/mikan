@@ -44,6 +44,7 @@ export type UpdateIssueOptions = {
 	id: string;
 	title?: string;
 	labels?: string[];
+	preserveUnknownLabels?: boolean;
 	dependencies?: string[];
 	body?: string;
 	now?: () => Date;
@@ -164,8 +165,18 @@ export function updateIssue(
 	return withWriteLock(options.projectRoot, () => {
 		const target = findIssueById(options);
 		if (!target.ok) return target;
-		const labels = options.labels ?? target.value.issue.labels.map(String);
-		const labelsValidation = validateLabels(options.config, labels);
+		const existingLabels = target.value.issue.labels.map(String);
+		const configuredLabelIds = new Set(
+			options.config.labels.map((label) => label.id),
+		);
+		const existingUnknownLabels = new Set(
+			existingLabels.filter((label) => !configuredLabelIds.has(label)),
+		);
+		const labels = options.labels ?? existingLabels;
+		const labelsToValidate = options.preserveUnknownLabels
+			? labels.filter((label) => !existingUnknownLabels.has(label))
+			: labels;
+		const labelsValidation = validateLabels(options.config, labelsToValidate);
 		if (!labelsValidation.ok) return labelsValidation;
 		const dependenciesValidation = options.dependencies
 			? validateDependencies(options.dependencies)

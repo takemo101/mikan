@@ -19,6 +19,7 @@ Key bindings:
 | `H` / `L` | Move the selected Issue to the adjacent Status |
 | `Enter` | Open the selected Issue detail page |
 | `n` | Append a Note in a modal prompt |
+| `e` | Edit Labels in a modal prompt |
 | `a` | Confirm Archive in a modal prompt |
 | `g` | Create or update a GitHub Mirror for the selected Issue |
 | `r` | Reload from disk |
@@ -51,6 +52,7 @@ The TUI performs the same small mutations exposed by the CLI:
 
 - Move selected Issue to a neighboring Status.
 - Append a Note.
+- Edit Labels by checking and unchecking config-defined Labels while preserving read-only unknown Labels.
 - Archive with confirmation.
 - Create or update a one-way GitHub Mirror with `g`.
 - Reload from disk after external edits.

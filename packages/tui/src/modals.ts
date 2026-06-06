@@ -4,6 +4,7 @@ import type { TuiModel } from "./model.ts";
 import {
 	buildArchivePromptViewModel,
 	buildGitHubMirrorPromptViewModel,
+	buildLabelPromptViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
 } from "./prompt-view-model.ts";
@@ -51,6 +52,31 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 			},
 			React.createElement("text", {
 				content: renderNoteInteraction(props.model, props.selection).join("\n"),
+			}),
+		),
+	);
+}
+
+export function LabelPrompt(props: TuiAppViewProps): React.ReactElement {
+	const theme = props.theme ?? buildTuiTheme();
+	return React.createElement(
+		"box",
+		{
+			id: "label-modal-backdrop",
+			style: modalBackdropStyle(theme),
+		},
+		React.createElement(
+			"box",
+			{
+				id: "label-prompt",
+				title: "Edit Labels",
+				border: true,
+				style: modalStyle(theme),
+			},
+			React.createElement("text", {
+				content: renderLabelInteraction(props.model, props.selection).join(
+					"\n",
+				),
 			}),
 		),
 	);
@@ -208,6 +234,30 @@ export function renderNoteInteraction(
 	];
 }
 
+export function renderLabelInteraction(
+	model: TuiModel,
+	selection: TuiSelection,
+): string[] {
+	const view = buildLabelPromptViewModel(model, selection);
+	if (!view) return ["Edit Labels", "No Issue selected"];
+	if (view.emptyMessage) {
+		return [view.title, "", view.emptyMessage, "", view.hint];
+	}
+	return [
+		view.title,
+		"",
+		...view.labels.map(
+			(label) =>
+				`${label.focused ? "▶" : " "} [${label.checked ? "x" : " "}] ${label.title}`,
+		),
+		...(view.unknownLabels.length > 0
+			? ["", `Unknown Labels (read-only): ${view.unknownLabels.join(", ")}`]
+			: []),
+		"",
+		view.hint,
+	];
+}
+
 export function renderArchiveInteraction(
 	model: TuiModel,
 	selection: TuiSelection,
@@ -245,6 +295,7 @@ export function renderKeyHelp(): string[] {
 		"H/L move Issue",
 		"m move menu",
 		"n append Note",
+		"e edit Labels",
 		"a archive Issue",
 		"g GitHub Mirror",
 		"w warning details",
