@@ -415,12 +415,16 @@ Must support:
 - press Esc to return from detail, move, or note-entry modes while preserving board selection when possible;
 - periodically rescan files while preserving the selected Issue by Issue ID when possible;
 - move the selected Issue to another configured Status through the same core mutation used by CLI/MCP;
-- append a short Note to the selected Issue through the same append mutation used by CLI/MCP;
+- append a free-form multi-line Note to the selected Issue through the same append mutation used by CLI/MCP;
 - edit the selected Issue's Labels through a focused modal opened with `e` from either Board or Detail;
 - in the Label modal, list all config-defined Labels in config order, show current selections as checked, move with `↑`/`↓`, toggle draft selections with Space, save with Enter, and discard with Esc;
 - if no Labels are configured, show an explanatory modal instead of an empty editor;
 - preserve config-unknown Labels as read-only unknown entries when saving from the Label modal, writing selected known Labels first in config order and then unknown Labels in their original order;
 - save Label changes by updating frontmatter only, without adding Status Log or Note entries and without directly pushing GitHub Mirrors;
+- in the Note modal, treat Enter as newline, Ctrl+S as save, and Esc as cancel;
+- preserve Note body Markdown as typed, trimming only leading/trailing blank space before appending to `## Notes`;
+- keep empty Note saves in the modal with `Note cannot be empty` feedback rather than closing the modal;
+- support only lightweight line-local Note editing initially: show a `▌` cursor marker, move within the current line with left/right keys, do not support vertical cursor movement, and show the trailing 5-line window when the draft exceeds the visible input area;
 - show declared and unmet dependencies in detail/read-model views;
 - show warning details in a focused modal opened with `w`, while keeping warning absence as concise feedback;
 - show concise success/error feedback for TUI actions;
