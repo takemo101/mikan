@@ -99,6 +99,7 @@ export function moveSelection(
 			moveOpen: false,
 			noteOpen: false,
 			noteDraft: undefined,
+			noteCursorOffset: undefined,
 			labelOpen: false,
 		};
 	}
@@ -108,6 +109,8 @@ export function moveSelection(
 			archiveOpen: false,
 			detailOpen: false,
 			noteOpen: false,
+			noteDraft: undefined,
+			noteCursorOffset: undefined,
 			labelOpen: false,
 			moveOpen: true,
 			moveTargetIndex: 0,
@@ -121,6 +124,8 @@ export function moveSelection(
 			moveOpen: false,
 			labelOpen: false,
 			noteOpen: true,
+			noteDraft: "",
+			noteCursorOffset: 0,
 		};
 	}
 	if (direction === "edit-labels") {
@@ -135,6 +140,8 @@ export function moveSelection(
 			githubConfirmOpen: false,
 			moveOpen: false,
 			noteOpen: false,
+			noteDraft: undefined,
+			noteCursorOffset: undefined,
 			labelOpen: true,
 			labelFocusIndex: 0,
 			labelDraftIds:
@@ -147,6 +154,8 @@ export function moveSelection(
 			archiveOpen: true,
 			moveOpen: false,
 			noteOpen: false,
+			noteDraft: undefined,
+			noteCursorOffset: undefined,
 			labelOpen: false,
 			githubConfirmOpen: false,
 		};
@@ -157,6 +166,8 @@ export function moveSelection(
 			archiveOpen: false,
 			moveOpen: false,
 			noteOpen: false,
+			noteDraft: undefined,
+			noteCursorOffset: undefined,
 			labelOpen: false,
 			githubConfirmOpen: true,
 		};
@@ -257,23 +268,65 @@ export function applyNoteInput(
 	shift = false,
 ): TuiSelection {
 	if (!selection.noteOpen || !keyName) return selection;
-	if (keyName === "backspace") {
+	const draft = selection.noteDraft ?? "";
+	const cursor = noteCursor(selection);
+	if (keyName === "left") {
 		return {
 			...selection,
-			noteDraft: (selection.noteDraft ?? "").slice(0, -1),
+			noteCursorOffset:
+				cursor > currentLineStart(draft, cursor) ? cursor - 1 : cursor,
+		};
+	}
+	if (keyName === "right") {
+		return {
+			...selection,
+			noteCursorOffset:
+				cursor < currentLineEnd(draft, cursor) ? cursor + 1 : cursor,
+		};
+	}
+	if (keyName === "backspace") {
+		if (cursor === 0) return { ...selection, noteCursorOffset: 0 };
+		return {
+			...selection,
+			noteDraft: `${draft.slice(0, cursor - 1)}${draft.slice(cursor)}`,
+			noteCursorOffset: cursor - 1,
 		};
 	}
 	if (keyName === "enter" || keyName === "return") {
-		return {
-			...selection,
-			noteDraft: `${selection.noteDraft ?? ""}\n`,
-		};
+		return insertNoteInput(selection, "\n", cursor);
 	}
 	const character = keyName === "space" ? " " : keyName;
 	if (character.length !== 1) return selection;
 	const value =
 		shift && /[a-z]/.test(character) ? character.toUpperCase() : character;
-	return { ...selection, noteDraft: `${selection.noteDraft ?? ""}${value}` };
+	return insertNoteInput(selection, value, cursor);
+}
+
+function insertNoteInput(
+	selection: TuiSelection,
+	value: string,
+	cursor: number,
+): TuiSelection {
+	const draft = selection.noteDraft ?? "";
+	return {
+		...selection,
+		noteDraft: `${draft.slice(0, cursor)}${value}${draft.slice(cursor)}`,
+		noteCursorOffset: cursor + value.length,
+	};
+}
+
+function noteCursor(selection: TuiSelection): number {
+	const draft = selection.noteDraft ?? "";
+	return clamp(selection.noteCursorOffset ?? draft.length, 0, draft.length);
+}
+
+function currentLineStart(value: string, cursor: number): number {
+	return value.lastIndexOf("\n", Math.max(0, cursor - 1)) + 1;
+}
+
+function currentLineEnd(value: string, cursor: number): number {
+	const end = value.indexOf("\n", cursor);
+	return end === -1 ? value.length : end;
 }
 
 export function footerMode(selection: TuiSelection): FooterMode {
