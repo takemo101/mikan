@@ -1,6 +1,7 @@
 import { startMcpServer } from "@mikan/mcp";
 import { loadProjectConfig } from "@mikan/project-config";
 import { launchTui } from "@mikan/tui";
+import packageJson from "../package.json" with { type: "json" };
 import { isCommandName, isHelpFlag, parseArgs } from "./args.ts";
 import type { CliOptions, InteractiveCommandOptions } from "./cli-options.ts";
 import { type CliResult, fail, ok } from "./cli-output.ts";
@@ -35,6 +36,7 @@ export async function runCli(
 	const command = argv[0];
 
 	if (!command || isHelpFlag(command)) return ok(helpText());
+	if (isVersionFlag(command)) return ok(`${packageJson.version}\n`);
 	if (command === "help") {
 		const topic = argv[1];
 		return topic ? commandHelp(topic) : ok(helpText());
@@ -90,6 +92,10 @@ export async function runCli(
 	} catch (error) {
 		return fail(error instanceof Error ? error.message : String(error));
 	}
+}
+
+function isVersionFlag(input: string): boolean {
+	return input === "-v" || input === "--version";
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {

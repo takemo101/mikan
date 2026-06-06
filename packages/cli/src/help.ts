@@ -16,6 +16,10 @@ export function helpText(): string {
 Usage:
   mikan <command> [options]
 
+Options:
+  -v, --version Print mikan version
+  -h, --help    Show this help
+
 Commands:
   init      Create .mikan project files
   add       Create an Issue
