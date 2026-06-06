@@ -2,6 +2,8 @@
 
 mikan is a tiny local-first Issue board for AI-assisted development. It stores Issues as Markdown files under `.mikan/` and exposes the same board through a CLI, keyboard-first TUI, stdio MCP server, and polling watcher.
 
+Manual: <https://takemo101.github.io/mikan/>
+
 ## Install
 
 ```sh
