@@ -9,15 +9,6 @@ import {
 	formatLabels,
 } from "./formatting.ts";
 import {
-	renderArchiveInteraction,
-	renderGitHubMirrorInteraction,
-	renderKeyHelp,
-	renderLabelInteraction,
-	renderMoveInteraction,
-	renderNoteInteraction,
-	renderWarningDetails,
-} from "./modals.ts";
-import {
 	cardDependencyStatus,
 	cardDependsOn,
 	cardUnmetDependencies,
@@ -26,6 +17,15 @@ import {
 	type TuiModel,
 } from "./model.ts";
 import { footerMode } from "./navigation.ts";
+import {
+	renderArchiveInteraction,
+	renderGitHubMirrorInteraction,
+	renderKeyHelp,
+	renderLabelInteraction,
+	renderMoveInteraction,
+	renderNoteInteraction,
+	renderWarningDetails,
+} from "./prompt-text.ts";
 import type { TuiSelection } from "./selection.ts";
 
 export function renderTuiText(

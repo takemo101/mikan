@@ -2,132 +2,94 @@ import React from "react";
 import type { TuiAppViewProps } from "./app-view-props.ts";
 import type { TuiModel } from "./model.ts";
 import {
-	buildArchivePromptViewModel,
-	buildGitHubMirrorPromptViewModel,
-	buildLabelPromptViewModel,
-	buildMovePromptViewModel,
-	buildNotePromptViewModel,
-} from "./prompt-view-model.ts";
-import type { TuiSelection } from "./selection.ts";
+	renderArchiveInteraction,
+	renderGitHubMirrorInteraction,
+	renderKeyHelp,
+	renderLabelInteraction,
+	renderMoveInteraction,
+	renderNoteInteraction,
+	renderWarningDetails,
+} from "./prompt-text.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
 
 export function MovePrompt(props: TuiAppViewProps): React.ReactElement {
-	const theme = props.theme ?? buildTuiTheme();
-	return React.createElement(
-		"box",
-		{
-			id: "move-modal-backdrop",
-			style: modalBackdropStyle(theme),
-		},
-		React.createElement(
-			"box",
-			{
-				id: "move-prompt",
-				title: "Move Issue",
-				border: true,
-				style: modalStyle(theme),
-			},
-			React.createElement("text", {
-				content: renderMoveInteraction(props.model, props.selection).join("\n"),
-			}),
-		),
-	);
+	return renderModalText({
+		theme: props.theme,
+		backdropId: "move-modal-backdrop",
+		panelId: "move-prompt",
+		title: "Move Issue",
+		content: renderMoveInteraction(props.model, props.selection),
+	});
 }
 
 export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
-	const theme = props.theme ?? buildTuiTheme();
-	return React.createElement(
-		"box",
-		{
-			id: "note-modal-backdrop",
-			style: modalBackdropStyle(theme),
-		},
-		React.createElement(
-			"box",
-			{
-				id: "note-prompt",
-				title: "Append Note",
-				border: true,
-				style: modalStyle(theme),
-			},
-			React.createElement("text", {
-				content: renderNoteInteraction(props.model, props.selection).join("\n"),
-			}),
-		),
-	);
+	return renderModalText({
+		theme: props.theme,
+		backdropId: "note-modal-backdrop",
+		panelId: "note-prompt",
+		title: "Append Note",
+		content: renderNoteInteraction(props.model, props.selection),
+	});
 }
 
 export function LabelPrompt(props: TuiAppViewProps): React.ReactElement {
-	const theme = props.theme ?? buildTuiTheme();
-	return React.createElement(
-		"box",
-		{
-			id: "label-modal-backdrop",
-			style: modalBackdropStyle(theme),
-		},
-		React.createElement(
-			"box",
-			{
-				id: "label-prompt",
-				title: "Edit Labels",
-				border: true,
-				style: modalStyle(theme),
-			},
-			React.createElement("text", {
-				content: renderLabelInteraction(props.model, props.selection).join(
-					"\n",
-				),
-			}),
-		),
-	);
+	return renderModalText({
+		theme: props.theme,
+		backdropId: "label-modal-backdrop",
+		panelId: "label-prompt",
+		title: "Edit Labels",
+		content: renderLabelInteraction(props.model, props.selection),
+	});
 }
 
 export function ArchivePrompt(props: TuiAppViewProps): React.ReactElement {
-	const theme = props.theme ?? buildTuiTheme();
-	return React.createElement(
-		"box",
-		{
-			id: "archive-modal-backdrop",
-			style: modalBackdropStyle(theme),
-		},
-		React.createElement(
-			"box",
-			{
-				id: "archive-prompt",
-				title: "Archive Issue",
-				border: true,
-				style: modalStyle(theme),
-			},
-			React.createElement("text", {
-				content: renderArchiveInteraction(props.model, props.selection).join(
-					"\n",
-				),
-			}),
-		),
-	);
+	return renderModalText({
+		theme: props.theme,
+		backdropId: "archive-modal-backdrop",
+		panelId: "archive-prompt",
+		title: "Archive Issue",
+		content: renderArchiveInteraction(props.model, props.selection),
+	});
 }
 
 export function GitHubMirrorPrompt(props: TuiAppViewProps): React.ReactElement {
-	const theme = props.theme ?? buildTuiTheme();
+	return renderModalText({
+		theme: props.theme,
+		backdropId: "github-mirror-modal-backdrop",
+		panelId: "github-mirror-prompt",
+		title: "GitHub Mirror",
+		content: renderGitHubMirrorInteraction(props.model, props.selection),
+	});
+}
+
+function renderModalText(options: {
+	theme?: TuiTheme;
+	backdropId: string;
+	panelId: string;
+	title: string;
+	content: string[];
+	panelStyle?: Record<string, string | number>;
+}): React.ReactElement {
+	const theme = options.theme ?? buildTuiTheme();
 	return React.createElement(
 		"box",
 		{
-			id: "github-mirror-modal-backdrop",
+			id: options.backdropId,
 			style: modalBackdropStyle(theme),
 		},
 		React.createElement(
 			"box",
 			{
-				id: "github-mirror-prompt",
-				title: "GitHub Mirror",
+				id: options.panelId,
+				title: options.title,
 				border: true,
-				style: modalStyle(theme),
+				style: {
+					...modalStyle(theme),
+					...(options.panelStyle ?? {}),
+				},
 			},
 			React.createElement("text", {
-				content: renderGitHubMirrorInteraction(
-					props.model,
-					props.selection,
-				).join("\n"),
+				content: options.content.join("\n"),
 			}),
 		),
 	);
@@ -158,24 +120,13 @@ function modalStyle(theme: TuiTheme): Record<string, string | number> {
 }
 
 export function HelpPanel(props: { theme?: TuiTheme }): React.ReactElement {
-	const theme = props.theme ?? buildTuiTheme();
-	return React.createElement(
-		"box",
-		{
-			id: "help-panel-backdrop",
-			style: modalBackdropStyle(theme),
-		},
-		React.createElement(
-			"box",
-			{
-				id: "help-panel",
-				title: "Key help",
-				border: true,
-				style: modalStyle(theme),
-			},
-			React.createElement("text", { content: renderKeyHelp().join("\n") }),
-		),
-	);
+	return renderModalText({
+		theme: props.theme,
+		backdropId: "help-panel-backdrop",
+		panelId: "help-panel",
+		title: "Key help",
+		content: renderKeyHelp(),
+	});
 }
 
 export function WarningPanel(props: {
@@ -183,129 +134,12 @@ export function WarningPanel(props: {
 	theme?: TuiTheme;
 }): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
-	return React.createElement(
-		"box",
-		{
-			id: "warning-panel-backdrop",
-			style: modalBackdropStyle(theme),
-		},
-		React.createElement(
-			"box",
-			{
-				id: "warning-panel",
-				title: "Warning details",
-				border: true,
-				style: {
-					...modalStyle(theme),
-					borderColor: theme.feedback.warning,
-				},
-			},
-			React.createElement("text", {
-				content:
-					props.model.warnings.length > 0
-						? props.model.warnings.map((warning) => `! ${warning}`).join("\n")
-						: "No warnings",
-			}),
-		),
-	);
-}
-
-export function renderMoveInteraction(
-	model: TuiModel,
-	selection: TuiSelection,
-): string[] {
-	const view = buildMovePromptViewModel(model, selection);
-	if (!view) return ["Move", "No Issue selected"];
-	return [
-		`${view.title} to Status`,
-		...view.targets.map(
-			(target) =>
-				`${target.selected ? ">" : " "} ${target.id} (${target.title})`,
-		),
-		view.hint,
-	];
-}
-
-export function renderNoteInteraction(
-	model: TuiModel,
-	selection: TuiSelection,
-): string[] {
-	const view = buildNotePromptViewModel(model, selection);
-	if (!view) return ["Append note", "No Issue selected"];
-	return [
-		view.title,
-		`Note: ${view.draft}`,
-		...(view.feedback ? [view.feedback] : []),
-		view.hint,
-	];
-}
-
-export function renderLabelInteraction(
-	model: TuiModel,
-	selection: TuiSelection,
-): string[] {
-	const view = buildLabelPromptViewModel(model, selection);
-	if (!view) return ["Edit Labels", "No Issue selected"];
-	if (view.emptyMessage) {
-		return [view.title, "", view.emptyMessage, "", view.hint];
-	}
-	return [
-		view.title,
-		"",
-		...view.labels.map(
-			(label) =>
-				`${label.focused ? "▶" : " "} [${label.checked ? "x" : " "}] ${label.title}`,
-		),
-		...(view.unknownLabels.length > 0
-			? ["", `Unknown Labels (read-only): ${view.unknownLabels.join(", ")}`]
-			: []),
-		"",
-		view.hint,
-	];
-}
-
-export function renderArchiveInteraction(
-	model: TuiModel,
-	selection: TuiSelection,
-): string[] {
-	const view = buildArchivePromptViewModel(model, selection);
-	if (!view) return ["Archive", "No Issue selected"];
-	return [view.title, view.body, view.hint];
-}
-
-export function renderGitHubMirrorInteraction(
-	model: TuiModel,
-	selection: TuiSelection,
-): string[] {
-	const view = buildGitHubMirrorPromptViewModel(model, selection);
-	if (!view) return ["GitHub Mirror", "No Issue selected"];
-	return [view.title, view.body, view.hint];
-}
-
-export function renderWarningDetails(model: TuiModel): string[] {
-	return [
-		"Warning details",
-		...(model.warnings.length > 0
-			? model.warnings.map((warning) => `! ${warning}`)
-			: ["No warnings"]),
-	];
-}
-
-export function renderKeyHelp(): string[] {
-	return [
-		"Key help",
-		"↑/↓ or j/k card/scroll",
-		"←/→ or h/l column",
-		"enter detail/confirm",
-		"esc back/cancel",
-		"H/L move Issue",
-		"m move menu",
-		"n append Note",
-		"e edit Labels",
-		"a archive Issue",
-		"g GitHub Mirror",
-		"w warning details",
-		"r reload",
-		"q quit",
-	];
+	return renderModalText({
+		theme,
+		backdropId: "warning-panel-backdrop",
+		panelId: "warning-panel",
+		title: "Warning details",
+		content: renderWarningDetails(props.model).slice(1),
+		panelStyle: { borderColor: theme.feedback.warning },
+	});
 }
