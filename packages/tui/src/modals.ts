@@ -50,6 +50,7 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 			},
 			style: {
 				alignSelf: "stretch",
+				marginRight: 1,
 				backgroundColor: props.theme?.base.canvas,
 				textColor: props.theme?.base.text,
 				focusedBackgroundColor: props.theme?.base.canvas,

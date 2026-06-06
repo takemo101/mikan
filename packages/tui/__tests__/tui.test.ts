@@ -1848,6 +1848,7 @@ updated_at: 2026-05-30T00:00:00Z
 		});
 		expect(textarea?.props?.style).toMatchObject({
 			alignSelf: "stretch",
+			marginRight: 1,
 			width: "auto",
 		});
 	});
