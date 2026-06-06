@@ -1,4 +1,4 @@
-export type FooterMode = "board" | "detail" | "modal";
+export type FooterMode = "board" | "detail" | "modal" | "note-modal";
 
 export function formatLabels(labels: string[]): string {
 	return labels.map((label) => `#${label}`).join(" ");
@@ -50,6 +50,9 @@ export function visibleDetailLineCount(viewportHeight: number): number {
 }
 
 export function footerText(mode: FooterMode): string {
+	if (mode === "note-modal") {
+		return "Note | Enter newline | Ctrl+S save | Esc cancel";
+	}
 	if (mode === "modal") {
 		return "Modal | enter confirm | esc cancel | ? keys";
 	}

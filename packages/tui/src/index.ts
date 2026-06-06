@@ -311,10 +311,6 @@ export async function launchTui(
 				return;
 			}
 			if (selection.noteOpen) {
-				if (action === "help") {
-					setSelection((current) => moveSelection(model, current, action));
-					return;
-				}
 				if (action === "escape") {
 					setSelection((current) => moveSelection(model, current, action));
 					return;

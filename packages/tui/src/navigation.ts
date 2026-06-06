@@ -100,6 +100,7 @@ export function moveSelection(
 			noteOpen: false,
 			noteDraft: undefined,
 			labelOpen: false,
+			message: selection.noteOpen ? undefined : selection.message,
 		};
 	}
 	if (direction === "move") {
@@ -123,6 +124,7 @@ export function moveSelection(
 			labelOpen: false,
 			noteOpen: true,
 			noteDraft: "",
+			message: undefined,
 		};
 	}
 	if (direction === "edit-labels") {
@@ -257,9 +259,9 @@ export function toggleFocusedLabel(
 }
 
 export function footerMode(selection: TuiSelection): FooterMode {
+	if (selection.noteOpen) return "note-modal";
 	if (
 		selection.moveOpen ||
-		selection.noteOpen ||
 		selection.labelOpen ||
 		selection.archiveOpen ||
 		selection.githubConfirmOpen
