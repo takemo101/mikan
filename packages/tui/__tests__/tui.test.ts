@@ -1743,7 +1743,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(buildNotePromptViewModel(model, noteSelectionState)).toMatchObject({
 			title: "Append note to MIK-001",
 			focused: true,
-			hint: "enter newline  ctrl+s save  esc cancel",
+			hint: "Enter newline / Ctrl+S save / Esc cancel",
 		});
 		expect(buildNotePromptViewModel(model, noteSelectionState)?.feedback).toBe(
 			undefined,
@@ -1830,20 +1830,22 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(noteModal?.props?.style).toMatchObject({
 			backgroundColor: theme.base.surface,
 			borderColor: theme.interactive.focus,
+			height: 13,
 		});
 		const noteText = collectTextContent(noteTree);
 		const textarea = findElementById(noteTree, "note-textarea");
-		expect(noteText).toContain(
-			"Note (Enter newline / Ctrl+S save / Esc cancel):",
-		);
-		expect(noteText).toContain("enter newline  ctrl+s save  esc cancel");
+		expect(noteText).toContain("Note:");
+		expect(noteText).toContain("Enter newline / Ctrl+S save / Esc cancel");
 		const noteModalChildren = Array.isArray(noteModal?.props?.children)
 			? noteModal.props.children
 			: [noteModal?.props?.children];
 		const noteLabel = findElementByType(noteModalChildren[0], "text");
-		expect(noteLabel?.props?.content).toContain("Enter newline");
-		expect(noteLabel?.props?.content).toContain("Ctrl+S save");
-		expect(noteLabel?.props?.content).toContain("Esc cancel");
+		const noteHint = findElementByType(noteModalChildren[2], "text");
+		expect(noteLabel?.props?.content).toContain("Note:");
+		expect(noteLabel?.props?.content).not.toContain("Ctrl+S save");
+		expect(noteHint?.props?.content).toContain(
+			"Enter newline / Ctrl+S save / Esc cancel",
+		);
 		expect(textarea?.props).toMatchObject({
 			focused: true,
 			initialValue: "Draft",
