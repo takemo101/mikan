@@ -71,7 +71,7 @@ export function buildNotePromptViewModel(
 	return {
 		title: `Append note to ${card.id}`,
 		focused: Boolean(selection.noteOpen),
-		hint: "enter newline  ctrl+s save  esc cancel",
+		hint: "Enter newline / Ctrl+S save / Esc cancel",
 	};
 }
 

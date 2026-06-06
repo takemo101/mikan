@@ -31,7 +31,7 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 			backdropId: "note-modal-backdrop",
 			panelId: "note-prompt",
 			title: "Append Note",
-			panelStyle: { height: 11 },
+			panelStyle: { height: 13 },
 		},
 		React.createElement("text", {
 			content: content.slice(0, 3).join("\n"),
