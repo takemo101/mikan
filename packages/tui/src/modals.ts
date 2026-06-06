@@ -53,7 +53,6 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 				textColor: props.theme?.base.text,
 				focusedBackgroundColor: props.theme?.base.canvas,
 				focusedTextColor: props.theme?.base.text,
-				width: "100%",
 			},
 		}),
 		React.createElement("text", {
