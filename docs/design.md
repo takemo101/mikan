@@ -424,7 +424,7 @@ Must support:
 - in the Note modal, treat Enter as newline, Ctrl+S as save, and Esc as cancel;
 - preserve Note body Markdown as typed, trimming only leading/trailing blank space before appending to `## Notes`;
 - keep empty Note saves in the modal with `Note cannot be empty` feedback rather than closing the modal;
-- support only lightweight line-local Note editing initially: show a `▌` cursor marker, move within the current line with left/right keys, do not support vertical cursor movement, and show the trailing 5-line window when the draft exceeds the visible input area;
+- support only lightweight line-local Note editing initially: show a `▌` cursor marker, move within the current line with left/right keys, do not support vertical cursor movement, and show a trailing 5-line window ending at the active edit line when the draft exceeds the visible input area;
 - show declared and unmet dependencies in detail/read-model views;
 - show warning details in a focused modal opened with `w`, while keeping warning absence as concise feedback;
 - show concise success/error feedback for TUI actions;
