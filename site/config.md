@@ -108,10 +108,16 @@ hooks:
   on_enter:
     active:
       - "echo '{{issue_id}} entered {{to_status}}'"
+      - command: "scripts/start-agent.sh {{project_root}} {{issue_path}} {{issue_id}}"
+        when:
+          labels_include:
+            - automation
   on_transition:
     ready->active:
       - "echo '{{issue_path}} moved from {{from_status}} to {{to_status}}'"
 ```
+
+String entries are unconditional hook commands. Object entries use `command`; optional `when.labels_include` is an include-all Label filter, so every listed Label ID must be present on the Issue for that command to run. `labels_include` cannot be empty. If it references a Label ID that is not configured, `mikan watch` writes a warning to stderr and skips that hook command without adding a hook-log entry.
 
 Run the watcher from a terminal:
 

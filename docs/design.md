@@ -409,7 +409,7 @@ Must support:
 - shift the visible Column viewport as focus moves, for example `Backlog / Ready / Active` → `Ready / Active / Blocked` → `Active / Blocked / Completed`;
 - show Cards from corresponding directories with compact Issue ID, title, labels, and focused Card styling;
 - highlight the selected Card/Column and keep empty Columns visible with a muted empty state;
-- use `h`/`l` or arrow keys for Column focus, `j`/`k` or arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `e` for Label editing, `r` for reload, Esc for close/back, and `q` for quit;
+- use `h`/`l` or arrow keys for Column focus, `j`/`k` or arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `e` for Label editing, `w` for warning details, `r` for reload, Esc for close/back, and `q` for quit;
 - select a Card and press Enter/Return to switch from the board page to a full-page Markdown detail page;
 - in detail mode, render body Markdown without frontmatter and scroll it independently from board selection;
 - press Esc to return from detail, move, or note-entry modes while preserving board selection when possible;
@@ -422,6 +422,7 @@ Must support:
 - preserve config-unknown Labels as read-only unknown entries when saving from the Label modal, writing selected known Labels first in config order and then unknown Labels in their original order;
 - save Label changes by updating frontmatter only, without adding Status Log or Note entries and without directly pushing GitHub Mirrors;
 - show declared and unmet dependencies in detail/read-model views;
+- show warning details in a focused modal opened with `w`, while keeping warning absence as concise feedback;
 - show concise success/error feedback for TUI actions;
 - use a small internal semantic theme for canvas, surface, text, muted text, focus, accent, warning, error, and success states.
 

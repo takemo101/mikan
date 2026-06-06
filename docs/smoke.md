@@ -30,7 +30,8 @@ Notes:
   6. press `H`/`L` to move the selected Issue to the adjacent Status, or press `m`, choose any target Status, and press Enter;
   7. press `e`, toggle Labels with Space, and press Enter to save frontmatter Label changes;
   8. press `n`, type a short Note, and press Enter to append it to `## Notes`;
-  9. press `r` to reload from disk;
-  10. press `q` to quit.
+  9. if warnings are present, press `w` to open warning details in a modal and Esc to close it;
+  10. press `r` to reload from disk;
+  11. press `q` to quit.
 - `mikan watch` runs continuously in normal CLI use; tests exercise the same watcher logic with one scan at a time.
 - The automated smoke test covers non-interactive CLI commands, MCP read/mutation tools, TUI data loading, and watch hook execution in a temporary `.mikan` project.
