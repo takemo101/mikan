@@ -405,6 +405,36 @@ describe("TUI model and navigation", () => {
 		expect(warningText).toContain("Flow sequence in block collection");
 	});
 
+	test("renders warning details as a centered modal overlay", () => {
+		const model = loadTuiModel(tempProject());
+		const tree = TuiAppView({
+			model,
+			selection: {
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: false,
+				warningsOpen: true,
+			},
+		});
+		const backdrop = findElementById(tree, "warning-panel-backdrop");
+		const panel = findElementById(tree, "warning-panel");
+
+		expect(backdrop?.props?.style).toMatchObject({
+			alignItems: "center",
+			justifyContent: "center",
+			position: "absolute",
+			zIndex: 10,
+		});
+		expect(panel?.props).toMatchObject({
+			border: true,
+			title: "Warning details",
+		});
+		expect(panel?.props?.style).toMatchObject({
+			flexDirection: "column",
+			width: "70%",
+		});
+	});
+
 	test("defines semantic theme tokens for TUI surfaces and states", () => {
 		const theme = buildTuiTheme();
 
