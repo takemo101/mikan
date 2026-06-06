@@ -60,6 +60,12 @@ The TUI performs the same small mutations exposed by the CLI:
 
 mikan writes through the same project-local lock used by the CLI and MCP server.
 
+## Notes
+
+Press `n` to append a free-form Note to the selected Issue. The Note modal accepts multi-line Markdown: Enter inserts a newline, Ctrl+S saves, and Esc cancels. Empty saves stay in the modal and show `Note cannot be empty`.
+
+The Note input is intentionally lightweight rather than a full editor. It shows a `▌` cursor marker, supports left/right movement within the current line, does not support vertical cursor movement, and displays the trailing 5-line window when the draft is longer than the visible input area. On save, mikan trims only leading/trailing blank space and appends the body to `## Notes` through the same mutation path used by CLI and MCP.
+
 ## GitHub Mirror
 
 Press `g` on the selected Issue in Board or Detail mode. If the Issue is already mirrored, mikan updates it immediately. If it has no `github_issue`, mikan opens a confirmation modal showing the Issue ID, title, configured GitHub repo, and a note that local Markdown remains the source of truth.
