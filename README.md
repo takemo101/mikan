@@ -151,11 +151,12 @@ Key bindings:
 - `e`: edit Labels in a modal prompt
 - `a`: confirm Archive in a modal prompt
 - `g`: create or update a one-way GitHub Mirror
+- `w`: show warning details in a modal
 - `r`: reload from disk
 - `Esc`: back/cancel
 - `q`: quit
 
-The board page is primary. Detail mode renders the Issue body as Markdown with a fixed header. Move, Note, Label, and Archive interactions use focused modal overlays.
+The board page is primary. Detail mode renders the Issue body as Markdown with a fixed header. Move, Note, Label, Archive, GitHub Mirror, and warning-details interactions use focused modal overlays.
 
 TUI Column option:
 
@@ -259,7 +260,7 @@ hooks:
       - "bun scripts/spawn-agent.ts {{issue_path}}"
 ```
 
-String entries are unconditional hook commands. Object entries use `command`; optional `when.labels_include` is an include-all Label filter, so every listed Label ID must be present on the Issue for that command to run.
+String entries are unconditional hook commands. Object entries use `command`; optional `when.labels_include` is an include-all Label filter, so every listed Label ID must be present on the Issue for that command to run. `labels_include` cannot be empty; config-unknown Label IDs warn to stderr and skip that hook command without writing a hook-log entry.
 
 Hook failures are written to `.mikan/.state/hook-log.ndjson`. They do not roll back Issue moves because Markdown files remain the source of truth.
 

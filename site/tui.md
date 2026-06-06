@@ -22,6 +22,7 @@ Key bindings:
 | `e` | Edit Labels in a modal prompt |
 | `a` | Confirm Archive in a modal prompt |
 | `g` | Create or update a GitHub Mirror for the selected Issue |
+| `w` | Show warning details in a modal |
 | `r` | Reload from disk |
 | `?` | Show key help |
 | `Esc` | Back or cancel |
@@ -67,4 +68,4 @@ Mirrored Issues show `GitHub #123` in Detail metadata. Dense Board Cards stay fo
 
 ## Warnings
 
-The board can show warnings for malformed Issues, duplicate IDs, dependency problems, and hook failures. Warnings are informational; the Markdown files remain the source of truth.
+The board can show warnings for malformed Issues, duplicate IDs, dependency problems, and hook failures. Press `w` to open warning details in a focused modal, and press Esc to close it. Warnings are informational; the Markdown files remain the source of truth.
