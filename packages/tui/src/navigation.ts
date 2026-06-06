@@ -22,6 +22,7 @@ type TuiAction =
 	| "github"
 	| "warnings"
 	| "help"
+	| "save-note"
 	| "reload"
 	| "quit";
 
@@ -97,6 +98,7 @@ export function moveSelection(
 			detailOpen: false,
 			moveOpen: false,
 			noteOpen: false,
+			noteDraft: undefined,
 			labelOpen: false,
 		};
 	}
@@ -261,6 +263,12 @@ export function applyNoteInput(
 			noteDraft: (selection.noteDraft ?? "").slice(0, -1),
 		};
 	}
+	if (keyName === "enter" || keyName === "return") {
+		return {
+			...selection,
+			noteDraft: `${selection.noteDraft ?? ""}\n`,
+		};
+	}
 	const character = keyName === "space" ? " " : keyName;
 	if (character.length !== 1) return selection;
 	const value =
@@ -284,7 +292,9 @@ export function footerMode(selection: TuiSelection): FooterMode {
 export function keyToTuiAction(
 	keyName: string | undefined,
 	shift = false,
+	ctrl = false,
 ): TuiAction | undefined {
+	if (ctrl && keyName === "s") return "save-note";
 	if (shift && keyName === "h") return "move-left";
 	if (shift && keyName === "l") return "move-right";
 	switch (keyName) {
@@ -346,6 +356,7 @@ export function keyToDirection(
 		action === "github" ||
 		action === "warnings" ||
 		action === "help" ||
+		action === "save-note" ||
 		action === "reload" ||
 		action === "quit"
 	) {

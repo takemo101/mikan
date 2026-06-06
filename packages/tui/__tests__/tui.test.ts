@@ -1742,7 +1742,7 @@ updated_at: 2026-05-30T00:00:00Z
 			title: "Append note to MIK-001",
 			focused: true,
 			draft: "Draft",
-			hint: "enter append  esc cancel",
+			hint: "enter newline  ctrl+s save  esc cancel",
 		});
 		expect(buildNotePromptViewModel(model, noteSelectionState)?.feedback).toBe(
 			undefined,
@@ -1919,6 +1919,10 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(
 			applyNoteInput({ ...selection, noteDraft: "AB" }, "backspace").noteDraft,
 		).toBe("A");
+		expect(
+			applyNoteInput({ ...selection, noteDraft: "A" }, "enter").noteDraft,
+		).toBe("A\n");
+		expect(keyToTuiAction("s", false, true)).toBe("save-note");
 		expect(moveSelection(model, selection, "escape").noteOpen).toBe(false);
 	});
 
@@ -2002,6 +2006,41 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(getSelectedDetails(result.model, result.selection)?.notes).toContain(
 			"Fresh note from TUI",
 		);
+	});
+
+	test("appends multiline Note Markdown and keeps empty submissions open", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const empty = appendSelectedIssueNote({
+			cwd,
+			model,
+			selection: {
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: false,
+				noteOpen: true,
+				noteDraft: "   ",
+			},
+			body: "   ",
+			now,
+		});
+		const result = appendSelectedIssueNote({
+			cwd,
+			model,
+			selection: { columnIndex: 1, cardIndex: 0, detailOpen: false },
+			body: "Line one\n- Line two",
+			now,
+		});
+		const markdown = readFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			"utf8",
+		);
+
+		expect(empty.ok).toBe(false);
+		expect(empty.selection.noteOpen).toBe(true);
+		expect(empty.message).toContain("Note cannot be empty");
+		expect(result.ok).toBe(true);
+		expect(markdown).toContain("Line one\n- Line two");
 	});
 
 	test("opens and cancels a GitHub Mirror confirmation modal", async () => {

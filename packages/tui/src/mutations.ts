@@ -479,7 +479,7 @@ export function appendSelectedIssueNote(options: {
 		return {
 			ok: false,
 			model: options.model,
-			selection: { ...options.selection, noteOpen: false },
+			selection: { ...options.selection, noteOpen: true },
 			message: "Note cannot be empty",
 		};
 	}
