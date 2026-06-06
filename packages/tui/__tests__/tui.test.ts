@@ -1846,6 +1846,7 @@ updated_at: 2026-05-30T00:00:00Z
 			height: 5,
 			wrapMode: "word",
 		});
+		expect(textarea?.props?.style).not.toHaveProperty("width");
 	});
 
 	test("opens a move interaction with configured target Statuses", async () => {
