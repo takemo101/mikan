@@ -4,6 +4,8 @@ mikan is a tiny local-first Issue board for AI-assisted development. It gives hu
 
 mikan stores every Issue as Markdown under `.mikan/`. The CLI, TUI, MCP server, and watcher all operate on those same files.
 
+Manual: <https://takemo101.github.io/mikan/>
+
 ## Why use mikan?
 
 AI-assisted development often needs more context than a TODO list, but less process than a project-management suite. mikan is meant for that middle ground:
