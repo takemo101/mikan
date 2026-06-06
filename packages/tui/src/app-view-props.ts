@@ -1,6 +1,11 @@
+import type React from "react";
 import type { TuiModel } from "./model.ts";
 import type { TuiSelection } from "./selection.ts";
 import type { TuiTheme } from "./theme.ts";
+
+export type TuiNoteTextareaHandle = {
+	plainText: string;
+};
 
 // Visible board Column mode. "auto" derives the count from viewport width and
 // keeps the sliding viewport; a number requests an explicit fixed count. Kept
@@ -17,4 +22,6 @@ export type TuiAppViewProps = {
 	viewportHeight?: number;
 	viewportWidth?: number;
 	columns?: TuiColumnsMode;
+	noteTextareaRef?: React.RefObject<TuiNoteTextareaHandle | null>;
+	onNoteSubmit?: (body: string) => void;
 };

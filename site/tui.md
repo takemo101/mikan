@@ -64,7 +64,7 @@ mikan writes through the same project-local lock used by the CLI and MCP server.
 
 Press `n` to append a free-form Note to the selected Issue. The Note modal accepts multi-line Markdown: Enter inserts a newline, Ctrl+S saves, and Esc cancels. Empty saves stay in the modal and show `Note cannot be empty`.
 
-The Note input is intentionally lightweight rather than a full editor. It shows a `▌` cursor marker, supports left/right movement within the current line, does not support vertical cursor movement, and displays a trailing 5-line window ending at the active edit line when the draft is longer than the visible input area. On save, mikan trims only leading/trailing blank space and appends the body to `## Notes` through the same mutation path used by CLI and MCP.
+The Note input uses OpenTUI's native `textarea` for multiline editing, cursor movement, paste handling, wrapping, and a small visible input area. On save, mikan reads the textarea's plain text, trims only leading/trailing blank space, and appends the body to `## Notes` through the same mutation path used by CLI and MCP.
 
 ## GitHub Mirror
 

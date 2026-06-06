@@ -34,7 +34,7 @@ export function renderNoteInteraction(
 		view.title,
 		"",
 		"Note:",
-		...view.inputLines.map((line) => `  ${line}`),
+		"  (OpenTUI textarea)",
 		...(view.feedback ? ["", view.feedback] : []),
 		"",
 		view.hint,

@@ -24,7 +24,6 @@ import {
 	updateSelectedIssueLabels,
 } from "./mutations.ts";
 import {
-	applyNoteInput,
 	beginGitHubMirrorSubmission,
 	footerMode,
 	getMoveTargets,
@@ -121,7 +120,6 @@ export {
 	updateSelectedIssueLabels,
 } from "./mutations.ts";
 export {
-	applyNoteInput,
 	beginGitHubMirrorSubmission,
 	getAdjacentMoveTarget,
 	getMoveTargets,
@@ -168,6 +166,8 @@ export function TuiAppView({
 	viewportHeight,
 	viewportWidth,
 	columns,
+	noteTextareaRef,
+	onNoteSubmit,
 }: TuiAppViewProps): React.ReactElement {
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
@@ -210,7 +210,13 @@ export function TuiAppView({
 			? React.createElement(MovePrompt, { model, selection, theme })
 			: undefined,
 		selection.noteOpen
-			? React.createElement(NotePrompt, { model, selection, theme })
+			? React.createElement(NotePrompt, {
+					model,
+					selection,
+					theme,
+					noteTextareaRef,
+					onNoteSubmit,
+				})
 			: undefined,
 		selection.labelOpen
 			? React.createElement(LabelPrompt, { model, selection, theme })
@@ -265,6 +271,19 @@ export async function launchTui(
 		const modelRef = React.useRef(model);
 		const selectionRef = React.useRef(selection);
 		const githubBusyRef = React.useRef(false);
+		const noteTextareaRef = React.useRef<{ plainText: string } | null>(null);
+		const submitNote = React.useCallback((body: string) => {
+			const result = appendSelectedIssueNote({
+				cwd: options.cwd,
+				model: modelRef.current,
+				selection: selectionRef.current,
+				body,
+			});
+			modelRef.current = result.model;
+			selectionRef.current = { ...result.selection, message: result.message };
+			setModel(result.model);
+			setSelection({ ...result.selection, message: result.message });
+		}, []);
 		modelRef.current = model;
 		selectionRef.current = selection;
 
@@ -300,18 +319,6 @@ export async function launchTui(
 					setSelection((current) => moveSelection(model, current, action));
 					return;
 				}
-				if (action === "save-note") {
-					const result = appendSelectedIssueNote({
-						cwd: options.cwd,
-						model,
-						selection,
-						body: selection.noteDraft ?? "",
-					});
-					setModel(result.model);
-					setSelection({ ...result.selection, message: result.message });
-					return;
-				}
-				setSelection((current) => applyNoteInput(current, key.name, key.shift));
 				return;
 			}
 			if (selection.archiveOpen) {
@@ -482,6 +489,8 @@ export async function launchTui(
 			viewportHeight: renderer.height,
 			viewportWidth: renderer.width,
 			columns: options.columns,
+			noteTextareaRef,
+			onNoteSubmit: submitNote,
 		});
 	}
 

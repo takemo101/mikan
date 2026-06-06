@@ -12,7 +12,6 @@ export type MovePromptViewModel = {
 export type NotePromptViewModel = {
 	title: string;
 	focused: boolean;
-	inputLines: string[];
 	feedback?: string;
 	hint: string;
 };
@@ -63,35 +62,17 @@ export function buildMovePromptViewModel(
 	};
 }
 
-const NOTE_INPUT_VISIBLE_LINES = 5;
-
 export function buildNotePromptViewModel(
 	model: TuiModel,
 	selection: TuiSelection,
 ): NotePromptViewModel | undefined {
 	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
 	if (!card) return undefined;
-	const draft = selection.noteDraft ?? "";
 	return {
 		title: `Append note to ${card.id}`,
 		focused: Boolean(selection.noteOpen),
-		inputLines: renderNoteDraftLines(
-			draft,
-			selection.noteCursorOffset ?? draft.length,
-		),
 		hint: "enter newline  ctrl+s save  esc cancel",
 	};
-}
-
-function renderNoteDraftLines(draft: string, cursorOffset: number): string[] {
-	const cursor = Math.max(0, Math.min(cursorOffset, draft.length));
-	const beforeCursor = draft.slice(0, cursor);
-	const cursorLineIndex = beforeCursor.split("\n").length - 1;
-	const withCursor = `${beforeCursor}▌${draft.slice(cursor)}`;
-	const lines = withCursor.split("\n");
-	const endExclusive = cursorLineIndex + 1;
-	const start = Math.max(0, endExclusive - NOTE_INPUT_VISIBLE_LINES);
-	return lines.slice(start, endExclusive);
 }
 
 export function buildLabelPromptViewModel(
