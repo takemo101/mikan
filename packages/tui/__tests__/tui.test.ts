@@ -1914,16 +1914,69 @@ updated_at: 2026-05-30T00:00:00Z
 			renderTuiText(model, applyNoteInput(selection, "a", true)),
 		).toContain("Note: A");
 		expect(
-			applyNoteInput({ ...selection, noteDraft: "A" }, "space").noteDraft,
+			applyNoteInput(
+				{ ...selection, noteDraft: "A", noteCursorOffset: 1 },
+				"space",
+			).noteDraft,
 		).toBe("A ");
 		expect(
-			applyNoteInput({ ...selection, noteDraft: "AB" }, "backspace").noteDraft,
+			applyNoteInput(
+				{ ...selection, noteDraft: "AB", noteCursorOffset: 2 },
+				"backspace",
+			).noteDraft,
 		).toBe("A");
 		expect(
-			applyNoteInput({ ...selection, noteDraft: "A" }, "enter").noteDraft,
+			applyNoteInput(
+				{ ...selection, noteDraft: "A", noteCursorOffset: 1 },
+				"enter",
+			).noteDraft,
 		).toBe("A\n");
 		expect(keyToTuiAction("s", false, true)).toBe("save-note");
 		expect(moveSelection(model, selection, "escape").noteOpen).toBe(false);
+	});
+
+	test("edits Note drafts with a line-local cursor", () => {
+		const base: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			noteOpen: true,
+			noteDraft: "abc",
+			noteCursorOffset: 1,
+		};
+		const inserted = applyNoteInput(base, "X");
+		const left = applyNoteInput(base, "left");
+		const leftBound = applyNoteInput({ ...base, noteCursorOffset: 0 }, "left");
+		const right = applyNoteInput(base, "right");
+		const multiline: TuiSelection = {
+			...base,
+			noteDraft: "ab\ncd",
+			noteCursorOffset: 3,
+		};
+		const rightLineEnd = applyNoteInput(
+			{ ...multiline, noteCursorOffset: 5 },
+			"right",
+		);
+		const backspaced = applyNoteInput(
+			{ ...base, noteDraft: "abcd", noteCursorOffset: 2 },
+			"backspace",
+		);
+		const newlineInserted = applyNoteInput(
+			{ ...base, noteDraft: "abcd", noteCursorOffset: 2 },
+			"enter",
+		);
+
+		expect(inserted.noteDraft).toBe("aXbc");
+		expect(inserted.noteCursorOffset).toBe(2);
+		expect(left.noteCursorOffset).toBe(0);
+		expect(leftBound.noteCursorOffset).toBe(0);
+		expect(right.noteCursorOffset).toBe(2);
+		expect(applyNoteInput(multiline, "left").noteCursorOffset).toBe(3);
+		expect(rightLineEnd.noteCursorOffset).toBe(5);
+		expect(backspaced.noteDraft).toBe("acd");
+		expect(backspaced.noteCursorOffset).toBe(1);
+		expect(newlineInserted.noteDraft).toBe("ab\ncd");
+		expect(newlineInserted.noteCursorOffset).toBe(3);
 	});
 
 	test("updates selected Issue Labels through core mutation and preserves unknown Labels", () => {

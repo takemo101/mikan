@@ -69,6 +69,9 @@ export function refreshTuiModel(options: {
 				: undefined,
 			noteOpen: stillSelected ? options.selection.noteOpen : false,
 			noteDraft: stillSelected ? options.selection.noteDraft : undefined,
+			noteCursorOffset: stillSelected
+				? options.selection.noteCursorOffset
+				: undefined,
 			labelOpen: stillSelected ? options.selection.labelOpen : false,
 			labelFocusIndex: stillSelected
 				? options.selection.labelFocusIndex
@@ -532,6 +535,8 @@ export function appendSelectedIssueNote(options: {
 			...selection,
 			detailOpen: options.selection.detailOpen,
 			noteOpen: false,
+			noteDraft: undefined,
+			noteCursorOffset: undefined,
 		},
 		message: `${card.id} note appended`,
 	};
