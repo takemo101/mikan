@@ -1743,7 +1743,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(buildNotePromptViewModel(model, noteSelectionState)).toMatchObject({
 			title: "Append note to MIK-001",
 			focused: true,
-			hint: "Enter newline / Ctrl+S save / Esc cancel",
+			hint: "Enter newline | Ctrl+S save | Esc cancel",
 		});
 		expect(buildNotePromptViewModel(model, noteSelectionState)?.feedback).toBe(
 			undefined,
@@ -1835,7 +1835,7 @@ updated_at: 2026-05-30T00:00:00Z
 		const noteText = collectTextContent(noteTree);
 		const textarea = findElementById(noteTree, "note-textarea");
 		expect(noteText).toContain("Note:");
-		expect(noteText).toContain("Enter newline / Ctrl+S save / Esc cancel");
+		expect(noteText).toContain("Enter newline | Ctrl+S save | Esc cancel");
 		const noteModalChildren = Array.isArray(noteModal?.props?.children)
 			? noteModal.props.children
 			: [noteModal?.props?.children];
@@ -1844,7 +1844,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(noteLabel?.props?.content).toContain("Note:");
 		expect(noteLabel?.props?.content).not.toContain("Ctrl+S save");
 		expect(noteHint?.props?.content).toContain(
-			"Enter newline / Ctrl+S save / Esc cancel",
+			"Enter newline | Ctrl+S save | Esc cancel",
 		);
 		expect(textarea?.props).toMatchObject({
 			focused: true,
