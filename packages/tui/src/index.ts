@@ -283,8 +283,8 @@ export async function launchTui(
 			return () => clearInterval(interval);
 		}, []);
 
-		useKeyboard((key: { name?: string; shift?: boolean }) => {
-			const action = keyToTuiAction(key.name, key.shift);
+		useKeyboard((key: { name?: string; shift?: boolean; ctrl?: boolean }) => {
+			const action = keyToTuiAction(key.name, key.shift, key.ctrl);
 			if (selection.helpOpen) {
 				if (action === "escape" || action === "help") {
 					setSelection((current) => moveSelection(model, current, action));
@@ -300,7 +300,7 @@ export async function launchTui(
 					setSelection((current) => moveSelection(model, current, action));
 					return;
 				}
-				if (action === "enter") {
+				if (action === "save-note") {
 					const result = appendSelectedIssueNote({
 						cwd: options.cwd,
 						model,
@@ -445,6 +445,7 @@ export async function launchTui(
 				setSelection((current) => moveSelection(model, current, action));
 				return;
 			}
+			if (action === "save-note") return;
 			if (action === "github") {
 				if (githubBusyRef.current) return;
 				githubBusyRef.current = true;
