@@ -25,6 +25,7 @@ import {
 	buildDetailPageViewModel,
 	buildDetailViewModel,
 	buildGitHubMirrorPromptViewModel,
+	buildLabelPromptViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
 	buildTuiModel,
@@ -43,9 +44,11 @@ import {
 	IssueCard,
 	keyToDirection,
 	keyToTuiAction,
+	LabelPrompt,
 	loadTuiModel,
 	MIN_COLUMN_WIDTH,
 	MovePrompt,
+	moveLabelFocus,
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
 	moveSelection,
@@ -55,7 +58,10 @@ import {
 	TUI_VERSION,
 	TuiAppView,
 	type TuiGitHubMirrorOperations,
+	type TuiModel,
 	type TuiSelection,
+	toggleFocusedLabel,
+	updateSelectedIssueLabels,
 	visibleColumnCountForViewport,
 } from "../src/index.ts";
 
@@ -770,6 +776,28 @@ describe("TUI model and navigation", () => {
 		expect(boardText).not.toContain("GitHub #123");
 	});
 
+	test("TUI model exposes configured Labels in config order", () => {
+		const model = buildTuiModel(
+			{
+				columns: [],
+				warnings: [],
+			},
+			[
+				{ id: "automation", title: "Automation" },
+				{ id: "herdr", title: "Herdr" },
+			],
+		);
+
+		expect(model.labels).toEqual([
+			{ id: "automation", title: "Automation" },
+			{ id: "herdr", title: "Herdr" },
+		]);
+		expect(model.labelTitles).toEqual({
+			automation: "Automation",
+			herdr: "Herdr",
+		});
+	});
+
 	test("renders detail label titles while preserving label IDs", () => {
 		const cwd = tempProject();
 		writeFileSync(
@@ -1115,10 +1143,10 @@ updated_at: 2026-05-30T00:00:00Z
 		);
 
 		expect(boardText).toContain(
-			"Board | ↑↓ card | ←→ column | enter detail | g github | ? keys",
+			"Board | ↑↓ card | ←→ column | enter detail | e labels | g github | ? keys",
 		);
 		expect(detailText).toContain(
-			"Detail | ↑↓ scroll | g github | esc board | ? keys",
+			"Detail | ↑↓ scroll | e labels | g github | esc board | ? keys",
 		);
 		expect(modalText).toContain("Modal | enter confirm | esc cancel | ? keys");
 		expect(detailText).not.toContain("j/k card");
@@ -1163,6 +1191,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(text).toContain("m move menu");
 		expect(text).toContain("w warning details");
 		expect(text).toContain("n append Note");
+		expect(text).toContain("e edit Labels");
 	});
 
 	test("detail mode switches to a polished full-page Markdown detail page", () => {
@@ -1425,16 +1454,233 @@ updated_at: 2026-05-30T00:00:00Z
 			| undefined;
 
 		expect(footer?.props?.content).toBe(
-			"Board | ↑↓ card | ←→ column | enter detail | g github | ? keys    MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | e labels | g github | ? keys    MIK-001 moved to backlog",
 		);
 		expect(
 			collectTextContent(tree).match(/MIK-001 moved to backlog/g) ?? [],
 		).toHaveLength(1);
 		expect(renderTuiText(model, selection)).toContain(
-			"Board | ↑↓ card | ←→ column | enter detail | g github | ? keys    MIK-001 moved to backlog",
+			"Board | ↑↓ card | ←→ column | enter detail | e labels | g github | ? keys    MIK-001 moved to backlog",
 		);
 		expect(renderTuiText(model, selection)).not.toContain(
 			"\nMIK-001 moved to backlog\n\nBoard |",
+		);
+	});
+
+	test("opens a Label editor with selected Labels as a draft", async () => {
+		const model: TuiModel = {
+			columns: [
+				{
+					id: "ready",
+					title: "Ready",
+					cards: [
+						{
+							id: "MIK-001",
+							title: "Ready issue",
+							labels: ["automation", "legacy-label"],
+							status: "ready",
+							path: "/tmp/MIK-001.md",
+						},
+					],
+				},
+			],
+			warnings: [],
+			labels: [
+				{ id: "automation", title: "Automation" },
+				{ id: "herdr", title: "Herdr" },
+			],
+			labelTitles: { automation: "Automation", herdr: "Herdr" },
+		};
+		const selection = moveSelection(
+			model,
+			{ columnIndex: 0, cardIndex: 0, detailOpen: false },
+			"edit-labels",
+		);
+
+		expect(keyToTuiAction("e")).toBe("edit-labels");
+		expect(selection.labelOpen).toBe(true);
+		expect(selection.labelDraftIds).toEqual(["automation"]);
+		expect(selection.labelFocusIndex).toBe(0);
+	});
+
+	test("builds Label prompt view model with checked known Labels and read-only unknown Labels", () => {
+		const model: TuiModel = {
+			columns: [
+				{
+					id: "ready",
+					title: "Ready",
+					cards: [
+						{
+							id: "MIK-001",
+							title: "Ready issue",
+							labels: ["automation", "legacy-label"],
+							status: "ready",
+							path: "/tmp/MIK-001.md",
+						},
+					],
+				},
+			],
+			warnings: [],
+			labels: [
+				{ id: "automation", title: "Automation" },
+				{ id: "herdr", title: "Herdr" },
+			],
+			labelTitles: { automation: "Automation", herdr: "Herdr" },
+		};
+
+		const view = buildLabelPromptViewModel(model, {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			labelOpen: true,
+			labelFocusIndex: 1,
+			labelDraftIds: ["automation", "herdr"],
+		});
+
+		expect(view).toMatchObject({
+			title: "Edit Labels for MIK-001",
+			focused: true,
+			hint: "space toggle  enter save  esc cancel",
+			unknownLabels: ["legacy-label"],
+		});
+		expect(view?.labels).toEqual([
+			{
+				id: "automation",
+				title: "Automation",
+				checked: true,
+				focused: false,
+			},
+			{ id: "herdr", title: "Herdr", checked: true, focused: true },
+		]);
+	});
+
+	test("moves Label focus and toggles focused Label draft", () => {
+		const model: TuiModel = {
+			columns: [],
+			warnings: [],
+			labels: [
+				{ id: "automation", title: "Automation" },
+				{ id: "herdr", title: "Herdr" },
+			],
+			labelTitles: { automation: "Automation", herdr: "Herdr" },
+		};
+		const focused = moveLabelFocus(
+			model,
+			{
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				labelOpen: true,
+				labelFocusIndex: 0,
+				labelDraftIds: ["automation"],
+			},
+			"down",
+		);
+		const toggled = toggleFocusedLabel(model, focused);
+
+		expect(focused.labelFocusIndex).toBe(1);
+		expect(toggled.labelDraftIds).toEqual(["automation", "herdr"]);
+	});
+
+	test("escape closes Label editor without saving draft", () => {
+		const model: TuiModel = {
+			columns: [],
+			warnings: [],
+			labels: [{ id: "automation", title: "Automation" }],
+			labelTitles: { automation: "Automation" },
+		};
+		const closed = moveSelection(
+			model,
+			{
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				labelOpen: true,
+				labelDraftIds: [],
+			},
+			"escape",
+		);
+
+		expect(closed.labelOpen).toBe(false);
+		expect(closed.labelDraftIds).toEqual([]);
+	});
+
+	test("renders Label editor modal with checked and unknown Labels", () => {
+		const model: TuiModel = {
+			columns: [
+				{
+					id: "ready",
+					title: "Ready",
+					cards: [
+						{
+							id: "MIK-001",
+							title: "Ready issue",
+							labels: ["automation", "legacy-label"],
+							status: "ready",
+							path: "/tmp/MIK-001.md",
+						},
+					],
+				},
+			],
+			warnings: [],
+			labels: [
+				{ id: "automation", title: "Automation" },
+				{ id: "herdr", title: "Herdr" },
+			],
+			labelTitles: { automation: "Automation", herdr: "Herdr" },
+		};
+
+		const tree = TuiAppView({
+			model,
+			selection: {
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				labelOpen: true,
+				labelFocusIndex: 0,
+				labelDraftIds: ["automation"],
+			},
+		});
+		const text = collectTextContent(tree);
+
+		expect(collectElementTypes(tree)).toContain(LabelPrompt);
+		expect(text).toContain("Edit Labels for MIK-001");
+		expect(text).toContain("▶ [x] Automation");
+		expect(text).toContain("  [ ] Herdr");
+		expect(text).toContain("Unknown Labels (read-only): legacy-label");
+	});
+
+	test("renders explanatory Label modal when no Labels are configured", () => {
+		const model: TuiModel = {
+			columns: [
+				{
+					id: "ready",
+					title: "Ready",
+					cards: [
+						{
+							id: "MIK-001",
+							title: "Ready issue",
+							labels: [],
+							status: "ready",
+							path: "/tmp/MIK-001.md",
+						},
+					],
+				},
+			],
+			warnings: [],
+			labels: [],
+			labelTitles: {},
+		};
+
+		const text = renderTuiText(model, {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			labelOpen: true,
+		});
+
+		expect(text).toContain(
+			"No Labels configured. Add Labels in .mikan/config.yaml.",
 		);
 	});
 
@@ -1646,6 +1892,67 @@ updated_at: 2026-05-30T00:00:00Z
 			applyNoteInput({ ...selection, noteDraft: "AB" }, "backspace").noteDraft,
 		).toBe("A");
 		expect(moveSelection(model, selection, "escape").noteOpen).toBe(false);
+	});
+
+	test("updates selected Issue Labels through core mutation and preserves unknown Labels", () => {
+		const cwd = tempProject();
+		const init = initProject(cwd, { key: "MIK", name: "mikan" });
+		expect(init.ok).toBe(true);
+		if (!init.ok) throw new Error("expected init");
+		writeFileSync(
+			join(cwd, ".mikan", "config.yaml"),
+			`project:
+  key: MIK
+  name: mikan
+board:
+  columns:
+    - id: ready
+      title: Ready
+labels:
+  - id: automation
+    title: Automation
+  - id: herdr
+    title: Herdr
+`,
+		);
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---
+id: MIK-001
+title: Ready issue
+labels:
+  - legacy-label
+created_at: 2026-05-30T00:00:00Z
+updated_at: 2026-05-30T00:00:00Z
+---
+
+# Ready issue
+`,
+		);
+		const model = loadTuiModel(cwd);
+		const result = updateSelectedIssueLabels({
+			cwd,
+			model,
+			selection: {
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				labelOpen: true,
+				labelDraftIds: ["herdr", "automation"],
+			},
+			now: () => new Date("2026-05-30T01:00:00Z"),
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.message).toBe("MIK-001 Labels updated");
+		const markdown = readFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			"utf8",
+		);
+		expect(markdown).toContain(
+			"labels:\n  - automation\n  - herdr\n  - legacy-label",
+		);
+		expect(markdown).not.toContain("Labels updated via TUI");
 	});
 
 	test("appends a note through core mutation and refreshes details", () => {
@@ -1938,6 +2245,11 @@ updated_at: 2026-05-30T00:00:00Z
 	test("buildTuiModel is pure for startup smoke", () => {
 		const model = buildTuiModel({ columns: [], warnings: [] });
 
-		expect(model).toEqual({ columns: [], warnings: [], labelTitles: {} });
+		expect(model).toEqual({
+			columns: [],
+			warnings: [],
+			labels: [],
+			labelTitles: {},
+		});
 	});
 });

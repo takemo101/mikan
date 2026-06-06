@@ -28,8 +28,9 @@ Notes:
   4. press Enter/Return to switch to the full-page Markdown detail page for the selected Issue;
   5. use `j`/`k` or arrow keys to scroll detail Markdown, then press Esc to return to the board with selection preserved;
   6. press `H`/`L` to move the selected Issue to the adjacent Status, or press `m`, choose any target Status, and press Enter;
-  7. press `r` to reload from disk;
-  8. press `a`, type a short Note, and press Enter to append it to `## Notes`;
-  9. press `q` to quit.
+  7. press `e`, toggle Labels with Space, and press Enter to save frontmatter Label changes;
+  8. press `n`, type a short Note, and press Enter to append it to `## Notes`;
+  9. press `r` to reload from disk;
+  10. press `q` to quit.
 - `mikan watch` runs continuously in normal CLI use; tests exercise the same watcher logic with one scan at a time.
 - The automated smoke test covers non-interactive CLI commands, MCP read/mutation tools, TUI data loading, and watch hook execution in a temporary `.mikan` project.

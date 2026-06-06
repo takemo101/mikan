@@ -148,13 +148,14 @@ Key bindings:
 - `H` / `L`: move the selected Issue to an adjacent Status
 - `Enter`: open full-page Markdown detail
 - `n`: append a Note in a modal prompt
+- `e`: edit Labels in a modal prompt
 - `a`: confirm Archive in a modal prompt
 - `g`: create or update a one-way GitHub Mirror
 - `r`: reload from disk
 - `Esc`: back/cancel
 - `q`: quit
 
-The board page is primary. Detail mode renders the Issue body as Markdown with a fixed header. Move, Note, and Archive interactions use focused modal overlays.
+The board page is primary. Detail mode renders the Issue body as Markdown with a fixed header. Move, Note, Label, and Archive interactions use focused modal overlays.
 
 TUI Column option:
 

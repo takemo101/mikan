@@ -17,6 +17,7 @@ type TuiAction =
 	| "move-left"
 	| "move-right"
 	| "append-note"
+	| "edit-labels"
 	| "archive"
 	| "github"
 	| "warnings"
@@ -30,6 +31,7 @@ type TuiSelectionAction =
 	| TuiDirection
 	| "move"
 	| "append-note"
+	| "edit-labels"
 	| "archive"
 	| "github"
 	| "warnings"
@@ -54,7 +56,12 @@ export function moveSelection(
 			message: undefined,
 		};
 	}
-	if (selection.detailOpen && !selection.moveOpen && !selection.noteOpen) {
+	if (
+		selection.detailOpen &&
+		!selection.moveOpen &&
+		!selection.noteOpen &&
+		!selection.labelOpen
+	) {
 		if (direction === "up" || direction === "down") {
 			return {
 				...selection,
@@ -79,6 +86,9 @@ export function moveSelection(
 		if (selection.githubConfirmOpen) {
 			return { ...selection, githubConfirmOpen: false };
 		}
+		if (selection.labelOpen) {
+			return { ...selection, labelOpen: false };
+		}
 		if (selection.warningsOpen) {
 			return { ...selection, warningsOpen: false };
 		}
@@ -87,6 +97,7 @@ export function moveSelection(
 			detailOpen: false,
 			moveOpen: false,
 			noteOpen: false,
+			labelOpen: false,
 		};
 	}
 	if (direction === "move") {
@@ -95,6 +106,7 @@ export function moveSelection(
 			archiveOpen: false,
 			detailOpen: false,
 			noteOpen: false,
+			labelOpen: false,
 			moveOpen: true,
 			moveTargetIndex: 0,
 		};
@@ -105,7 +117,26 @@ export function moveSelection(
 			archiveOpen: false,
 			detailOpen: false,
 			moveOpen: false,
+			labelOpen: false,
 			noteOpen: true,
+		};
+	}
+	if (direction === "edit-labels") {
+		const card =
+			model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+		const knownLabelIds = new Set(
+			(model.labels ?? []).map((label) => label.id),
+		);
+		return {
+			...selection,
+			archiveOpen: false,
+			githubConfirmOpen: false,
+			moveOpen: false,
+			noteOpen: false,
+			labelOpen: true,
+			labelFocusIndex: 0,
+			labelDraftIds:
+				card?.labels.filter((label) => knownLabelIds.has(label)) ?? [],
 		};
 	}
 	if (direction === "archive") {
@@ -114,6 +145,7 @@ export function moveSelection(
 			archiveOpen: true,
 			moveOpen: false,
 			noteOpen: false,
+			labelOpen: false,
 			githubConfirmOpen: false,
 		};
 	}
@@ -123,6 +155,7 @@ export function moveSelection(
 			archiveOpen: false,
 			moveOpen: false,
 			noteOpen: false,
+			labelOpen: false,
 			githubConfirmOpen: true,
 		};
 	}
@@ -187,6 +220,35 @@ export function getAdjacentMoveTarget(
 	return column ? { id: column.id, title: column.title } : undefined;
 }
 
+export function moveLabelFocus(
+	model: TuiModel,
+	selection: TuiSelection,
+	direction: "up" | "down",
+): TuiSelection {
+	if (!selection.labelOpen) return selection;
+	return {
+		...selection,
+		labelFocusIndex: clamp(
+			(selection.labelFocusIndex ?? 0) + (direction === "down" ? 1 : -1),
+			0,
+			Math.max(0, (model.labels ?? []).length - 1),
+		),
+	};
+}
+
+export function toggleFocusedLabel(
+	model: TuiModel,
+	selection: TuiSelection,
+): TuiSelection {
+	if (!selection.labelOpen) return selection;
+	const label = (model.labels ?? [])[selection.labelFocusIndex ?? 0];
+	if (!label) return selection;
+	const current = new Set(selection.labelDraftIds ?? []);
+	if (current.has(label.id)) current.delete(label.id);
+	else current.add(label.id);
+	return { ...selection, labelDraftIds: [...current] };
+}
+
 export function applyNoteInput(
 	selection: TuiSelection,
 	keyName: string | undefined,
@@ -210,6 +272,7 @@ export function footerMode(selection: TuiSelection): FooterMode {
 	if (
 		selection.moveOpen ||
 		selection.noteOpen ||
+		selection.labelOpen ||
 		selection.archiveOpen ||
 		selection.githubConfirmOpen
 	) {
@@ -252,6 +315,8 @@ export function keyToTuiAction(
 			return "move";
 		case "n":
 			return "append-note";
+		case "e":
+			return "edit-labels";
 		case "a":
 			return "archive";
 		case "g":
@@ -276,6 +341,7 @@ export function keyToDirection(
 		action === "move-left" ||
 		action === "move-right" ||
 		action === "append-note" ||
+		action === "edit-labels" ||
 		action === "archive" ||
 		action === "github" ||
 		action === "warnings" ||

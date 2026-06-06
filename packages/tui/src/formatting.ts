@@ -54,9 +54,9 @@ export function footerText(mode: FooterMode): string {
 		return "Modal | enter confirm | esc cancel | ? keys";
 	}
 	if (mode === "detail") {
-		return "Detail | ↑↓ scroll | g github | esc board | ? keys";
+		return "Detail | ↑↓ scroll | e labels | g github | esc board | ? keys";
 	}
-	return "Board | ↑↓ card | ←→ column | enter detail | g github | ? keys";
+	return "Board | ↑↓ card | ←→ column | enter detail | e labels | g github | ? keys";
 }
 
 export function boxLine(

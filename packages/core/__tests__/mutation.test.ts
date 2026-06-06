@@ -254,6 +254,34 @@ describe("core mutations", () => {
 		).toBe(false);
 	});
 
+	test("updateIssue can preserve existing config-unknown Labels when requested", () => {
+		const root = tempProject();
+		seed(root);
+		const issuePath = join(root, ".mikan", "backlog", "MIK-001.md");
+		writeFileSync(
+			issuePath,
+			readIssue(root, "backlog").replace(
+				"labels:\n  - automation",
+				"labels:\n  - legacy-label",
+			),
+		);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			labels: ["automation", "legacy-label"],
+			preserveUnknownLabels: true,
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(readIssue(root, "backlog")).toContain(
+			"labels:\n  - automation\n  - legacy-label",
+		);
+	});
+
 	test("update changes title, labels, body, and updated_at", () => {
 		const root = tempProject();
 		seed(root);

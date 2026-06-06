@@ -409,13 +409,18 @@ Must support:
 - shift the visible Column viewport as focus moves, for example `Backlog / Ready / Active` → `Ready / Active / Blocked` → `Active / Blocked / Completed`;
 - show Cards from corresponding directories with compact Issue ID, title, labels, and focused Card styling;
 - highlight the selected Card/Column and keep empty Columns visible with a muted empty state;
-- use `h`/`l` or arrow keys for Column focus, `j`/`k` or arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `r` for reload, Esc for close/back, and `q` for quit;
+- use `h`/`l` or arrow keys for Column focus, `j`/`k` or arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `e` for Label editing, `r` for reload, Esc for close/back, and `q` for quit;
 - select a Card and press Enter/Return to switch from the board page to a full-page Markdown detail page;
 - in detail mode, render body Markdown without frontmatter and scroll it independently from board selection;
 - press Esc to return from detail, move, or note-entry modes while preserving board selection when possible;
 - periodically rescan files while preserving the selected Issue by Issue ID when possible;
 - move the selected Issue to another configured Status through the same core mutation used by CLI/MCP;
 - append a short Note to the selected Issue through the same append mutation used by CLI/MCP;
+- edit the selected Issue's Labels through a focused modal opened with `e` from either Board or Detail;
+- in the Label modal, list all config-defined Labels in config order, show current selections as checked, move with `↑`/`↓`, toggle draft selections with Space, save with Enter, and discard with Esc;
+- if no Labels are configured, show an explanatory modal instead of an empty editor;
+- preserve config-unknown Labels as read-only unknown entries when saving from the Label modal, writing selected known Labels first in config order and then unknown Labels in their original order;
+- save Label changes by updating frontmatter only, without adding Status Log or Note entries and without directly pushing GitHub Mirrors;
 - show declared and unmet dependencies in detail/read-model views;
 - show concise success/error feedback for TUI actions;
 - use a small internal semantic theme for canvas, surface, text, muted text, focus, accent, warning, error, and success states.
