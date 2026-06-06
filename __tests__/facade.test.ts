@@ -101,7 +101,6 @@ const TUI_FACADE = [
 	"TuiAppView",
 	"WarningPanel",
 	"appendSelectedIssueNote",
-	"applyNoteInput",
 	"archiveSelectedIssue",
 	"beginGitHubMirrorSubmission",
 	"beginSelectedIssueGitHubMirror",

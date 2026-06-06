@@ -15,7 +15,6 @@ import cliPackageJson from "../../cli/package.json" with { type: "json" };
 import {
 	ArchivePrompt,
 	appendSelectedIssueNote,
-	applyNoteInput,
 	archiveSelectedIssue,
 	BoardView,
 	beginGitHubMirrorSubmission,
@@ -170,6 +169,7 @@ function findElementById(
 				style?: Record<string, unknown>;
 				title?: unknown;
 				bottomTitle?: unknown;
+				[key: string]: unknown;
 			};
 	  }
 	| undefined {
@@ -184,6 +184,7 @@ function findElementById(
 			style?: Record<string, unknown>;
 			title?: unknown;
 			bottomTitle?: unknown;
+			[key: string]: unknown;
 		};
 	};
 	if (node.props?.id === id) return node;
@@ -1728,7 +1729,6 @@ updated_at: 2026-05-30T00:00:00Z
 			detailOpen: false,
 			noteOpen: true,
 			noteDraft: "Draft",
-			noteCursorOffset: 5,
 			message: "Note cannot be empty",
 		};
 
@@ -1743,28 +1743,11 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(buildNotePromptViewModel(model, noteSelectionState)).toMatchObject({
 			title: "Append note to MIK-001",
 			focused: true,
-			inputLines: ["Draft▌"],
 			hint: "enter newline  ctrl+s save  esc cancel",
 		});
 		expect(buildNotePromptViewModel(model, noteSelectionState)?.feedback).toBe(
 			undefined,
 		);
-
-		const longNote = "one\ntwo\nthree\nfour\nfive\nsix";
-		expect(
-			buildNotePromptViewModel(model, {
-				...noteSelectionState,
-				noteDraft: longNote,
-				noteCursorOffset: longNote.length,
-			})?.inputLines,
-		).toEqual(["two", "three", "four", "five", "six▌"]);
-		expect(
-			buildNotePromptViewModel(model, {
-				...noteSelectionState,
-				noteDraft: longNote,
-				noteCursorOffset: "one\ntwo".length,
-			})?.inputLines,
-		).toEqual(["one", "two▌"]);
 	});
 
 	test("renders GitHub Mirror confirmation modal", async () => {
@@ -1811,7 +1794,6 @@ updated_at: 2026-05-30T00:00:00Z
 			detailOpen: false,
 			noteOpen: true,
 			noteDraft: "Draft",
-			noteCursorOffset: 5,
 		};
 
 		const moveTree = TuiAppView({
@@ -1850,9 +1832,15 @@ updated_at: 2026-05-30T00:00:00Z
 			borderColor: theme.interactive.focus,
 		});
 		const noteText = collectTextContent(noteTree);
+		const textarea = findElementById(noteTree, "note-textarea");
 		expect(noteText).toContain("Note:");
-		expect(noteText).toContain("Draft▌");
 		expect(noteText).toContain("enter newline  ctrl+s save  esc cancel");
+		expect(textarea?.props).toMatchObject({
+			focused: true,
+			initialValue: "Draft",
+			height: 5,
+			wrapMode: "word",
+		});
 	});
 
 	test("opens a move interaction with configured target Statuses", async () => {
@@ -1927,81 +1915,31 @@ updated_at: 2026-05-30T00:00:00Z
 			{ columnIndex: 1, cardIndex: 0, detailOpen: false },
 			"append-note",
 		);
+		const noteTextareaRef = { current: { plainText: "Body\nline" } };
+		let submitted = "";
+		const tree = TuiAppView({
+			model,
+			selection,
+			noteTextareaRef,
+			onNoteSubmit: (body) => {
+				submitted = body;
+			},
+		});
+		const textarea = findElementById(tree, "note-textarea");
 
 		expect(keyToTuiAction("n")).toBe("append-note");
 		expect(keyToTuiAction("a")).toBe("archive");
+		expect(keyToTuiAction("s", false, true)).toBe("save-note");
 		expect(selection.noteOpen).toBe(true);
 		expect(renderTuiText(model, selection)).toContain("Append note to MIK-001");
-		const typedNoteText = renderTuiText(
-			model,
-			applyNoteInput(selection, "a", true),
-		);
-		expect(typedNoteText).toContain("Note:");
-		expect(typedNoteText).toContain("A▌");
-		expect(
-			applyNoteInput(
-				{ ...selection, noteDraft: "A", noteCursorOffset: 1 },
-				"space",
-			).noteDraft,
-		).toBe("A ");
-		expect(
-			applyNoteInput(
-				{ ...selection, noteDraft: "AB", noteCursorOffset: 2 },
-				"backspace",
-			).noteDraft,
-		).toBe("A");
-		expect(
-			applyNoteInput(
-				{ ...selection, noteDraft: "A", noteCursorOffset: 1 },
-				"enter",
-			).noteDraft,
-		).toBe("A\n");
-		expect(keyToTuiAction("s", false, true)).toBe("save-note");
+		expect(textarea?.props?.keyBindings).toContainEqual({
+			name: "s",
+			ctrl: true,
+			action: "submit",
+		});
+		(textarea?.props?.onSubmit as () => void)();
+		expect(submitted).toBe("Body\nline");
 		expect(moveSelection(model, selection, "escape").noteOpen).toBe(false);
-	});
-
-	test("edits Note drafts with a line-local cursor", () => {
-		const base: TuiSelection = {
-			columnIndex: 1,
-			cardIndex: 0,
-			detailOpen: false,
-			noteOpen: true,
-			noteDraft: "abc",
-			noteCursorOffset: 1,
-		};
-		const inserted = applyNoteInput(base, "X");
-		const left = applyNoteInput(base, "left");
-		const leftBound = applyNoteInput({ ...base, noteCursorOffset: 0 }, "left");
-		const right = applyNoteInput(base, "right");
-		const multiline: TuiSelection = {
-			...base,
-			noteDraft: "ab\ncd",
-			noteCursorOffset: 3,
-		};
-		const rightLineEnd = applyNoteInput(
-			{ ...multiline, noteCursorOffset: 5 },
-			"right",
-		);
-		const backspaced = applyNoteInput(
-			{ ...base, noteDraft: "abcd", noteCursorOffset: 2 },
-			"backspace",
-		);
-		const newlineInserted = applyNoteInput(
-			{ ...base, noteDraft: "abcd", noteCursorOffset: 2 },
-			"enter",
-		);
-
-		expect(inserted.noteDraft).toBe("aXbc");
-		expect(inserted.noteCursorOffset).toBe(2);
-		expect(left.noteCursorOffset).toBe(0);
-		expect(leftBound.noteCursorOffset).toBe(0);
-		expect(right.noteCursorOffset).toBe(2);
-		expect(applyNoteInput(multiline, "left").noteCursorOffset).toBe(3);
-		expect(rightLineEnd.noteCursorOffset).toBe(5);
-		expect(backspaced.noteDraft).toBe("acd");
-		expect(backspaced.noteCursorOffset).toBe(1);
-		expect(newlineInserted.noteDraft).toBe("ab\ncd");
-		expect(newlineInserted.noteCursorOffset).toBe(3);
 	});
 
 	test("updates selected Issue Labels through core mutation and preserves unknown Labels", () => {

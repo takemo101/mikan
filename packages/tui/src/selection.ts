@@ -8,7 +8,6 @@ export type TuiSelection = {
 	moveTargetIndex?: number;
 	noteOpen?: boolean;
 	noteDraft?: string;
-	noteCursorOffset?: number;
 	labelOpen?: boolean;
 	labelFocusIndex?: number;
 	labelDraftIds?: string[];

@@ -23,13 +23,43 @@ export function MovePrompt(props: TuiAppViewProps): React.ReactElement {
 }
 
 export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
-	return renderModalText({
-		theme: props.theme,
-		backdropId: "note-modal-backdrop",
-		panelId: "note-prompt",
-		title: "Append Note",
-		content: renderNoteInteraction(props.model, props.selection),
-	});
+	const content = renderNoteInteraction(props.model, props.selection);
+	const initialValue = props.selection.noteDraft ?? "";
+	return renderModalShell(
+		{
+			theme: props.theme,
+			backdropId: "note-modal-backdrop",
+			panelId: "note-prompt",
+			title: "Append Note",
+			panelStyle: { height: 11 },
+		},
+		React.createElement("text", {
+			content: content.slice(0, 3).join("\n"),
+		}),
+		React.createElement("textarea", {
+			id: "note-textarea",
+			ref: props.noteTextareaRef,
+			focused: true,
+			initialValue,
+			placeholder: "Write a Note...",
+			height: 5,
+			wrapMode: "word",
+			keyBindings: [{ name: "s", ctrl: true, action: "submit" }],
+			onSubmit: () => {
+				props.onNoteSubmit?.(props.noteTextareaRef?.current?.plainText ?? "");
+			},
+			style: {
+				backgroundColor: props.theme?.base.canvas,
+				textColor: props.theme?.base.text,
+				focusedBackgroundColor: props.theme?.base.canvas,
+				focusedTextColor: props.theme?.base.text,
+				width: "100%",
+			},
+		}),
+		React.createElement("text", {
+			content: ["", content.at(-1) ?? ""].join("\n"),
+		}),
+	);
 }
 
 export function LabelPrompt(props: TuiAppViewProps): React.ReactElement {
@@ -70,6 +100,24 @@ function renderModalText(options: {
 	content: string[];
 	panelStyle?: Record<string, string | number>;
 }): React.ReactElement {
+	return renderModalShell(
+		options,
+		React.createElement("text", {
+			content: options.content.join("\n"),
+		}),
+	);
+}
+
+function renderModalShell(
+	options: {
+		theme?: TuiTheme;
+		backdropId: string;
+		panelId: string;
+		title: string;
+		panelStyle?: Record<string, string | number>;
+	},
+	...children: React.ReactNode[]
+): React.ReactElement {
 	const theme = options.theme ?? buildTuiTheme();
 	return React.createElement(
 		"box",
@@ -88,9 +136,7 @@ function renderModalText(options: {
 					...(options.panelStyle ?? {}),
 				},
 			},
-			React.createElement("text", {
-				content: options.content.join("\n"),
-			}),
+			...children,
 		),
 	);
 }
