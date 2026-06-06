@@ -186,21 +186,27 @@ export function WarningPanel(props: {
 	return React.createElement(
 		"box",
 		{
-			id: "warning-panel",
-			title: "Warning details",
-			border: true,
-			style: {
-				backgroundColor: theme.base.surface,
-				borderColor: theme.feedback.warning,
-				flexDirection: "column",
-			},
+			id: "warning-panel-backdrop",
+			style: modalBackdropStyle(theme),
 		},
-		React.createElement("text", {
-			content:
-				props.model.warnings.length > 0
-					? props.model.warnings.map((warning) => `! ${warning}`).join("\n")
-					: "No warnings",
-		}),
+		React.createElement(
+			"box",
+			{
+				id: "warning-panel",
+				title: "Warning details",
+				border: true,
+				style: {
+					...modalStyle(theme),
+					borderColor: theme.feedback.warning,
+				},
+			},
+			React.createElement("text", {
+				content:
+					props.model.warnings.length > 0
+						? props.model.warnings.map((warning) => `! ${warning}`).join("\n")
+						: "No warnings",
+			}),
+		),
 	);
 }
 
