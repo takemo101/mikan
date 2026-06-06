@@ -71,6 +71,10 @@ export function buildNotePromptViewModel(
 	return {
 		title: `Append note to ${card.id}`,
 		focused: Boolean(selection.noteOpen),
+		feedback:
+			selection.message === "Note cannot be empty"
+				? selection.message
+				: undefined,
 		hint: "Enter newline | Ctrl+S save | Esc cancel",
 	};
 }

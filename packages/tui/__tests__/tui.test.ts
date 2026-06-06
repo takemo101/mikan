@@ -1172,12 +1172,27 @@ updated_at: 2026-05-30T00:00:00Z
 				},
 			}),
 		);
+		const noteModalText = collectTextContent(
+			TuiAppView({
+				model,
+				selection: {
+					columnIndex: 1,
+					cardIndex: 0,
+					detailOpen: false,
+					noteOpen: true,
+				},
+			}),
+		);
 
 		expect(boardText).toContain(
 			"Board | ↑↓ card | ←→ column | enter detail | ? keys",
 		);
 		expect(detailText).toContain("Detail | ↑↓ scroll | esc board | ? keys");
 		expect(modalText).toContain("Modal | enter confirm | esc cancel | ? keys");
+		expect(noteModalText).toContain(
+			"Note | Enter newline | Ctrl+S save | Esc cancel",
+		);
+		expect(noteModalText).not.toContain("enter confirm");
 		expect(detailText).not.toContain("j/k card");
 	});
 
@@ -1743,11 +1758,9 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(buildNotePromptViewModel(model, noteSelectionState)).toMatchObject({
 			title: "Append note to MIK-001",
 			focused: true,
+			feedback: "Note cannot be empty",
 			hint: "Enter newline | Ctrl+S save | Esc cancel",
 		});
-		expect(buildNotePromptViewModel(model, noteSelectionState)?.feedback).toBe(
-			undefined,
-		);
 	});
 
 	test("renders GitHub Mirror confirmation modal", async () => {
@@ -1794,6 +1807,7 @@ updated_at: 2026-05-30T00:00:00Z
 			detailOpen: false,
 			noteOpen: true,
 			noteDraft: "Draft",
+			message: "Note cannot be empty",
 		};
 
 		const moveTree = TuiAppView({
@@ -1830,7 +1844,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(noteModal?.props?.style).toMatchObject({
 			backgroundColor: theme.base.surface,
 			borderColor: theme.interactive.focus,
-			height: 13,
+			height: 14,
 		});
 		const noteText = collectTextContent(noteTree);
 		const textarea = findElementById(noteTree, "note-textarea");
@@ -1843,6 +1857,7 @@ updated_at: 2026-05-30T00:00:00Z
 		const noteHint = findElementByType(noteModalChildren[2], "text");
 		expect(noteLabel?.props?.content).toContain("Note:");
 		expect(noteLabel?.props?.content).not.toContain("Ctrl+S save");
+		expect(noteHint?.props?.content).toContain("Note cannot be empty");
 		expect(noteHint?.props?.content).toContain(
 			"Enter newline | Ctrl+S save | Esc cancel",
 		);
@@ -1928,7 +1943,12 @@ updated_at: 2026-05-30T00:00:00Z
 		const model = loadTuiModel(tempProject());
 		const selection = moveSelection(
 			model,
-			{ columnIndex: 1, cardIndex: 0, detailOpen: false },
+			{
+				columnIndex: 1,
+				cardIndex: 0,
+				detailOpen: false,
+				message: "Note cannot be empty",
+			},
 			"append-note",
 		);
 		const noteTextareaRef = { current: { plainText: "Body\nline" } };
@@ -1947,6 +1967,10 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(keyToTuiAction("a")).toBe("archive");
 		expect(keyToTuiAction("s", false, true)).toBe("save-note");
 		expect(selection.noteOpen).toBe(true);
+		expect(selection.message).toBeUndefined();
+		expect(
+			buildNotePromptViewModel(model, selection)?.feedback,
+		).toBeUndefined();
 		expect(renderTuiText(model, selection)).toContain("Append note to MIK-001");
 		expect(textarea?.props?.keyBindings).toContainEqual({
 			name: "s",

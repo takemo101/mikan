@@ -7,9 +7,9 @@ import {
 	renderKeyHelp,
 	renderLabelInteraction,
 	renderMoveInteraction,
-	renderNoteInteraction,
 	renderWarningDetails,
 } from "./prompt-text.ts";
+import { buildNotePromptViewModel } from "./prompt-view-model.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
 
 export function MovePrompt(props: TuiAppViewProps): React.ReactElement {
@@ -23,7 +23,16 @@ export function MovePrompt(props: TuiAppViewProps): React.ReactElement {
 }
 
 export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
-	const content = renderNoteInteraction(props.model, props.selection);
+	const view = buildNotePromptViewModel(props.model, props.selection);
+	if (!view) {
+		return renderModalText({
+			theme: props.theme,
+			backdropId: "note-modal-backdrop",
+			panelId: "note-prompt",
+			title: "Append Note",
+			content: ["Append note", "No Issue selected"],
+		});
+	}
 	const initialValue = props.selection.noteDraft ?? "";
 	return renderModalShell(
 		{
@@ -31,10 +40,10 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 			backdropId: "note-modal-backdrop",
 			panelId: "note-prompt",
 			title: "Append Note",
-			panelStyle: { height: 13 },
+			panelStyle: { height: view.feedback ? 14 : 13 },
 		},
 		React.createElement("text", {
-			content: content.slice(0, 3).join("\n"),
+			content: [view.title, "", "Note:"].join("\n"),
 		}),
 		React.createElement("textarea", {
 			id: "note-textarea",
@@ -58,7 +67,9 @@ export function NotePrompt(props: TuiAppViewProps): React.ReactElement {
 			},
 		}),
 		React.createElement("text", {
-			content: ["", content.at(-1) ?? ""].join("\n"),
+			content: ["", ...(view.feedback ? [view.feedback] : []), view.hint].join(
+				"\n",
+			),
 		}),
 	);
 }
