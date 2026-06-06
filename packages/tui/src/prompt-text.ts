@@ -32,8 +32,11 @@ export function renderNoteInteraction(
 	if (!view) return ["Append note", "No Issue selected"];
 	return [
 		view.title,
-		`Note: ${view.draft}`,
-		...(view.feedback ? [view.feedback] : []),
+		"",
+		"Note:",
+		...view.inputLines.map((line) => `  ${line}`),
+		...(view.feedback ? ["", view.feedback] : []),
+		"",
 		view.hint,
 	];
 }
@@ -99,6 +102,7 @@ export function renderKeyHelp(): string[] {
 		"H/L move Issue",
 		"m move menu",
 		"n append Note",
+		"note: enter newline, ctrl+s save",
 		"e edit Labels",
 		"a archive Issue",
 		"g GitHub Mirror",

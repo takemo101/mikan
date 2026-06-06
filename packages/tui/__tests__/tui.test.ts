@@ -1219,6 +1219,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(text).toContain("m move menu");
 		expect(text).toContain("w warning details");
 		expect(text).toContain("n append Note");
+		expect(text).toContain("note: enter newline, ctrl+s save");
 		expect(text).toContain("e edit Labels");
 	});
 
@@ -1727,6 +1728,7 @@ updated_at: 2026-05-30T00:00:00Z
 			detailOpen: false,
 			noteOpen: true,
 			noteDraft: "Draft",
+			noteCursorOffset: 5,
 			message: "Note cannot be empty",
 		};
 
@@ -1741,12 +1743,28 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(buildNotePromptViewModel(model, noteSelectionState)).toMatchObject({
 			title: "Append note to MIK-001",
 			focused: true,
-			draft: "Draft",
+			inputLines: ["Draft▌"],
 			hint: "enter newline  ctrl+s save  esc cancel",
 		});
 		expect(buildNotePromptViewModel(model, noteSelectionState)?.feedback).toBe(
 			undefined,
 		);
+
+		const longNote = "one\ntwo\nthree\nfour\nfive\nsix";
+		expect(
+			buildNotePromptViewModel(model, {
+				...noteSelectionState,
+				noteDraft: longNote,
+				noteCursorOffset: longNote.length,
+			})?.inputLines,
+		).toEqual(["two", "three", "four", "five", "six▌"]);
+		expect(
+			buildNotePromptViewModel(model, {
+				...noteSelectionState,
+				noteDraft: longNote,
+				noteCursorOffset: "one\ntwo".length,
+			})?.inputLines,
+		).toEqual(["one", "two▌"]);
 	});
 
 	test("renders GitHub Mirror confirmation modal", async () => {
@@ -1793,6 +1811,7 @@ updated_at: 2026-05-30T00:00:00Z
 			detailOpen: false,
 			noteOpen: true,
 			noteDraft: "Draft",
+			noteCursorOffset: 5,
 		};
 
 		const moveTree = TuiAppView({
@@ -1830,7 +1849,10 @@ updated_at: 2026-05-30T00:00:00Z
 			backgroundColor: theme.base.surface,
 			borderColor: theme.interactive.focus,
 		});
-		expect(collectTextContent(noteTree)).toContain("Note: Draft");
+		const noteText = collectTextContent(noteTree);
+		expect(noteText).toContain("Note:");
+		expect(noteText).toContain("Draft▌");
+		expect(noteText).toContain("enter newline  ctrl+s save  esc cancel");
 	});
 
 	test("opens a move interaction with configured target Statuses", async () => {
@@ -1910,9 +1932,12 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(keyToTuiAction("a")).toBe("archive");
 		expect(selection.noteOpen).toBe(true);
 		expect(renderTuiText(model, selection)).toContain("Append note to MIK-001");
-		expect(
-			renderTuiText(model, applyNoteInput(selection, "a", true)),
-		).toContain("Note: A");
+		const typedNoteText = renderTuiText(
+			model,
+			applyNoteInput(selection, "a", true),
+		);
+		expect(typedNoteText).toContain("Note:");
+		expect(typedNoteText).toContain("A▌");
 		expect(
 			applyNoteInput(
 				{ ...selection, noteDraft: "A", noteCursorOffset: 1 },
@@ -2094,6 +2119,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(empty.message).toContain("Note cannot be empty");
 		expect(result.ok).toBe(true);
 		expect(markdown).toContain("Line one\n- Line two");
+		expect(markdown).not.toContain("▌");
 	});
 
 	test("opens and cancels a GitHub Mirror confirmation modal", async () => {
