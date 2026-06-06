@@ -1833,13 +1833,17 @@ updated_at: 2026-05-30T00:00:00Z
 		});
 		const noteText = collectTextContent(noteTree);
 		const textarea = findElementById(noteTree, "note-textarea");
-		expect(noteText).toContain("Note (Ctrl+S save):");
+		expect(noteText).toContain(
+			"Note (Enter newline / Ctrl+S save / Esc cancel):",
+		);
 		expect(noteText).toContain("enter newline  ctrl+s save  esc cancel");
 		const noteModalChildren = Array.isArray(noteModal?.props?.children)
 			? noteModal.props.children
 			: [noteModal?.props?.children];
 		const noteLabel = findElementByType(noteModalChildren[0], "text");
+		expect(noteLabel?.props?.content).toContain("Enter newline");
 		expect(noteLabel?.props?.content).toContain("Ctrl+S save");
+		expect(noteLabel?.props?.content).toContain("Esc cancel");
 		expect(textarea?.props).toMatchObject({
 			focused: true,
 			initialValue: "Draft",

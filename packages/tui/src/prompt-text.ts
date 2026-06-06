@@ -33,7 +33,7 @@ export function renderNoteInteraction(
 	return [
 		view.title,
 		"",
-		"Note (Ctrl+S save):",
+		"Note (Enter newline / Ctrl+S save / Esc cancel):",
 		"  (OpenTUI textarea)",
 		...(view.feedback ? ["", view.feedback] : []),
 		"",
