@@ -58,7 +58,7 @@ GitHub Mirror is one-way publication from local Markdown Issues to GitHub Issues
 mikan wires into AI coding agents two independent ways. Neither models agents or adds a runtime: mikan stays **stdio MCP only** — no HTTP server, port, auth, scheduler, or workflow engine.
 
 - `mikan mcp add --agent <agent>` registers the stdio MCP server in the agent's MCP config. Agents: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, `copilot-cli`.
-- `mikan skills add --agent <agent>` installs small mikan guidance using each agent's native convention (`SKILL.md`, Antigravity Rules, or Copilot custom instructions). Agents: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, `copilot-cli`. This is **separate** from MCP registration — installing skills never changes MCP config.
+- `mikan skills add --agent <agent>` installs a small mikan `SKILL.md` using each agent's native Agent Skills convention. Agents: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, `copilot-cli`. This is **separate** from MCP registration — installing skills never changes MCP config.
 
 ```sh
 mikan mcp add --agent claude-code

@@ -6,24 +6,29 @@ import {
 	workspaceSkillPath,
 } from "./shared.ts";
 
-// GitHub Copilot CLI reads global instructions from
-// ~/.copilot/copilot-instructions.md and repository instructions from
-// .github/copilot-instructions.md.
+// GitHub Copilot CLI supports Agent Skills. Personal skills live under
+// ~/.copilot/skills/; project skills live under .github/skills/.
 const copilotCliAdapter: SkillAgentAdapter = {
 	agent: "copilot-cli",
-	format: "instructions",
-	writeMode: "managed-block",
 	resolveTarget: (options) =>
 		isGlobalScope(options)
 			? {
-					path: globalSkillPath(options, ".copilot", "copilot-instructions.md"),
+					path: globalSkillPath(
+						options,
+						".copilot",
+						"skills",
+						"mikan",
+						"SKILL.md",
+					),
 					scope: "global",
 				}
 			: {
 					path: workspaceSkillPath(
 						options,
 						".github",
-						"copilot-instructions.md",
+						"skills",
+						"mikan",
+						"SKILL.md",
 					),
 					scope: "workspace",
 				},

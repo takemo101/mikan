@@ -138,7 +138,7 @@ describe("CLI read path", () => {
 			"codex installs the skill globally only",
 		);
 		expect(skillsHelp.stdout).toContain(
-			"copilot-vscode installs repository instructions only",
+			"global install targets the Antigravity CLI path",
 		);
 	});
 
@@ -927,19 +927,21 @@ describe("CLI read path", () => {
 				existsSync(join(home, ".pi", "agent", "skills", "mikan", "SKILL.md")),
 			).toBe(true);
 			expect(antigravityWorkspace.exitCode).toBe(0);
-			expect(existsSync(join(cwd, ".agents", "rules", "mikan.md"))).toBe(true);
+			expect(
+				existsSync(join(cwd, ".agents", "skills", "mikan", "SKILL.md")),
+			).toBe(true);
 			expect(copilotCli.exitCode).toBe(0);
 			expect(
-				existsSync(join(home, ".copilot", "copilot-instructions.md")),
+				existsSync(join(home, ".copilot", "skills", "mikan", "SKILL.md")),
 			).toBe(true);
 			expect(copilotVscodeWorkspace.exitCode).toBe(0);
-			expect(existsSync(join(cwd, ".github", "copilot-instructions.md"))).toBe(
-				true,
-			);
-			expect(copilotVscodeGlobal.exitCode).toBe(1);
-			expect(copilotVscodeGlobal.stderr).toContain(
-				"VS Code personal Copilot instructions path is not verified",
-			);
+			expect(
+				existsSync(join(cwd, ".github", "skills", "mikan", "SKILL.md")),
+			).toBe(true);
+			expect(copilotVscodeGlobal.exitCode).toBe(0);
+			expect(
+				existsSync(join(home, ".copilot", "skills", "mikan", "SKILL.md")),
+			).toBe(true);
 			expect(codexWorkspace.exitCode).toBe(1);
 			expect(codexWorkspace.stderr).toContain("Codex skills are global-only");
 			expect(missingAgent.exitCode).toBe(1);

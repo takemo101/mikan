@@ -6,21 +6,32 @@ import {
 	workspaceSkillPath,
 } from "./shared.ts";
 
-// Antigravity exposes Rules rather than SKILL.md. Global rules are one shared
-// ~/.gemini/GEMINI.md file, so use a managed block to preserve user content.
-// Workspace rules live as Markdown files under .agents/rules/.
+// Antigravity supports Agent Skills as directories containing SKILL.md.
+// CLI-global skills live under ~/.gemini/antigravity-cli/skills/; workspace
+// skills live under .agents/skills/.
 const antigravityAdapter: SkillAgentAdapter = {
 	agent: "antigravity",
-	format: "instructions",
-	writeMode: "managed-block",
 	resolveTarget: (options) =>
 		isGlobalScope(options)
 			? {
-					path: globalSkillPath(options, ".gemini", "GEMINI.md"),
+					path: globalSkillPath(
+						options,
+						".gemini",
+						"antigravity-cli",
+						"skills",
+						"mikan",
+						"SKILL.md",
+					),
 					scope: "global",
 				}
 			: {
-					path: workspaceSkillPath(options, ".agents", "rules", "mikan.md"),
+					path: workspaceSkillPath(
+						options,
+						".agents",
+						"skills",
+						"mikan",
+						"SKILL.md",
+					),
 					scope: "workspace",
 				},
 };
