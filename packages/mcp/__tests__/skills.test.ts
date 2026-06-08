@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -15,14 +21,29 @@ function tempDir(prefix: string): string {
 describe("skill agent installers", () => {
 	test("exposes the supported skill agent registry", () => {
 		expect(skillAgentInstallers.map((installer) => installer.agent)).toEqual([
+			"pi",
+			"antigravity",
+			"jcode",
 			"claude-code",
 			"opencode",
 			"codex",
+			"copilot-vscode",
+			"copilot-cli",
 		]);
 	});
 
 	test("installs the mikan SKILL.md using each agent's convention", () => {
 		const cases = [
+			{
+				agent: "pi",
+				global: join(".pi", "agent", "skills", "mikan", "SKILL.md"),
+				workspace: join(".pi", "skills", "mikan", "SKILL.md"),
+			},
+			{
+				agent: "jcode",
+				global: join(".jcode", "skills", "mikan", "SKILL.md"),
+				workspace: join(".jcode", "skills", "mikan", "SKILL.md"),
+			},
 			{
 				agent: "claude-code",
 				global: join(".claude", "skills", "mikan", "SKILL.md"),
@@ -53,6 +74,77 @@ describe("skill agent installers", () => {
 				rmSync(home, { recursive: true, force: true });
 				rmSync(cwd, { recursive: true, force: true });
 			}
+		}
+	});
+
+	test("installs antigravity rules without overwriting existing global rules", () => {
+		const home = tempDir("mikan-skill-antigravity-home-");
+		const cwd = tempDir("mikan-skill-antigravity-cwd-");
+		try {
+			const existingPath = join(home, ".gemini", "GEMINI.md");
+			installSkillForAgent("antigravity", { home });
+			const first = readFileSync(existingPath, "utf8");
+			expect(first).toContain("mikan");
+			expect(first).toContain("local-first");
+			expect(first).not.toContain("---\nname: mikan");
+
+			const workspaceResult = installSkillForAgent("antigravity", {
+				cwd,
+				global: false,
+			});
+			expect(workspaceResult.scope).toBe("workspace");
+			expect(workspaceResult.path).toBe(
+				join(cwd, ".agents", "rules", "mikan.md"),
+			);
+			expect(readFileSync(workspaceResult.path, "utf8")).toContain("# mikan");
+
+			const preserved = "# Existing Rules\n\nKeep this.\n";
+			writeFileSync(existingPath, preserved);
+			installSkillForAgent("antigravity", { home });
+			installSkillForAgent("antigravity", { home });
+			const updated = readFileSync(existingPath, "utf8");
+			expect(updated).toContain(preserved);
+			expect(updated.match(/BEGIN mikan instructions/g)?.length).toBe(1);
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("installs Copilot instructions using verified Copilot conventions", () => {
+		const home = tempDir("mikan-skill-copilot-home-");
+		const cwd = tempDir("mikan-skill-copilot-cwd-");
+		try {
+			const cliGlobal = installSkillForAgent("copilot-cli", { home });
+			expect(cliGlobal.scope).toBe("global");
+			expect(cliGlobal.path).toBe(
+				join(home, ".copilot", "copilot-instructions.md"),
+			);
+			expect(readFileSync(cliGlobal.path, "utf8")).toContain("# mikan");
+
+			const cliWorkspace = installSkillForAgent("copilot-cli", {
+				cwd,
+				global: false,
+			});
+			expect(cliWorkspace.scope).toBe("workspace");
+			expect(cliWorkspace.path).toBe(
+				join(cwd, ".github", "copilot-instructions.md"),
+			);
+
+			const vscodeWorkspace = installSkillForAgent("copilot-vscode", {
+				cwd,
+				global: false,
+			});
+			expect(vscodeWorkspace.scope).toBe("workspace");
+			expect(vscodeWorkspace.path).toBe(
+				join(cwd, ".github", "copilot-instructions.md"),
+			);
+			expect(() => installSkillForAgent("copilot-vscode", { home })).toThrow(
+				"VS Code personal Copilot instructions path is not verified",
+			);
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+			rmSync(cwd, { recursive: true, force: true });
 		}
 	});
 
@@ -148,8 +240,8 @@ describe("skill agent installers", () => {
 	});
 
 	test("rejects unsupported skill agents with a clear error", () => {
-		expect(() => installSkillForAgent("pi", {})).toThrow(
-			"Unsupported skill agent: pi. Supported agents: claude-code, opencode, codex",
+		expect(() => installSkillForAgent("cursor", {})).toThrow(
+			"Unsupported skill agent: cursor. Supported agents: pi, antigravity, jcode, claude-code, opencode, codex, copilot-vscode, copilot-cli",
 		);
 	});
 });

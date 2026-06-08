@@ -131,11 +131,14 @@ describe("CLI read path", () => {
 			"Usage:\n  mikan skills add --agent <agent> [--no-global]",
 		);
 		expect(skillsHelp.stdout).toContain(
-			"Agent to install the mikan skill for: claude-code, opencode, codex",
+			"Agent to install guidance for: pi, antigravity, jcode, claude-code, opencode, codex, copilot-vscode, copilot-cli",
 		);
 		expect(skillsHelp.stdout).toContain("never changes MCP config");
 		expect(skillsHelp.stdout).toContain(
 			"codex installs the skill globally only",
+		);
+		expect(skillsHelp.stdout).toContain(
+			"copilot-vscode installs repository instructions only",
 		);
 	});
 
@@ -861,12 +864,32 @@ describe("CLI read path", () => {
 				cwd,
 				home,
 			});
+			const pi = await runCli(["skills", "add", "--agent", "pi"], {
+				cwd,
+				home,
+			});
+			const antigravityWorkspace = await runCli(
+				["skills", "add", "--agent", "antigravity", "--no-global"],
+				{ cwd, home },
+			);
+			const copilotCli = await runCli(
+				["skills", "add", "--agent", "copilot-cli"],
+				{ cwd, home },
+			);
+			const copilotVscodeWorkspace = await runCli(
+				["skills", "add", "--agent", "copilot-vscode", "--no-global"],
+				{ cwd, home },
+			);
+			const copilotVscodeGlobal = await runCli(
+				["skills", "add", "--agent", "copilot-vscode"],
+				{ cwd, home },
+			);
 			const codexWorkspace = await runCli(
 				["skills", "add", "--agent", "codex", "--no-global"],
 				{ cwd, home },
 			);
 			const missingAgent = await runCli(["skills", "add"], { cwd, home });
-			const unsupported = await runCli(["skills", "add", "--agent", "pi"], {
+			const unsupported = await runCli(["skills", "add", "--agent", "cursor"], {
 				cwd,
 				home,
 			});
@@ -898,6 +921,25 @@ describe("CLI read path", () => {
 			expect(
 				existsSync(join(home, ".codex", "skills", "mikan", "SKILL.md")),
 			).toBe(true);
+			// New skill targets mirror the MCP target registry.
+			expect(pi.exitCode).toBe(0);
+			expect(
+				existsSync(join(home, ".pi", "agent", "skills", "mikan", "SKILL.md")),
+			).toBe(true);
+			expect(antigravityWorkspace.exitCode).toBe(0);
+			expect(existsSync(join(cwd, ".agents", "rules", "mikan.md"))).toBe(true);
+			expect(copilotCli.exitCode).toBe(0);
+			expect(
+				existsSync(join(home, ".copilot", "copilot-instructions.md")),
+			).toBe(true);
+			expect(copilotVscodeWorkspace.exitCode).toBe(0);
+			expect(existsSync(join(cwd, ".github", "copilot-instructions.md"))).toBe(
+				true,
+			);
+			expect(copilotVscodeGlobal.exitCode).toBe(1);
+			expect(copilotVscodeGlobal.stderr).toContain(
+				"VS Code personal Copilot instructions path is not verified",
+			);
 			expect(codexWorkspace.exitCode).toBe(1);
 			expect(codexWorkspace.stderr).toContain("Codex skills are global-only");
 			expect(missingAgent.exitCode).toBe(1);
@@ -906,7 +948,7 @@ describe("CLI read path", () => {
 			);
 			expect(unsupported.exitCode).toBe(1);
 			expect(unsupported.stderr).toContain(
-				"Unsupported skill agent: pi. Supported agents: claude-code, opencode, codex",
+				"Unsupported skill agent: cursor. Supported agents: pi, antigravity, jcode, claude-code, opencode, codex, copilot-vscode, copilot-cli",
 			);
 		} finally {
 			rmSync(home, { recursive: true, force: true });

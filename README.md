@@ -219,18 +219,23 @@ mikan mcp add --agent copilot-cli             # ~/.copilot/mcp-config.json (glob
 
 ### Install agent guidance with `mikan skills add`
 
-`mikan skills add` is **separate** from MCP registration. It installs a small mikan skill — a `SKILL.md` instructions file — that teaches an agent what mikan is and to drive the board through the MCP tools. Installing skills never changes MCP config, and registering MCP never installs skills.
+`mikan skills add` is **separate** from MCP registration. It installs small mikan guidance using each agent's native convention (`SKILL.md`, Antigravity Rules, or Copilot custom instructions) so the agent knows what mikan is and drives the board through the MCP tools. Installing skills never changes MCP config, and registering MCP never installs skills.
 
 ```sh
 mikan skills add --agent <agent> [--no-global]
 ```
 
-Supported skill agents: `claude-code`, `opencode`, `codex`.
+Supported skill agents: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, `copilot-cli`.
 
 ```sh
+mikan skills add --agent pi                   # ~/.pi/agent/skills/mikan/SKILL.md (--no-global -> ./.pi/skills/...)
+mikan skills add --agent antigravity --no-global # ./.agents/rules/mikan.md
+mikan skills add --agent jcode                # ~/.jcode/skills/mikan/SKILL.md (--no-global -> ./.jcode/skills/...)
 mikan skills add --agent claude-code          # ~/.claude/skills/mikan/SKILL.md (--no-global -> ./.claude/skills/...)
 mikan skills add --agent opencode --no-global # ./.opencode/skills/mikan/SKILL.md
 mikan skills add --agent codex                # ~/.codex/skills/mikan/SKILL.md (global only; --no-global is rejected)
+mikan skills add --agent copilot-vscode --no-global # ./.github/copilot-instructions.md (workspace only)
+mikan skills add --agent copilot-cli          # ~/.copilot/copilot-instructions.md (--no-global -> ./.github/copilot-instructions.md)
 ```
 
 ### incur-backed discovery
