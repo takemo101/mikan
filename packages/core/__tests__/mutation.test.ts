@@ -236,22 +236,54 @@ describe("core mutations", () => {
 		const root = tempProject();
 		seed(root);
 
-		expect(
-			createIssue({
-				projectRoot: root,
-				config,
-				title: "Bad dependency",
-				dependencies: ["bad-slug"],
-			}).ok,
-		).toBe(false);
-		expect(
-			updateIssue({
-				projectRoot: root,
-				config,
-				id: "MIK-001",
-				dependencies: ["bad-slug"],
-			}).ok,
-		).toBe(false);
+		const created = createIssue({
+			projectRoot: root,
+			config,
+			title: "Bad dependency",
+			dependencies: ["bad-slug"],
+		});
+		const updated = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			dependencies: ["bad-slug"],
+		});
+
+		expect(created.ok).toBe(false);
+		if (created.ok) throw new Error("expected malformed dependency");
+		expect(created.error.message).toContain(
+			"id must look like MIK-001: bad-slug",
+		);
+		expect(updated.ok).toBe(false);
+		if (updated.ok) throw new Error("expected malformed dependency");
+		expect(updated.error.message).toContain(
+			"id must look like MIK-001: bad-slug",
+		);
+	});
+
+	test("create and update reject duplicate Labels", () => {
+		const root = tempProject();
+		seed(root);
+
+		const created = createIssue({
+			projectRoot: root,
+			config,
+			title: "Duplicate labels",
+			labels: ["automation", "automation"],
+		});
+		const updated = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			labels: ["automation", "automation"],
+		});
+
+		expect(created.ok).toBe(false);
+		if (created.ok) throw new Error("expected duplicate Label");
+		expect(created.error.message).toBe("Duplicate Label: automation");
+		expect(updated.ok).toBe(false);
+		if (updated.ok) throw new Error("expected duplicate Label");
+		expect(updated.error.message).toBe("Duplicate Label: automation");
 	});
 
 	test("updateIssue can preserve existing config-unknown Labels when requested", () => {

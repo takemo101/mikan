@@ -343,6 +343,58 @@ describe("CLI read path", () => {
 		expect(unknownStatus.stderr).toContain("Unknown Status");
 	});
 
+	test("add and update reject duplicate Labels", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "First", "--label", "automation"]);
+
+		const add = await cli(cwd, [
+			"add",
+			"Duplicate labels",
+			"--label",
+			"automation",
+			"--label",
+			"automation",
+		]);
+		const update = await cli(cwd, [
+			"update",
+			"MIK-001",
+			"--label",
+			"automation",
+			"--label",
+			"automation",
+		]);
+
+		expect(add.exitCode).toBe(1);
+		expect(add.stderr).toContain("Duplicate Label: automation");
+		expect(update.exitCode).toBe(1);
+		expect(update.stderr).toContain("Duplicate Label: automation");
+	});
+
+	test("add and update reject malformed Dependencies", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "First"]);
+
+		const add = await cli(cwd, [
+			"add",
+			"Bad dependency",
+			"--depends-on",
+			"bad-slug",
+		]);
+		const update = await cli(cwd, [
+			"update",
+			"MIK-001",
+			"--depends-on",
+			"bad-slug",
+		]);
+
+		expect(add.exitCode).toBe(1);
+		expect(add.stderr).toContain("id must look like MIK-001: bad-slug");
+		expect(update.exitCode).toBe(1);
+		expect(update.stderr).toContain("id must look like MIK-001: bad-slug");
+	});
+
 	test("add rejects duplicate IDs before creating the next Issue", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init"]);
