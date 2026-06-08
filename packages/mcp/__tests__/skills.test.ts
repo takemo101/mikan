@@ -1,11 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	existsSync,
-	mkdtempSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -77,16 +71,18 @@ describe("skill agent installers", () => {
 		}
 	});
 
-	test("installs antigravity rules without overwriting existing global rules", () => {
+	test("installs antigravity SKILL.md using Antigravity skills conventions", () => {
 		const home = tempDir("mikan-skill-antigravity-home-");
 		const cwd = tempDir("mikan-skill-antigravity-cwd-");
 		try {
-			const existingPath = join(home, ".gemini", "GEMINI.md");
-			installSkillForAgent("antigravity", { home });
-			const first = readFileSync(existingPath, "utf8");
-			expect(first).toContain("mikan");
-			expect(first).toContain("local-first");
-			expect(first).not.toContain("---\nname: mikan");
+			const globalResult = installSkillForAgent("antigravity", { home });
+			expect(globalResult.scope).toBe("global");
+			expect(globalResult.path).toBe(
+				join(home, ".gemini", "antigravity-cli", "skills", "mikan", "SKILL.md"),
+			);
+			expect(readFileSync(globalResult.path, "utf8")).toContain(
+				"---\nname: mikan",
+			);
 
 			const workspaceResult = installSkillForAgent("antigravity", {
 				cwd,
@@ -94,54 +90,43 @@ describe("skill agent installers", () => {
 			});
 			expect(workspaceResult.scope).toBe("workspace");
 			expect(workspaceResult.path).toBe(
-				join(cwd, ".agents", "rules", "mikan.md"),
+				join(cwd, ".agents", "skills", "mikan", "SKILL.md"),
 			);
-			expect(readFileSync(workspaceResult.path, "utf8")).toContain("# mikan");
-
-			const preserved = "# Existing Rules\n\nKeep this.\n";
-			writeFileSync(existingPath, preserved);
-			installSkillForAgent("antigravity", { home });
-			installSkillForAgent("antigravity", { home });
-			const updated = readFileSync(existingPath, "utf8");
-			expect(updated).toContain(preserved);
-			expect(updated.match(/BEGIN mikan instructions/g)?.length).toBe(1);
+			expect(readFileSync(workspaceResult.path, "utf8")).toContain(
+				"---\nname: mikan",
+			);
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 			rmSync(cwd, { recursive: true, force: true });
 		}
 	});
 
-	test("installs Copilot instructions using verified Copilot conventions", () => {
+	test("installs Copilot SKILL.md using Copilot agent skill conventions", () => {
 		const home = tempDir("mikan-skill-copilot-home-");
 		const cwd = tempDir("mikan-skill-copilot-cwd-");
 		try {
-			const cliGlobal = installSkillForAgent("copilot-cli", { home });
-			expect(cliGlobal.scope).toBe("global");
-			expect(cliGlobal.path).toBe(
-				join(home, ".copilot", "copilot-instructions.md"),
-			);
-			expect(readFileSync(cliGlobal.path, "utf8")).toContain("# mikan");
+			for (const agent of ["copilot-cli", "copilot-vscode"] as const) {
+				const globalResult = installSkillForAgent(agent, { home });
+				expect(globalResult.scope).toBe("global");
+				expect(globalResult.path).toBe(
+					join(home, ".copilot", "skills", "mikan", "SKILL.md"),
+				);
+				expect(readFileSync(globalResult.path, "utf8")).toContain(
+					"---\nname: mikan",
+				);
 
-			const cliWorkspace = installSkillForAgent("copilot-cli", {
-				cwd,
-				global: false,
-			});
-			expect(cliWorkspace.scope).toBe("workspace");
-			expect(cliWorkspace.path).toBe(
-				join(cwd, ".github", "copilot-instructions.md"),
-			);
-
-			const vscodeWorkspace = installSkillForAgent("copilot-vscode", {
-				cwd,
-				global: false,
-			});
-			expect(vscodeWorkspace.scope).toBe("workspace");
-			expect(vscodeWorkspace.path).toBe(
-				join(cwd, ".github", "copilot-instructions.md"),
-			);
-			expect(() => installSkillForAgent("copilot-vscode", { home })).toThrow(
-				"VS Code personal Copilot instructions path is not verified",
-			);
+				const workspaceResult = installSkillForAgent(agent, {
+					cwd,
+					global: false,
+				});
+				expect(workspaceResult.scope).toBe("workspace");
+				expect(workspaceResult.path).toBe(
+					join(cwd, ".github", "skills", "mikan", "SKILL.md"),
+				);
+				expect(readFileSync(workspaceResult.path, "utf8")).toContain(
+					"---\nname: mikan",
+				);
+			}
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 			rmSync(cwd, { recursive: true, force: true });

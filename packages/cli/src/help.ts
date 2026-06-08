@@ -222,7 +222,7 @@ Options:
 
 Notes:
   codex installs the skill globally only; --no-global is rejected for codex.
-  copilot-vscode installs repository instructions only; use --no-global.
+  antigravity also has a shared skill location at ~/.gemini/skills/; mikan's global install targets the Antigravity CLI path.
 
 Examples:
   mikan skills add --agent pi

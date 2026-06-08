@@ -69,7 +69,7 @@ mikan skills add --agent copilot-vscode --no-global
 mikan skills add --agent copilot-cli
 ```
 
-Supported skill targets match the MCP target registry: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, and `copilot-cli`. Agents with first-class skills receive `SKILL.md`; Antigravity receives Rules; Copilot receives custom instructions. Codex is global-only, and `copilot-vscode` is workspace-only because a stable personal instruction path is not verified.
+Supported skill targets match the MCP target registry: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, and `copilot-cli`. Each target receives a `SKILL.md` directory using that agent's native Agent Skills location. Codex is global-only. Antigravity's global install targets `~/.gemini/antigravity-cli/skills/`; its shared location `~/.gemini/skills/` is documented but not exposed as a separate mikan scope.
 
 The installed guidance teaches the agent the mikan vocabulary, MCP tools, advisory dependency model, one-way GitHub Mirror rules, and local-first scope.
 

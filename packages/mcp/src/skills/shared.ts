@@ -1,7 +1,6 @@
 import {
 	homePath,
 	isGlobalScope,
-	readTextFile,
 	workspacePath,
 	writeTextFileAtomic,
 } from "../installers/shared.ts";
@@ -47,8 +46,6 @@ export type SkillAgentAdapter = {
 		path: string;
 		scope: SkillScope;
 	};
-	format?: "skill" | "instructions";
-	writeMode?: "replace" | "managed-block";
 };
 
 const skillFrontmatter = `---
@@ -56,7 +53,7 @@ name: mikan
 description: mikan is a local-first Issue board for AI-assisted development. Use it to read the board; create, update, move, and append to Issues; and explicitly publish GitHub Mirrors through the mikan MCP tools. Trigger when the user wants to see the board, add or change an Issue, move an Issue to another Status, record a Report or Note, publish a GitHub Mirror, or decide what to work on next.
 ---`;
 
-export const instructionDocument = `# mikan
+const instructionDocument = `# mikan
 
 mikan is a tiny, local-first, Markdown-backed Issue board. Each Issue has a
 stable Issue ID such as \`MIK-001\`, one current Status (the board Column it
@@ -100,31 +97,6 @@ Task, ticket, profile, and role.
 // follows the SKILL.md convention shared by agents with first-class Skills.
 export const skillDocument = `${skillFrontmatter}\n\n${instructionDocument}`;
 
-const managedBlockStart = "<!-- BEGIN mikan instructions -->";
-const managedBlockEnd = "<!-- END mikan instructions -->";
-
-export function managedInstructionDocument(): string {
-	return `${managedBlockStart}\n${instructionDocument.trim()}\n${managedBlockEnd}\n`;
-}
-
-export function writeManagedInstructionBlock(path: string): void {
-	const existing = readTextFile(path);
-	const block = managedInstructionDocument();
-	const pattern = new RegExp(
-		`${escapeRegExp(managedBlockStart)}[\\s\\S]*?${escapeRegExp(managedBlockEnd)}\\n?`,
-	);
-	if (pattern.test(existing)) {
-		writeTextFileAtomic(path, existing.replace(pattern, block));
-		return;
-	}
-	const prefix = existing.trimEnd();
-	writeTextFileAtomic(path, prefix ? `${prefix}\n\n${block}` : block);
-}
-
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 /** Resolve a global skills path under the user home directory. */
 export function globalSkillPath(
 	options: SkillAgentInstallOptions,
@@ -154,16 +126,7 @@ export function createSkillInstaller(
 		agent: adapter.agent,
 		install: (options: SkillAgentInstallOptions = {}) => {
 			const { path, scope } = adapter.resolveTarget(options);
-			if (adapter.writeMode === "managed-block") {
-				writeManagedInstructionBlock(path);
-			} else {
-				writeTextFileAtomic(
-					path,
-					adapter.format === "instructions"
-						? instructionDocument
-						: skillDocument,
-				);
-			}
+			writeTextFileAtomic(path, skillDocument);
 			return { agent: adapter.agent, path, scope };
 		},
 	};
