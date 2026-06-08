@@ -1,6 +1,11 @@
+import { antigravitySkillInstaller } from "./antigravity.ts";
 import { claudeCodeSkillInstaller } from "./claude-code.ts";
 import { codexSkillInstaller } from "./codex.ts";
+import { copilotCliSkillInstaller } from "./copilot-cli.ts";
+import { copilotVscodeSkillInstaller } from "./copilot-vscode.ts";
+import { jcodeSkillInstaller } from "./jcode.ts";
 import { opencodeSkillInstaller } from "./opencode.ts";
+import { piSkillInstaller } from "./pi.ts";
 import type {
 	SkillAgentInstallOptions,
 	SkillAgentInstallResult,
@@ -21,9 +26,14 @@ export type {
 } from "./shared.ts";
 
 export const skillAgentInstallers = [
+	piSkillInstaller,
+	antigravitySkillInstaller,
+	jcodeSkillInstaller,
 	claudeCodeSkillInstaller,
 	opencodeSkillInstaller,
 	codexSkillInstaller,
+	copilotVscodeSkillInstaller,
+	copilotCliSkillInstaller,
 ];
 
 export function installSkillForAgent(

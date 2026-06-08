@@ -59,14 +59,19 @@ GitHub Mirror is a one-way publication helper. Markdown remains the source of tr
 ## Install agent skills
 
 ```sh
+mikan skills add --agent pi
+mikan skills add --agent antigravity --no-global
+mikan skills add --agent jcode
 mikan skills add --agent claude-code
 mikan skills add --agent opencode
 mikan skills add --agent codex
+mikan skills add --agent copilot-vscode --no-global
+mikan skills add --agent copilot-cli
 ```
 
-Claude Code and opencode support global and workspace-local skills. Codex skills are global-only and reject `--no-global`.
+Supported skill targets match the MCP target registry: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, and `copilot-cli`. Agents with first-class skills receive `SKILL.md`; Antigravity receives Rules; Copilot receives custom instructions. Codex is global-only, and `copilot-vscode` is workspace-only because a stable personal instruction path is not verified.
 
-The installed skill teaches the agent the mikan vocabulary, MCP tools, advisory dependency model, one-way GitHub Mirror rules, and local-first scope.
+The installed guidance teaches the agent the mikan vocabulary, MCP tools, advisory dependency model, one-way GitHub Mirror rules, and local-first scope.
 
 ## Discovery manifest
 

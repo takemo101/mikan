@@ -39,8 +39,11 @@ describe("agent setup documentation", () => {
 		}
 	});
 
-	test("README documents skills add as separate from MCP registration", () => {
+	test("README documents skills add for every MCP agent as separate from MCP registration", () => {
 		expect(readme).toContain("mikan skills add --agent");
+		for (const agent of mcpAgents) {
+			expect(readme).toContain(`\`${agent}\``);
+		}
 		expect(readme).toContain("separate");
 		expect(readme).toContain("never changes MCP config");
 	});
@@ -51,7 +54,9 @@ describe("agent setup documentation", () => {
 		expect(readme).toContain("mikan mcp add --agent codex");
 		expect(readme).toContain("mikan mcp add --agent copilot-vscode");
 		expect(readme).toContain("mikan mcp add --agent copilot-cli");
+		expect(readme).toContain("mikan skills add --agent pi");
 		expect(readme).toContain("mikan skills add --agent claude-code");
+		expect(readme).toContain("mikan skills add --agent copilot-cli");
 		expect(readme).toContain("mikan mcp llms");
 	});
 

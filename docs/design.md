@@ -568,14 +568,16 @@ For each new agent, verify the registration convention from that tool's docs or 
 
 ### Skills installation as agent-facing instructions
 
-`mikan skills add --agent <agent> [--no-global]` is a separate top-level command from `mikan mcp add`. It installs a small mikan skill/instructions file using the target agent's skill convention, with global vs workspace scope where the agent supports both. The installed instructions:
+`mikan skills add --agent <agent> [--no-global]` is a separate top-level command from `mikan mcp add`. It installs small mikan guidance using the target agent's native convention, with global vs workspace scope where the agent supports both. The installed instructions:
 
 - explain mikan as a local-first, Markdown-backed Issue board;
 - use Issue vocabulary from `CONTEXT.md` (Issue, Issue ID, Status, Label, Report, Note, Dependency) and avoid Task/ticket/profile/role;
 - describe dependencies as advisory read-model data (`depends_on`, `unmet_dependencies`, `dependency_status`), not scheduling;
 - tell the agent to use mikan MCP tools for board reads, Issue create/update/move, and appending Reports/Notes.
 
-Skills add dispatches to its own installer registry, parallel to the MCP installer registry, and returns a clear registration message or an "unsupported agent" error listing supported skill agents. Skill installers must not modify MCP config.
+Supported skill targets match the MCP registration targets: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, and `copilot-cli`. Agents with first-class skills receive a `SKILL.md` directory (`pi`, `jcode`, `claude-code`, `opencode`, `codex`). Antigravity receives Rules (`~/.gemini/GEMINI.md` for global via a managed block, `.agents/rules/mikan.md` for workspace). Copilot receives custom instructions (`~/.copilot/copilot-instructions.md` for `copilot-cli` global and `.github/copilot-instructions.md` for workspace/repository instructions). `codex` rejects workspace scope; `copilot-vscode` rejects global scope until a stable personal instruction path is verified.
+
+Skills add dispatches to its own installer registry, parallel to the MCP installer registry, and returns a clear registration message or an "unsupported agent" error listing supported skill agents. Skill installers must not modify MCP config, and installers for shared instruction files must preserve user content by updating a managed mikan block instead of overwriting the file.
 
 ### incur-backed discovery and fallback
 

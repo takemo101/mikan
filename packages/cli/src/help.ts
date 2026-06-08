@@ -216,17 +216,23 @@ Usage:
   mikan skills add --agent <agent> [--no-global]
 
 Options:
-  -a, --agent <agent>   Agent to install the mikan skill for: claude-code, opencode, codex
+  -a, --agent <agent>   Agent to install guidance for: pi, antigravity, jcode, claude-code, opencode, codex, copilot-vscode, copilot-cli
   --no-global           Install workspace-local guidance instead of global
   -h, --help            Show this help
 
 Notes:
   codex installs the skill globally only; --no-global is rejected for codex.
+  copilot-vscode installs repository instructions only; use --no-global.
 
 Examples:
+  mikan skills add --agent pi
+  mikan skills add --agent antigravity --no-global
+  mikan skills add --agent jcode
   mikan skills add --agent claude-code
   mikan skills add --agent opencode --no-global
   mikan skills add -a codex
+  mikan skills add --agent copilot-vscode --no-global
+  mikan skills add --agent copilot-cli
 `;
 	}
 }
