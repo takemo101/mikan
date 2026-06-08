@@ -545,7 +545,7 @@ mikan helps external AI coding agents talk to the same Markdown board without be
 - **MCP registration** (`mikan mcp add`) — register the existing stdio `mikan mcp` server in a target agent's MCP configuration so the agent can call mikan tools.
 - **Skills installation** (`mikan skills add`) — install lightweight, agent-facing usage instructions so the agent knows what mikan is and how to drive it.
 
-These surfaces stay separate: registering MCP tools never installs skills, and installing skills never edits MCP config. An "agent" here is only an installer target string (`pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, …), not a mikan Issue concept. Do not model agents, profiles, roles, teams, or sessions in core.
+These surfaces stay separate: registering MCP tools never installs skills, and installing skills never edits MCP config. An "agent" here is only an installer target string (`pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, `copilot-cli`, …), not a mikan Issue concept. Do not model agents, profiles, roles, teams, or sessions in core.
 
 ### MCP registration as thin installer adapters
 
@@ -559,11 +559,10 @@ The installer registry lives in `packages/mcp` and exposes a stable `installMcpS
 
 Shared helpers own the parts that must not drift per agent: reading/merging an existing JSON object, atomic temp-file-and-rename writes that preserve file mode, and constructing the default mikan server spec. Adding a new agent should mean adding one small adapter Module, not duplicating JSON I/O.
 
-Target MCP agents for this work, beyond the existing `pi`, `antigravity`, and `jcode` adapters:
+Supported MCP registration targets include `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, and `copilot-cli`. GitHub Copilot support is split into two explicit installer targets instead of a single ambiguous `github-copilot` target:
 
-- **Claude Code** — register the stdio mikan server using Claude Code's MCP config convention (`mcpServers` map; global vs project-local scope). Verify the exact path/format or CLI registration path before implementing.
-- **opencode** — register using opencode's MCP config convention. Verify the exact path/format before implementing.
-- **Codex** — register using Codex's MCP config convention. Verify the exact path/format before implementing.
+- **`copilot-vscode`** — register the stdio mikan server for VS Code / GitHub Copilot Chat. Workspace scope writes `.vscode/mcp.json` with a top-level `servers` map and a stdio entry shaped like `{ type: "stdio", command, args }`, adding `env` only when environment variables are provided. User/global scope must use VS Code's user-profile MCP configuration location only if the exact path is verified; otherwise the installer must fail clearly and direct the user to workspace scope.
+- **`copilot-cli`** — register the stdio mikan server for GitHub Copilot CLI. Global scope writes `~/.copilot/mcp-config.json` with a top-level `mcpServers` map and a local entry shaped like `{ type: "local", command, args, env, tools: ["*"] }`. If Copilot CLI does not support workspace-local configuration, `--no-global` must fail clearly rather than invent a path.
 
 For each new agent, verify the registration convention from that tool's docs or code before implementing. When an agent does not support a requested scope (for example workspace-local), the installer must fail clearly rather than invent a path, and that behavior is covered by tests.
 

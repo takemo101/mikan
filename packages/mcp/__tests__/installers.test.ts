@@ -359,6 +359,105 @@ describe("MCP agent installers", () => {
 		}
 	});
 
+	test("registers mikan for GitHub Copilot in VS Code workspace config", () => {
+		const cwd = tempDir("mikan-copilot-vscode-cwd-");
+		try {
+			const configDir = join(cwd, ".vscode");
+			const configPath = join(configDir, "mcp.json");
+			mkdirSync(configDir, { recursive: true });
+			writeFileSync(
+				configPath,
+				JSON.stringify({
+					servers: {
+						existing: { type: "stdio", command: "node", args: ["x.js"] },
+					},
+				}),
+			);
+			chmodSync(configPath, 0o640);
+
+			const result = installMcpServerForAgent("copilot-vscode", {
+				cwd,
+				global: false,
+			});
+			const config = JSON.parse(readFileSync(result.path, "utf8"));
+
+			expect(result.path).toBe(configPath);
+			expect(result.scope).toBe("workspace");
+			expect(config.servers.existing.command).toBe("node");
+			expect(config.servers.mikan).toEqual({
+				type: "stdio",
+				command: "mikan",
+				args: ["mcp"],
+			});
+			expect(statSync(configPath).mode & 0o777).toBe(0o640);
+		} finally {
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
+	test("copilot-vscode rejects unverified global scope with a clear error", () => {
+		const home = tempDir("mikan-copilot-vscode-home-");
+		try {
+			expect(() =>
+				installMcpServerForAgent("copilot-vscode", { home }),
+			).toThrow("VS Code user-profile MCP configuration path is not verified");
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
+	test("registers mikan for GitHub Copilot CLI in the global config", () => {
+		const home = tempDir("mikan-copilot-cli-home-");
+		try {
+			const configDir = join(home, ".copilot");
+			const configPath = join(configDir, "mcp-config.json");
+			mkdirSync(configDir, { recursive: true });
+			writeFileSync(
+				configPath,
+				JSON.stringify({
+					mcpServers: {
+						existing: {
+							type: "local",
+							command: "node",
+							args: ["x.js"],
+							env: {},
+							tools: ["*"],
+						},
+					},
+				}),
+			);
+
+			const result = installMcpServerForAgent("copilot-cli", { home });
+			const config = JSON.parse(readFileSync(result.path, "utf8"));
+
+			expect(result.path).toBe(configPath);
+			expect(result.scope).toBe("global");
+			expect(config.mcpServers.existing.command).toBe("node");
+			expect(config.mcpServers.mikan).toEqual({
+				type: "local",
+				command: "mikan",
+				args: ["mcp"],
+				env: {},
+				tools: ["*"],
+			});
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+		}
+	});
+
+	test("copilot-cli rejects workspace-local scope with a clear error", () => {
+		const home = tempDir("mikan-copilot-cli-ws-home-");
+		const cwd = tempDir("mikan-copilot-cli-ws-cwd-");
+		try {
+			expect(() =>
+				installMcpServerForAgent("copilot-cli", { home, cwd, global: false }),
+			).toThrow("GitHub Copilot CLI MCP configuration is global-only");
+		} finally {
+			rmSync(home, { recursive: true, force: true });
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+
 	test("exposes registry metadata and rejects unsupported agents", () => {
 		expect(mcpAgentInstallers.map((installer) => installer.agent)).toEqual([
 			"pi",
@@ -367,6 +466,8 @@ describe("MCP agent installers", () => {
 			"claude-code",
 			"opencode",
 			"codex",
+			"copilot-vscode",
+			"copilot-cli",
 		]);
 		expect(() => installMcpServerForAgent("claude", {})).toThrow(
 			"Unsupported MCP agent: claude",
@@ -374,10 +475,10 @@ describe("MCP agent installers", () => {
 	});
 
 	test("shared server spec honors serverName/command/args/env overrides for every adapter", () => {
-		// codex is global-only TOML; its overrides are covered in its own test.
+		// codex and copilot-cli are global-only; their overrides are covered in their own tests.
 		for (const agent of mcpAgentInstallers
 			.map((installer) => installer.agent)
-			.filter((agent) => agent !== "codex")) {
+			.filter((agent) => agent !== "codex" && agent !== "copilot-cli")) {
 			const cwd = tempDir(`mikan-${agent}-override-`);
 			try {
 				const result = installMcpServerForAgent(agent, {
@@ -390,7 +491,7 @@ describe("MCP agent installers", () => {
 				});
 				const config = JSON.parse(readFileSync(result.path, "utf8"));
 				const serversKey =
-					agent === "jcode"
+					agent === "jcode" || agent === "copilot-vscode"
 						? "servers"
 						: agent === "opencode"
 							? "mcp"
@@ -406,9 +507,13 @@ describe("MCP agent installers", () => {
 				} else {
 					expect(entry.command).toBe("bun");
 					expect(entry.args).toEqual(["run", "mcp"]);
-					// antigravity and jcode include the shared spec env;
+					// antigravity, jcode, and copilot-vscode include env when provided;
 					// pi and claude-code use the minimal { command, args } entry.
-					if (agent === "antigravity" || agent === "jcode") {
+					if (
+						agent === "antigravity" ||
+						agent === "jcode" ||
+						agent === "copilot-vscode"
+					) {
 						expect(entry.env).toEqual({ MIKAN_ENV: "test" });
 					} else {
 						expect(entry.env).toBeUndefined();

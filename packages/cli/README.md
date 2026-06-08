@@ -57,13 +57,15 @@ GitHub Mirror is one-way publication from local Markdown Issues to GitHub Issues
 
 mikan wires into AI coding agents two independent ways. Neither models agents or adds a runtime: mikan stays **stdio MCP only** — no HTTP server, port, auth, scheduler, or workflow engine.
 
-- `mikan mcp add --agent <agent>` registers the stdio MCP server in the agent's MCP config. Agents: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`.
+- `mikan mcp add --agent <agent>` registers the stdio MCP server in the agent's MCP config. Agents: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, `copilot-cli`.
 - `mikan skills add --agent <agent>` installs a small mikan `SKILL.md` that teaches the agent to drive the board through the MCP tools, including one-way GitHub Mirror publication tools. Agents: `claude-code`, `opencode`, `codex`. This is **separate** from MCP registration — installing skills never changes MCP config.
 
 ```sh
 mikan mcp add --agent claude-code
 mikan mcp add --agent opencode --no-global
 mikan mcp add --agent codex             # global only
+mikan mcp add --agent copilot-vscode --no-global # VS Code workspace only
+mikan mcp add --agent copilot-cli       # global only
 mikan skills add --agent claude-code
 mikan mcp llms                          # incur-backed discovery manifest
 ```

@@ -16,7 +16,9 @@ export type McpAgent =
 	| "jcode"
 	| "claude-code"
 	| "opencode"
-	| "codex";
+	| "codex"
+	| "copilot-vscode"
+	| "copilot-cli";
 
 export type McpAgentInstallOptions = {
 	global?: boolean;

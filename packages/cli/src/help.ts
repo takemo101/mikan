@@ -180,13 +180,14 @@ Usage:
   mikan mcp llms [--full]
 
 Options:
-  -a, --agent <agent>   Agent to configure: pi, antigravity, jcode, claude-code, opencode, codex
+  -a, --agent <agent>   Agent to configure: pi, antigravity, jcode, claude-code, opencode, codex, copilot-vscode, copilot-cli
   --no-global           Write workspace-local config instead of global config
   --full                With llms: print the full incur manifest
   -h, --help            Show this help
 
 Notes:
-  codex registers in global ~/.codex/config.toml only; --no-global is rejected.
+  codex and copilot-cli register globally only; --no-global is rejected.
+  copilot-vscode writes workspace .vscode/mcp.json only; use --no-global.
   Use mikan mcp add for native per-agent registration. Use mikan mcp llms for
   incur-backed discovery: it prints a manifest for agents that read incur
   manifests directly and never installs anything. Passing --agent to llms is
@@ -199,6 +200,8 @@ Examples:
   mikan mcp add --agent claude-code
   mikan mcp add --agent opencode --no-global
   mikan mcp add --agent codex
+  mikan mcp add --agent copilot-vscode --no-global
+  mikan mcp add --agent copilot-cli
   mikan mcp llms
   mikan mcp llms --full
 `;

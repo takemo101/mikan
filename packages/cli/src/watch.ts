@@ -419,7 +419,7 @@ function readCurrentSnapshot(loaded: LoadedProjectConfig): WatchSnapshot {
 function writeSnapshot(path: string, snapshot: WatchSnapshot): void {
 	mkdirSync(dirname(path), { recursive: true });
 	const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
-	writeFileSync(tmp, JSON.stringify(snapshot, null, 2));
+	writeFileSync(tmp, `${JSON.stringify(snapshot, null, 2)}\n`);
 	renameSync(tmp, path);
 }
 
