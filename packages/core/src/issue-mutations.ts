@@ -393,6 +393,7 @@ function validateLabels(
 	labels: string[],
 ): Result<LabelId[], MutationError> {
 	const known = new Set(config.labels.map((label) => label.id));
+	const seen = new Set<string>();
 	const parsed: LabelId[] = [];
 	for (const label of labels) {
 		if (!known.has(label)) {
@@ -408,6 +409,13 @@ function validateLabels(
 				error: { kind: "unknown_label", message: labelId.error.message },
 			};
 		}
+		if (seen.has(label)) {
+			return {
+				ok: false,
+				error: { kind: "unknown_label", message: `Duplicate Label: ${label}` },
+			};
+		}
+		seen.add(label);
 		parsed.push(labelId.value);
 	}
 	return { ok: true, value: parsed };
