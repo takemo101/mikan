@@ -113,9 +113,10 @@ describe("CLI read path", () => {
 		expect(helpAdd.stdout).toBe(addHelp.stdout);
 		expect(mcpHelp.exitCode).toBe(0);
 		expect(mcpHelp.stdout).toContain(
-			"Agent to configure: pi, antigravity, jcode, claude-code, opencode, codex",
+			"Agent to configure: pi, antigravity, jcode, claude-code, opencode, codex, copilot-vscode, copilot-cli",
 		);
-		expect(mcpHelp.stdout).toContain("codex registers in global");
+		expect(mcpHelp.stdout).toContain("codex and copilot-cli register globally");
+		expect(mcpHelp.stdout).toContain("copilot-vscode writes workspace");
 		expect(mcpHelp.stdout).toContain("mikan mcp llms [--full]");
 		expect(mcpHelp.stdout).toContain("incur-backed discovery");
 		const githubHelp = await cli(cwd, ["help", "github"]);

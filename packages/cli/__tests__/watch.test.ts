@@ -348,14 +348,12 @@ describe("watch hooks", () => {
 
 		expect(result.observed).toBe(1);
 		expect(result.transitions).toBe(0);
-		expect(
-			JSON.parse(
-				readFileSync(
-					join(cwd, ".mikan", ".state", "watcher-snapshot.json"),
-					"utf8",
-				),
-			),
-		).toHaveProperty("MIK-001");
+		const snapshotText = readFileSync(
+			join(cwd, ".mikan", ".state", "watcher-snapshot.json"),
+			"utf8",
+		);
+		expect(JSON.parse(snapshotText)).toHaveProperty("MIK-001");
+		expect(snapshotText).toEndWith("\n");
 	});
 
 	test("does not add placeholder when a matching Status Log already exists", async () => {

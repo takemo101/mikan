@@ -25,6 +25,8 @@ const mcpAgents = [
 	"claude-code",
 	"opencode",
 	"codex",
+	"copilot-vscode",
+	"copilot-cli",
 ];
 
 describe("agent setup documentation", () => {
@@ -43,10 +45,12 @@ describe("agent setup documentation", () => {
 		expect(readme).toContain("never changes MCP config");
 	});
 
-	test("README includes Claude Code, opencode, Codex, and incur discovery", () => {
+	test("README includes Claude Code, opencode, Codex, Copilot, and incur discovery", () => {
 		expect(readme).toContain("mikan mcp add --agent claude-code");
 		expect(readme).toContain("mikan mcp add --agent opencode");
 		expect(readme).toContain("mikan mcp add --agent codex");
+		expect(readme).toContain("mikan mcp add --agent copilot-vscode");
+		expect(readme).toContain("mikan mcp add --agent copilot-cli");
 		expect(readme).toContain("mikan skills add --agent claude-code");
 		expect(readme).toContain("mikan mcp llms");
 	});

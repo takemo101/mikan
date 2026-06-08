@@ -2,6 +2,7 @@
 .claude/
 .omc/
 .pi-lens/
+.mikan/.state/
 .superpowers/
 node_modules/
 packages/cli/dist/

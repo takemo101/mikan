@@ -207,12 +207,14 @@ mikan wires into AI coding agents through two separate, optional surfaces. Neith
 mikan mcp add --agent <agent> [--no-global]
 ```
 
-Supported agents: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`.
+Supported agents: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, `copilot-cli`.
 
 ```sh
 mikan mcp add --agent claude-code             # ~/.claude.json   (--no-global -> ./.mcp.json)
 mikan mcp add --agent opencode                # ~/.config/opencode/opencode.json (--no-global -> ./opencode.json)
 mikan mcp add --agent codex                   # ~/.codex/config.toml (global only; --no-global is rejected)
+mikan mcp add --agent copilot-vscode --no-global # ./.vscode/mcp.json (workspace only)
+mikan mcp add --agent copilot-cli             # ~/.copilot/mcp-config.json (global only; --no-global is rejected)
 ```
 
 ### Install agent guidance with `mikan skills add`

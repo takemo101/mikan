@@ -26,6 +26,7 @@ mikan mcp add --agent jcode
 mikan mcp add --agent claude-code
 mikan mcp add --agent opencode
 mikan mcp add --agent codex
+mikan mcp add --agent copilot-cli
 ```
 
 Some agents support workspace-local config:
@@ -33,9 +34,10 @@ Some agents support workspace-local config:
 ```sh
 mikan mcp add --agent claude-code --no-global
 mikan mcp add --agent opencode --no-global
+mikan mcp add --agent copilot-vscode --no-global
 ```
 
-Codex registration is global-only and rejects `--no-global` with a clear error.
+Codex and GitHub Copilot CLI registration are global-only and reject `--no-global` with a clear error. VS Code / GitHub Copilot Chat registration is workspace-only for now and writes `.vscode/mcp.json`; global user-profile registration is rejected until the exact VS Code profile path is verified.
 
 ## MCP tools
 
