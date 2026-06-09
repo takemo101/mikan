@@ -1,3 +1,4 @@
+import type { ScrollBoxRenderable } from "@opentui/core";
 import type React from "react";
 import type { TuiModel } from "./model.ts";
 import type { TuiSelection } from "./selection.ts";
@@ -24,4 +25,5 @@ export type TuiAppViewProps = {
 	columns?: TuiColumnsMode;
 	noteTextareaRef?: React.RefObject<TuiNoteTextareaHandle | null>;
 	onNoteSubmit?: (body: string) => void;
+	detailScrollBoxRef?: React.RefObject<ScrollBoxRenderable | null>;
 };

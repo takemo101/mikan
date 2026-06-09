@@ -40,10 +40,6 @@ function detailTitleContent(
 		fg(theme.base.muted)(" │ "),
 		fg(theme.base.text)(page.title),
 	];
-	if (page.lineRangeText) {
-		chunks.push(fg(theme.base.muted)(" │ "));
-		chunks.push(fg(theme.base.muted)(page.lineRangeText));
-	}
 	return new StyledText(chunks);
 }
 
@@ -106,11 +102,13 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 			}),
 		),
 		React.createElement(
-			"box",
+			"scrollbox",
 			{
 				id: "detail-markdown-body",
+				ref: props.detailScrollBoxRef,
+				scrollY: true,
+				scrollX: false,
 				style: {
-					flexDirection: "column",
 					flexGrow: 1,
 					minHeight: 0,
 					overflow: "hidden",
@@ -118,11 +116,9 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 			},
 			React.createElement("markdown", {
 				id: "detail-markdown",
-				content: page.visibleMarkdownLines.join("\n"),
+				content: page.markdown,
 				style: {
-					flexGrow: 1,
-					minHeight: 0,
-					overflow: "hidden",
+					width: "100%",
 				},
 			}),
 		),
