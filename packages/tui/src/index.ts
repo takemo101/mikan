@@ -168,6 +168,7 @@ export function TuiAppView({
 	columns,
 	noteTextareaRef,
 	onNoteSubmit,
+	detailScrollBoxRef,
 }: TuiAppViewProps): React.ReactElement {
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
@@ -196,6 +197,7 @@ export function TuiAppView({
 						selection,
 						theme,
 						viewportHeight,
+						detailScrollBoxRef,
 					})
 				: React.createElement(BoardView, {
 						model,
@@ -272,6 +274,9 @@ export async function launchTui(
 		const selectionRef = React.useRef(selection);
 		const githubBusyRef = React.useRef(false);
 		const noteTextareaRef = React.useRef<{ plainText: string } | null>(null);
+		const detailScrollBoxRef = React.useRef<
+			import("@opentui/core").ScrollBoxRenderable | null
+		>(null);
 		const submitNote = React.useCallback((body: string) => {
 			const result = appendSelectedIssueNote({
 				cwd: options.cwd,
@@ -398,6 +403,16 @@ export async function launchTui(
 				return;
 			}
 			if (!action) return;
+			if (
+				selection.detailOpen &&
+				!selection.moveOpen &&
+				!selection.noteOpen &&
+				!selection.labelOpen &&
+				(action === "up" || action === "down")
+			) {
+				detailScrollBoxRef.current?.scrollBy(action === "down" ? 1 : -1);
+				return;
+			}
 			if (action === "quit") {
 				stop();
 				return;
@@ -487,6 +502,7 @@ export async function launchTui(
 			columns: options.columns,
 			noteTextareaRef,
 			onNoteSubmit: submitNote,
+			detailScrollBoxRef,
 		});
 	}
 

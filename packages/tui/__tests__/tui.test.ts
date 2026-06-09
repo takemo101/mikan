@@ -161,6 +161,7 @@ function findElementById(
 	id: string,
 ):
 	| {
+			type?: unknown;
 			props?: {
 				children?: unknown;
 				id?: unknown;
@@ -776,10 +777,11 @@ describe("TUI model and navigation", () => {
 			hiddenLinesAfter: 22,
 			lineRangeText: "Lines: 4-8/30 | ↑3 ↓22",
 		});
-		expect(text).toContain("MIK-001 │ Ready issue │ Lines: 4-8/30 | ↑3 ↓22");
+		expect(text).toContain("MIK-001 │ Ready issue");
+		expect(text).not.toContain("MIK-001 │ Ready issue │ Lines:");
 		expect(text).toContain("ready · labels none");
 		expect(text).not.toContain("────────────────");
-		expect(text).not.toContain("line 30");
+		expect(text).toContain("line 30");
 	});
 
 	test("renders detail GitHub Mirror metadata without board card markers", () => {
@@ -912,10 +914,9 @@ updated_at: 2026-05-30T00:00:00Z
 			minHeight: 0,
 			overflow: "hidden",
 		});
+		expect(body?.type).toBe("scrollbox");
 		expect(markdown?.props?.style).toMatchObject({
-			flexGrow: 1,
-			minHeight: 0,
-			overflow: "hidden",
+			width: "100%",
 		});
 		const headerChildren = Array.isArray(header?.props?.children)
 			? header.props.children
@@ -924,7 +925,7 @@ updated_at: 2026-05-30T00:00:00Z
 		const metaLine = headerChildren[1] as { props?: { content?: unknown } };
 
 		expect(styledContentPlain(titleLine.props?.content)).toBe(
-			"MIK-001 │ Ready issue │ Lines: 11-17/30 | ↑10 ↓13",
+			"MIK-001 │ Ready issue",
 		);
 		expect(
 			styledContentChunk(titleLine.props?.content, "MIK-001"),
@@ -932,9 +933,9 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(
 			styledContentChunk(titleLine.props?.content, "Ready issue"),
 		).toBeTruthy();
-		expect(
-			styledContentChunk(titleLine.props?.content, "Lines: 11-17/30 | ↑10 ↓13"),
-		).toBeTruthy();
+		expect(styledContentPlain(titleLine.props?.content)).not.toContain(
+			"Lines:",
+		);
 		expect(styledContentPlain(metaLine.props?.content)).toBe(
 			"ready · labels #Automation",
 		);
@@ -942,7 +943,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(
 			styledContentChunk(metaLine.props?.content, "#Automation"),
 		).toBeTruthy();
-		expect(collectTextContent(body)).toContain("line 11");
+		expect(collectTextContent(body)).toContain("line 30");
 		expect(collectTextContent(body)).not.toContain("MIK-001 │ Ready issue");
 	});
 
@@ -1262,6 +1263,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(detailPage?.props?.style).toMatchObject({
 			borderColor: theme.interactive.accent,
 		});
+		expect(detailPage?.props?.style?.marginBottom).toBeUndefined();
 		expect(page).toMatchObject({
 			id: "MIK-001",
 			title: "Ready issue",
@@ -1272,6 +1274,36 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(collectTextContent(tree)).toContain("MIK-001 │ Ready issue");
 		expect(collectTextContent(tree)).toContain("ready · labels #Automation");
 		expect(collectTextContent(tree)).toContain("# Ready issue");
+	});
+
+	test("detail page renders full Markdown inside an OpenTUI scrollbox", () => {
+		const cwd = tempProject();
+		const bodyLines = Array.from(
+			{ length: 60 },
+			(_, index) => `line ${index + 1}`,
+		).join("\n");
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Ready issue\nlabels: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Ready issue\n\n${bodyLines}\n`,
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+			detailScrollOffset: 12,
+		};
+
+		const tree = TuiAppView({ model, selection, viewportHeight: 12 });
+		const body = findElementById(tree, "detail-markdown-body");
+		const markdown = findElementById(tree, "detail-markdown");
+		const page = buildDetailPageViewModel(model, selection, {
+			viewportHeight: 12,
+		});
+
+		expect(body?.type).toBe("scrollbox");
+		expect(markdown?.props?.content).toBe(page?.markdown);
+		expect(String(markdown?.props?.content)).toContain("line 60");
 	});
 
 	test("moves selection, opens detail pane, and closes it with escape", () => {
@@ -1358,7 +1390,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(text).toContain("esc back");
 	});
 
-	test("detail page scrolls Markdown independently from board selection", () => {
+	test("detail page leaves up and down scrolling to the OpenTUI scrollbox", () => {
 		const cwd = tempProject();
 		const bodyLines = Array.from(
 			{ length: 45 },
@@ -1387,10 +1419,11 @@ updated_at: 2026-05-30T00:00:00Z
 
 		expect(down.columnIndex).toBe(1);
 		expect(down.cardIndex).toBe(0);
-		expect(down.detailScrollOffset).toBe(2);
-		expect(downClamped.detailScrollOffset).toBe(7);
-		expect(up.detailScrollOffset).toBe(6);
-		expect(page?.visibleMarkdownLines).toEqual(["line 2", "line 3"]);
+		expect(down).toBe(selection);
+		expect(downAgain).toBe(selection);
+		expect(downClamped).toBe(selection);
+		expect(up).toBe(selection);
+		expect(page?.visibleMarkdownLines).toEqual(["# Ready issue", ""]);
 	});
 
 	test("detail page ignores left and right column navigation", () => {
