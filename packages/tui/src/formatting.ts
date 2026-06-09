@@ -46,7 +46,7 @@ export function visibleColumnCountForViewport(viewportWidth: number): number {
 }
 
 export function visibleDetailLineCount(viewportHeight: number): number {
-	return Math.max(1, viewportHeight - 8);
+	return Math.max(1, viewportHeight - 7);
 }
 
 export function footerText(mode: FooterMode): string {
