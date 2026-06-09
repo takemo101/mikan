@@ -769,14 +769,14 @@ describe("TUI model and navigation", () => {
 		const tree = TuiAppView({ model, selection, viewportHeight: 12 });
 		const text = collectTextContent(tree);
 
-		expect(shortPage?.visibleMarkdownLines).toHaveLength(4);
-		expect(tallPage?.visibleMarkdownLines).toHaveLength(10);
+		expect(shortPage?.visibleMarkdownLines).toHaveLength(5);
+		expect(tallPage?.visibleMarkdownLines).toHaveLength(11);
 		expect(shortPage).toMatchObject({
 			hiddenLinesBefore: 3,
-			hiddenLinesAfter: 23,
-			lineRangeText: "Lines: 4-7/30 | ↑3 ↓23",
+			hiddenLinesAfter: 22,
+			lineRangeText: "Lines: 4-8/30 | ↑3 ↓22",
 		});
-		expect(text).toContain("MIK-001 │ Ready issue │ Lines: 4-7/30 | ↑3 ↓23");
+		expect(text).toContain("MIK-001 │ Ready issue │ Lines: 4-8/30 | ↑3 ↓22");
 		expect(text).toContain("ready · labels none");
 		expect(text).not.toContain("────────────────");
 		expect(text).not.toContain("line 30");
@@ -924,7 +924,7 @@ updated_at: 2026-05-30T00:00:00Z
 		const metaLine = headerChildren[1] as { props?: { content?: unknown } };
 
 		expect(styledContentPlain(titleLine.props?.content)).toBe(
-			"MIK-001 │ Ready issue │ Lines: 11-16/30 | ↑10 ↓14",
+			"MIK-001 │ Ready issue │ Lines: 11-17/30 | ↑10 ↓13",
 		);
 		expect(
 			styledContentChunk(titleLine.props?.content, "MIK-001"),
@@ -933,7 +933,7 @@ updated_at: 2026-05-30T00:00:00Z
 			styledContentChunk(titleLine.props?.content, "Ready issue"),
 		).toBeTruthy();
 		expect(
-			styledContentChunk(titleLine.props?.content, "Lines: 11-16/30 | ↑10 ↓14"),
+			styledContentChunk(titleLine.props?.content, "Lines: 11-17/30 | ↑10 ↓13"),
 		).toBeTruthy();
 		expect(styledContentPlain(metaLine.props?.content)).toBe(
 			"ready · labels #Automation",
@@ -1387,10 +1387,10 @@ updated_at: 2026-05-30T00:00:00Z
 
 		expect(down.columnIndex).toBe(1);
 		expect(down.cardIndex).toBe(0);
-		expect(down.detailScrollOffset).toBe(1);
+		expect(down.detailScrollOffset).toBe(2);
 		expect(downClamped.detailScrollOffset).toBe(7);
 		expect(up.detailScrollOffset).toBe(6);
-		expect(page?.visibleMarkdownLines).toEqual(["line 1", "line 2"]);
+		expect(page?.visibleMarkdownLines).toEqual(["line 2", "line 3"]);
 	});
 
 	test("detail page ignores left and right column navigation", () => {

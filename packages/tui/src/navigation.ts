@@ -66,10 +66,11 @@ export function moveSelection(
 		if (direction === "up" || direction === "down") {
 			return {
 				...selection,
-				detailScrollOffset: clamp(
-					(selection.detailScrollOffset ?? 0) + (direction === "down" ? 1 : -1),
-					0,
-					detailScrollMax(model, selection, options),
+				detailScrollOffset: nextDetailScrollOffset(
+					model,
+					selection,
+					direction,
+					options,
 				),
 			};
 		}
@@ -347,19 +348,47 @@ export function keyToDirection(
 	return action;
 }
 
+function nextDetailScrollOffset(
+	model: TuiModel,
+	selection: TuiSelection,
+	direction: "up" | "down",
+	options: { viewportHeight?: number } = {},
+): number {
+	const current = selection.detailScrollOffset ?? 0;
+	const step = direction === "down" ? 1 : -1;
+	const max = detailScrollMax(model, selection, options);
+	const target = clamp(current + step, 0, max);
+	const lines = detailMarkdownLines(model, selection);
+	let candidate = target;
+	while (
+		candidate >= 0 &&
+		candidate <= max &&
+		(lines[candidate]?.trim() ?? "") === ""
+	) {
+		candidate += step;
+	}
+	return candidate >= 0 && candidate <= max ? candidate : target;
+}
+
 function detailScrollMax(
 	model: TuiModel,
 	selection: TuiSelection,
 	options: { viewportHeight?: number } = {},
 ): number {
-	const details = getSelectedDetails(model, selection);
-	if (!details) return 0;
 	const visibleLineCount = options.viewportHeight
 		? visibleDetailLineCount(options.viewportHeight)
 		: 40;
 	return Math.max(
 		0,
-		stripFrontmatter(details.markdown).trimEnd().split("\n").length -
-			visibleLineCount,
+		detailMarkdownLines(model, selection).length - visibleLineCount,
 	);
+}
+
+function detailMarkdownLines(
+	model: TuiModel,
+	selection: TuiSelection,
+): string[] {
+	const details = getSelectedDetails(model, selection);
+	if (!details) return [];
+	return stripFrontmatter(details.markdown).trimEnd().split("\n");
 }
