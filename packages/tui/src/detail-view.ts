@@ -81,6 +81,8 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 				borderColor: theme.interactive.accent,
 				flexDirection: "column",
 				flexGrow: 1,
+				flexShrink: 1,
+				minHeight: 0,
 				overflow: "hidden",
 			},
 		},

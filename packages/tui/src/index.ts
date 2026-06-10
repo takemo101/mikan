@@ -245,7 +245,7 @@ export function Header(props: { theme?: TuiTheme }): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
 	return React.createElement("text", {
 		id: "mikan-header",
-		style: { color: theme.interactive.accent },
+		style: { color: theme.interactive.accent, flexShrink: 0 },
 		content: `🍊 mikan v${TUI_VERSION}`,
 	});
 }
@@ -254,7 +254,9 @@ export async function launchTui(
 	options: { cwd?: string; pollMs?: number; columns?: TuiColumnsMode } = {},
 ): Promise<void> {
 	const { createCliRenderer } = await import("@opentui/core");
-	const { createRoot, useKeyboard } = await import("@opentui/react");
+	const { createRoot, useKeyboard, useTerminalDimensions } = await import(
+		"@opentui/react"
+	);
 	const renderer = await createCliRenderer();
 	const pollMs = options.pollMs ?? 1000;
 	const root = createRoot(renderer);
@@ -264,6 +266,7 @@ export async function launchTui(
 	};
 
 	function App() {
+		const dimensions = useTerminalDimensions();
 		const [model, setModel] = React.useState(() => loadTuiModel(options.cwd));
 		const [selection, setSelection] = React.useState<TuiSelection>({
 			columnIndex: 0,
@@ -497,8 +500,8 @@ export async function launchTui(
 		return createTuiAppElement({
 			model,
 			selection,
-			viewportHeight: renderer.height,
-			viewportWidth: renderer.width,
+			viewportHeight: dimensions.height,
+			viewportWidth: dimensions.width,
 			columns: options.columns,
 			noteTextareaRef,
 			onNoteSubmit: submitNote,

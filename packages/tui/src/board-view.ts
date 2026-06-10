@@ -163,7 +163,7 @@ export function Footer(props: FooterProps): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
 	return React.createElement("text", {
 		id: "mikan-footer",
-		style: { color: theme.base.muted, marginTop: "auto" },
+		style: { color: theme.base.muted, flexShrink: 0, marginTop: "auto" },
 		content: [footerText(props.mode ?? "board"), props.message]
 			.filter(Boolean)
 			.join("    "),
