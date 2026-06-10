@@ -430,6 +430,12 @@ Must support:
 - show concise success/error feedback for TUI actions;
 - use a small internal semantic theme for canvas, surface, text, muted text, focus, accent, warning, error, and success states.
 
+OpenTUI implementation notes:
+
+- Treat terminal dimensions as reactive state. Components that derive layout from terminal size should subscribe through OpenTUI React resize/dimension hooks rather than only reading `renderer.height` or `renderer.width` during render; stale dimensions after a resize can make borders, scroll areas, and footer hints overlap until the next unrelated render.
+- Keep fixed chrome such as the header and footer from shrinking, and let the main/detail content area shrink instead. Use `minHeight: 0` on flex containers that own scrollable children, clip overflow at the detail page boundary, and put Markdown body content inside the scrollable child.
+- When fixing layout bugs, add a focused TUI regression test that locks the intended style contract for fixed chrome, shrinkable content, and scrollbox containment.
+
 Must not support initially:
 
 - full Markdown body editing;

@@ -1276,6 +1276,41 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(collectTextContent(tree)).toContain("# Ready issue");
 	});
 
+	test("pins detail page and footer chrome to separate layout rows", () => {
+		const model = loadTuiModel(tempProject());
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const tree = TuiAppView({ model, selection, viewportHeight: 12 });
+
+		expect(findElementById(tree, "mikan-header")?.props?.style).toMatchObject({
+			flexShrink: 0,
+		});
+		expect(findElementById(tree, "mikan-main")?.props?.style).toMatchObject({
+			flexGrow: 1,
+			minHeight: 0,
+		});
+		expect(findElementById(tree, "detail-page")?.props?.style).toMatchObject({
+			flexGrow: 1,
+			flexShrink: 1,
+			minHeight: 0,
+			overflow: "hidden",
+		});
+		expect(
+			findElementById(tree, "detail-markdown-body")?.props?.style,
+		).toMatchObject({
+			flexGrow: 1,
+			minHeight: 0,
+			overflow: "hidden",
+		});
+		expect(findElementById(tree, "mikan-footer")?.props?.style).toMatchObject({
+			flexShrink: 0,
+		});
+	});
+
 	test("detail page renders full Markdown inside an OpenTUI scrollbox", () => {
 		const cwd = tempProject();
 		const bodyLines = Array.from(
