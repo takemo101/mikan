@@ -17,6 +17,14 @@ labels:
 depends_on:
   - MIK-002
   - MIK-003
+metadata:
+  agent_hint: frontend
+  browser_required: true
+  retries: 2
+  context_files:
+    - packages/tui/src/index.ts
+  runner:
+    browser: chromium
 status: should-be-ignored
 priority: should-not-be-modeled
 profile: should-not-be-modeled
@@ -61,6 +69,13 @@ describe("Issue Markdown parsing", () => {
 			"MIK-002",
 			"MIK-003",
 		]);
+		expect(result.value.metadata).toEqual({
+			agent_hint: "frontend",
+			browser_required: true,
+			retries: 2,
+			context_files: ["packages/tui/src/index.ts"],
+			runner: { browser: "chromium" },
+		});
 		expect(String(result.value.createdAt)).toBe("2026-05-30T00:00:00Z");
 		expect(String(result.value.updatedAt)).toBe("2026-05-30T01:00:00Z");
 		expect(result.value.body).toBe(
@@ -80,6 +95,39 @@ describe("Issue Markdown parsing", () => {
 		if (!result.ok) throw new Error("expected valid Issue");
 		expect(result.value.labels.map(String)).toEqual([]);
 		expect(result.value.dependencies.map(String)).toEqual([]);
+		expect(result.value.metadata).toEqual({});
+	});
+
+	test("rejects malformed Issue Metadata frontmatter", () => {
+		const nonObject = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\nmetadata: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+		const nonJsonNumber = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\nmetadata:\n  value: .nan\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+		const tooDeep = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\nmetadata:\n  a:\n    b:\n      c:\n        d:\n          e:\n            f:\n              g:\n                h:\n                  i: too-deep\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+		const tooLarge = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\nmetadata:\n  value: ${"x".repeat(17 * 1024)}\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+
+		expect(nonObject.ok).toBe(false);
+		if (nonObject.ok) throw new Error("expected invalid metadata");
+		expect(nonObject.error.message).toContain("metadata must be an object");
+		expect(nonJsonNumber.ok).toBe(false);
+		if (nonJsonNumber.ok) throw new Error("expected invalid metadata");
+		expect(nonJsonNumber.error.message).toContain(
+			"metadata.value must be JSON-compatible",
+		);
+		expect(tooDeep.ok).toBe(false);
+		if (tooDeep.ok) throw new Error("expected invalid metadata");
+		expect(tooDeep.error.message).toContain("metadata must not exceed depth 8");
+		expect(tooLarge.ok).toBe(false);
+		if (tooLarge.ok) throw new Error("expected invalid metadata");
+		expect(tooLarge.error.message).toContain(
+			"metadata must not exceed 16384 bytes",
+		);
 	});
 
 	test("parses optional GitHub Mirror frontmatter", () => {

@@ -102,6 +102,14 @@ export function DetailPage(props: TuiAppViewProps): React.ReactElement {
 			React.createElement("text", {
 				content: detailMetaContent(page, theme),
 			}),
+			page.metadataText
+				? React.createElement("text", {
+						content: new StyledText([
+							fg(theme.base.muted)("Metadata "),
+							fg(theme.base.text)(page.metadataText),
+						]),
+					})
+				: undefined,
 		),
 		React.createElement(
 			"scrollbox",

@@ -169,6 +169,8 @@ export function runAdd(
 		);
 	const loaded = loadProjectConfig(cwd);
 	if (!loaded.ok) return fail(loaded.error.message);
+	const metadata = parseMetadataFlag(parsed.flags.get("metadata")?.at(-1));
+	if (!metadata.ok) return fail(metadata.error);
 	const result = createIssue({
 		projectRoot: loaded.value.projectRoot,
 		config: loaded.value.config,
@@ -176,6 +178,7 @@ export function runAdd(
 		status: parsed.flags.get("status")?.at(-1),
 		labels: parsed.flags.get("label") ?? [],
 		dependencies: parsed.flags.get("depends-on") ?? [],
+		...(metadata.value !== undefined ? { metadata: metadata.value } : {}),
 		now: options.now,
 	});
 	if (!result.ok) return fail(result.error.message);
@@ -241,6 +244,8 @@ export function runUpdate(
 		);
 	const loaded = loadProjectConfig(cwd);
 	if (!loaded.ok) return fail(loaded.error.message);
+	const metadata = parseMetadataFlag(parsed.flags.get("metadata")?.at(-1));
+	if (!metadata.ok) return fail(metadata.error);
 	const result = updateIssue({
 		projectRoot: loaded.value.projectRoot,
 		config: loaded.value.config,
@@ -252,6 +257,7 @@ export function runUpdate(
 		dependencies: parsed.flags.has("depends-on")
 			? (parsed.flags.get("depends-on") ?? [])
 			: undefined,
+		...(parsed.flags.has("metadata") ? { metadata: metadata.value } : {}),
 		body: parsed.flags.get("body")?.at(-1),
 		now: options.now,
 	});
@@ -307,6 +313,17 @@ export function runAppend(
 	});
 	if (!result.ok) return fail(result.error.message);
 	return ok(`${String(result.value.issue.id)} appended ${section}\n`);
+}
+
+function parseMetadataFlag(
+	input: string | undefined,
+): { ok: true; value: unknown } | { ok: false; error: string } {
+	if (input === undefined) return { ok: true, value: undefined };
+	try {
+		return { ok: true, value: JSON.parse(input) };
+	} catch {
+		return { ok: false, error: "metadata must be a JSON object" };
+	}
 }
 
 function formatGitHubMirrorCliResult(

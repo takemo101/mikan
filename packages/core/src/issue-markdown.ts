@@ -19,11 +19,22 @@ export type GitHubIssueReference = {
 	lastMirroredAt: UtcTimestamp;
 };
 
+export type JsonValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JsonValue[]
+	| { [key: string]: JsonValue };
+
+export type IssueMetadata = Record<string, JsonValue>;
+
 export type ParsedIssue = {
 	id: IssueId;
 	title: string;
 	labels: LabelId[];
 	dependencies: IssueId[];
+	metadata: IssueMetadata;
 	githubIssue?: GitHubIssueReference;
 	createdAt: UtcTimestamp;
 	updatedAt: UtcTimestamp;
@@ -31,6 +42,8 @@ export type ParsedIssue = {
 };
 
 const githubRepoPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const metadataMaxBytes = 16 * 1024;
+const metadataMaxDepth = 8;
 
 const frontmatterSchema = z
 	.object({
@@ -38,6 +51,7 @@ const frontmatterSchema = z
 		title: z.string().min(1),
 		labels: z.array(z.string()).optional().default([]),
 		depends_on: z.array(z.string()).optional().default([]),
+		metadata: z.unknown().optional(),
 		created_at: z.string().min(1),
 		updated_at: z.string().min(1),
 		github_issue: z.unknown().optional(),
@@ -108,6 +122,11 @@ export function parseIssueDocument(
 		else errors.push(`depends_on: ${dependency.error.message}`);
 	}
 
+	let metadata: IssueMetadata | undefined;
+	const parsedMetadata = parseIssueMetadata(parsedFrontmatter.data.metadata);
+	if (parsedMetadata.ok) metadata = parsedMetadata.value;
+	else errors.push(...parsedMetadata.error);
+
 	let createdAt: UtcTimestamp | undefined;
 	const parsedCreatedAt = parseUtcTimestamp(parsedFrontmatter.data.created_at);
 	if (parsedCreatedAt.ok) createdAt = parsedCreatedAt.value;
@@ -140,6 +159,7 @@ export function parseIssueDocument(
 				title: parsedFrontmatter.data.title,
 				labels,
 				dependencies,
+				metadata: metadata ?? {},
 				...(githubIssue ? { githubIssue } : {}),
 				createdAt,
 				updatedAt,
@@ -154,6 +174,74 @@ export function serializeIssue(input: {
 	body: string;
 }): string {
 	return `---\n${stringify(input.frontmatter).trim()}\n---\n${input.body.startsWith("\n") ? "" : "\n"}${input.body}`;
+}
+
+export function parseIssueMetadata(
+	input: unknown,
+): Result<IssueMetadata, string[]> {
+	if (input === undefined) return { ok: true, value: {} };
+	if (!isPlainObject(input)) {
+		return { ok: false, error: ["metadata must be an object"] };
+	}
+	const errors: string[] = [];
+	validateJsonValue(input, "metadata", 0, errors);
+	if (errors.length > 0) return { ok: false, error: errors };
+	const encoded = JSON.stringify(input);
+	if (new TextEncoder().encode(encoded).length > metadataMaxBytes) {
+		return {
+			ok: false,
+			error: [`metadata must not exceed ${metadataMaxBytes} bytes`],
+		};
+	}
+	return { ok: true, value: input as IssueMetadata };
+}
+
+function validateJsonValue(
+	value: unknown,
+	path: string,
+	depth: number,
+	errors: string[],
+): void {
+	if (depth > metadataMaxDepth) {
+		errors.push(`metadata must not exceed depth ${metadataMaxDepth}`);
+		return;
+	}
+	if (
+		value === null ||
+		typeof value === "string" ||
+		typeof value === "boolean"
+	) {
+		return;
+	}
+	if (typeof value === "number") {
+		if (!Number.isFinite(value)) {
+			errors.push(`${path} must be JSON-compatible`);
+		}
+		return;
+	}
+	if (Array.isArray(value)) {
+		for (const [index, item] of value.entries()) {
+			validateJsonValue(item, `${path}.${index}`, depth + 1, errors);
+		}
+		return;
+	}
+	if (isPlainObject(value)) {
+		for (const [key, item] of Object.entries(value)) {
+			validateJsonValue(item, `${path}.${key}`, depth + 1, errors);
+		}
+		return;
+	}
+	errors.push(`${path} must be JSON-compatible`);
+}
+
+function isPlainObject(input: unknown): input is Record<string, unknown> {
+	return (
+		!!input &&
+		typeof input === "object" &&
+		!Array.isArray(input) &&
+		(Object.getPrototypeOf(input) === Object.prototype ||
+			Object.getPrototypeOf(input) === null)
+	);
 }
 
 function parseGitHubIssueReference(

@@ -31,11 +31,14 @@ export type { DependencyStatus } from "./dependency.ts";
 export type {
 	GitHubIssueReference,
 	IssueFrontmatter,
+	IssueMetadata,
+	JsonValue,
 	ParsedIssue,
 } from "./issue-markdown.ts";
 export {
 	parseIssueDocument,
 	parseIssueMarkdown,
+	parseIssueMetadata,
 	serializeIssue,
 } from "./issue-markdown.ts";
 export type {

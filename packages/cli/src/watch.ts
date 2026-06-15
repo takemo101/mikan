@@ -255,16 +255,26 @@ function fireHooks(
 	for (const entry of commands) {
 		const command = hookCommandForIssue(entry, loaded, issue, options);
 		if (!command) continue;
-		const rendered = renderHookCommand(command, {
-			project_root: loaded.projectRoot,
-			issue_path: issue.path,
-			issue_id: String(issue.issue.id),
-			from_status: fromStatus,
-			to_status: toStatus,
-		});
+		const rendered = renderHookCommand(
+			command,
+			{
+				project_root: loaded.projectRoot,
+				issue_path: issue.path,
+				issue_id: String(issue.issue.id),
+				from_status: fromStatus,
+				to_status: toStatus,
+			},
+			issue,
+			options,
+		);
+		if (!rendered) continue;
 		const result = Bun.spawnSync(["sh", "-c", rendered], {
 			cwd: loaded.projectRoot,
 			stderr: "pipe",
+			env: {
+				...process.env,
+				MIKAN_ISSUE_METADATA: JSON.stringify(issue.issue.metadata),
+			},
 		});
 		if (result.exitCode !== 0) {
 			appendHookFailure(loaded.projectRoot, {
@@ -370,11 +380,65 @@ function emitError(options: WatchOptions, line: string): void {
 function renderHookCommand(
 	command: string,
 	values: Record<string, string>,
-): string {
-	return command.replace(
-		/{{\s*([a-z_]+)\s*}}/g,
-		(match, key: string) => values[key] ?? match,
+	issue: BoardIssue,
+	options: WatchOptions,
+): string | undefined {
+	let missingPath: string | undefined;
+	const rendered = command.replace(
+		/{{\s*([a-z_]+(?:\.[A-Za-z0-9_-]+)*)\s*}}/g,
+		(match, key: string) => {
+			if (key.startsWith("metadata.")) {
+				const metadataValue = lookupMetadataPath(
+					issue.issue.metadata,
+					key.slice("metadata.".length),
+				);
+				if (metadataValue === undefined) {
+					missingPath = key;
+					return match;
+				}
+				return shellEscape(formatMetadataTemplateValue(metadataValue));
+			}
+			return values[key] ?? match;
+		},
 	);
+	if (missingPath) {
+		emitError(
+			options,
+			`hook skipped: ${String(issue.issue.id)} references missing metadata path: ${missingPath}`,
+		);
+		return undefined;
+	}
+	return rendered;
+}
+
+function lookupMetadataPath(
+	metadata: Record<string, unknown>,
+	path: string,
+): unknown {
+	let current: unknown = metadata;
+	for (const segment of path.split(".")) {
+		if (!current || typeof current !== "object" || Array.isArray(current)) {
+			return undefined;
+		}
+		const record = current as Record<string, unknown>;
+		if (!Object.hasOwn(record, segment)) return undefined;
+		current = record[segment];
+	}
+	return current;
+}
+
+function formatMetadataTemplateValue(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean") {
+		return String(value);
+	}
+	if (value === null) return "null";
+	return JSON.stringify(value);
+}
+
+function shellEscape(value: string): string {
+	if (value.length === 0) return "''";
+	return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
 function appendHookFailure(

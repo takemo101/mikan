@@ -88,6 +88,34 @@ describe("core mutations", () => {
 		).toBe(false);
 	});
 
+	test("create writes Issue Metadata", () => {
+		const root = tempProject();
+
+		const result = createIssue({
+			projectRoot: root,
+			config,
+			title: "Metadata issue",
+			metadata: {
+				agent_hint: "frontend",
+				browser_required: true,
+				context_files: ["packages/tui/src/index.ts"],
+			},
+			now: t1,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected create");
+		expect(result.value.issue.metadata).toEqual({
+			agent_hint: "frontend",
+			browser_required: true,
+			context_files: ["packages/tui/src/index.ts"],
+		});
+		const markdown = readIssue(root, "backlog");
+		expect(markdown).toContain("metadata:");
+		expect(markdown).toContain("agent_hint: frontend");
+		expect(markdown).toContain("browser_required: true");
+	});
+
 	test("create writes declared dependencies", () => {
 		const root = tempProject();
 
@@ -211,6 +239,79 @@ describe("core mutations", () => {
 		if (!result.ok) throw new Error("expected update");
 		expect(result.value.dependencyStatus).toBe("ready");
 		expect(result.value.unmetDependencies.map(String)).toEqual([]);
+	});
+
+	test("update replaces, preserves, and clears Issue Metadata", () => {
+		const root = tempProject();
+		writeFileSync(
+			join(root, ".mikan", "backlog", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Seed\nmetadata:\n  agent_hint: frontend\n  browser_required: true\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Seed\n`,
+		);
+
+		const preserved = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			title: "Still metadata",
+			now: t2,
+		});
+		expect(preserved.ok).toBe(true);
+		if (!preserved.ok) throw new Error("expected preserve update");
+		expect(preserved.value.issue.metadata).toEqual({
+			agent_hint: "frontend",
+			browser_required: true,
+		});
+
+		const replaced = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			metadata: { agent_hint: "backend" },
+			now: t2,
+		});
+		expect(replaced.ok).toBe(true);
+		if (!replaced.ok) throw new Error("expected replace update");
+		expect(replaced.value.issue.metadata).toEqual({ agent_hint: "backend" });
+		expect(readIssue(root, "backlog")).not.toContain("browser_required");
+
+		const cleared = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			metadata: {},
+			now: t2,
+		});
+		expect(cleared.ok).toBe(true);
+		if (!cleared.ok) throw new Error("expected clear update");
+		expect(cleared.value.issue.metadata).toEqual({});
+		expect(readIssue(root, "backlog")).toContain("metadata: {}");
+	});
+
+	test("create and update reject malformed Issue Metadata", () => {
+		const root = tempProject();
+		seed(root);
+
+		const created = createIssue({
+			projectRoot: root,
+			config,
+			title: "Bad metadata",
+			metadata: [],
+		});
+		const updated = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			metadata: { value: Number.NaN },
+		});
+
+		expect(created.ok).toBe(false);
+		if (created.ok) throw new Error("expected invalid metadata");
+		expect(created.error.message).toContain("metadata must be an object");
+		expect(updated.ok).toBe(false);
+		if (updated.ok) throw new Error("expected invalid metadata");
+		expect(updated.error.message).toContain(
+			"metadata.value must be JSON-compatible",
+		);
 	});
 
 	test("update preserves existing dependencies when omitted", () => {

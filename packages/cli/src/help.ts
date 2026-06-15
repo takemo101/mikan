@@ -61,10 +61,12 @@ Options:
   -s, --status <status> Add to Status (default: backlog)
   -l, --label <label>   Add label; repeat for multiple labels
   --depends-on <issue-id> Add dependency; repeat for multiple dependencies
+  --metadata <json>     Set Issue Metadata from a JSON object
   -h, --help            Show this help
 
 Examples:
   mikan add "Wire MCP tools" -s ready -l automation
+  mikan add "Browser QA" --metadata '{"browser_required":true}'
 `;
 		case "list":
 			return `List Issues by Status.
@@ -96,6 +98,7 @@ Options:
   -t, --title <title>   Replace title
   -l, --label <label>   Replace labels; repeat for multiple labels
   --depends-on <issue-id> Replace dependencies; repeat for multiple dependencies
+  --metadata <json>     Replace Issue Metadata with a JSON object; use {} to clear
   -b, --body <body>     Replace body Markdown
   -h, --help            Show this help
 `;

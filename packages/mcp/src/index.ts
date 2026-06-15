@@ -141,6 +141,7 @@ export function createIssueTool(
 		status?: string;
 		labels?: string[];
 		depends_on?: string[];
+		metadata?: unknown;
 	},
 	runtime: McpRuntime = {},
 ): McpToolResult<unknown> {
@@ -154,6 +155,7 @@ export function createIssueTool(
 		status: args.status,
 		labels: args.labels,
 		dependencies: args.depends_on,
+		metadata: args.metadata,
 		now: runtime.now,
 	});
 	if (!result.ok) return coreError(result.error.kind, result.error.message);
@@ -167,6 +169,7 @@ export function updateIssueTool(
 		labels?: string[];
 		body?: string;
 		depends_on?: string[];
+		metadata?: unknown;
 	},
 	runtime: McpRuntime = {},
 ): McpToolResult<unknown> {
@@ -180,6 +183,7 @@ export function updateIssueTool(
 		labels: args.labels,
 		body: args.body,
 		dependencies: args.depends_on,
+		...(Object.hasOwn(args, "metadata") ? { metadata: args.metadata } : {}),
 		now: runtime.now,
 	});
 	if (!result.ok) return coreError(result.error.kind, result.error.message);
@@ -274,6 +278,7 @@ export function createMikanMcpCli(runtime: McpRuntime = {}) {
 				status: z.string().optional(),
 				labels: z.array(z.string()).optional(),
 				depends_on: z.array(z.string()).optional(),
+				metadata: z.unknown().optional(),
 			}),
 			run: (context) =>
 				forIncur(context, createIssueTool(context.args, runtime)),
@@ -287,6 +292,7 @@ export function createMikanMcpCli(runtime: McpRuntime = {}) {
 				labels: z.array(z.string()).optional(),
 				body: z.string().optional(),
 				depends_on: z.array(z.string()).optional(),
+				metadata: z.unknown().optional(),
 			}),
 			run: (context) =>
 				forIncur(context, updateIssueTool(context.args, runtime)),
@@ -370,6 +376,7 @@ function formatIssue(issue: BoardIssue, warnings: BoardWarning[]) {
 		path: issue.path,
 		depends_on: issue.issue.dependencies.map(String),
 		unmet_dependencies: issue.unmetDependencies.map(String),
+		metadata: issue.issue.metadata,
 		dependency_status: issue.dependencyStatus,
 		warnings: warnings.filter(
 			(warning) =>

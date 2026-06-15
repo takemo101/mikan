@@ -44,6 +44,7 @@ describe("MCP tools", () => {
 		expect(stdout).toContain("mirror_issue_to_github");
 		expect(stdout).not.toContain("push_github_mirror");
 		expect(stdout).toContain("depends_on");
+		expect(stdout).toContain("metadata");
 		expect(stdout).toContain("Explicit external-publication");
 		expect(stdout).not.toContain("complete_issue");
 	});
@@ -98,6 +99,34 @@ describe("MCP tools", () => {
 		expect(JSON.stringify(archivedList.data)).toContain("MIK-002");
 		expect(JSON.stringify(issue.data)).toContain("markdown");
 		expect(JSON.stringify(board.data)).toContain("malformed_issue");
+	});
+
+	test("read tools expose Issue Metadata", () => {
+		const cwd = tempProject();
+		createIssueTool(
+			{
+				title: "Metadata issue",
+				metadata: {
+					agent_hint: "frontend",
+					browser_required: true,
+				},
+			},
+			{ cwd, now },
+		);
+
+		const board = getBoardTool({}, { cwd });
+		const listed = listIssuesTool({}, { cwd });
+		const issue = getIssueTool({ id: "MIK-001" }, { cwd });
+
+		expect(board.ok).toBe(true);
+		expect(listed.ok).toBe(true);
+		expect(issue.ok).toBe(true);
+		if (!board.ok || !listed.ok || !issue.ok) throw new Error("expected ok");
+		for (const data of [board.data, listed.data, issue.data]) {
+			const json = JSON.stringify(data);
+			expect(json).toContain('"metadata":{"agent_hint":"frontend"');
+			expect(json).toContain('"browser_required":true');
+		}
 	});
 
 	test("read tools expose dependency read model fields", () => {
@@ -170,6 +199,38 @@ describe("MCP tools", () => {
 		expect(JSON.stringify(issue)).toContain("blocked");
 		expect(JSON.stringify(issue)).toContain("docs-scout");
 		expect(JSON.stringify(issue)).toContain("Free note");
+	});
+
+	test("create_issue and update_issue accept Issue Metadata", () => {
+		const cwd = tempProject();
+
+		const created = createIssueTool(
+			{ title: "Metadata", metadata: { agent_hint: "frontend" } },
+			{ cwd, now },
+		);
+		expect(created.ok).toBe(true);
+		if (!created.ok) throw new Error("expected ok");
+		expect(JSON.stringify(created.data)).toContain(
+			'"metadata":{"agent_hint":"frontend"}',
+		);
+
+		const updated = updateIssueTool(
+			{ id: "MIK-001", metadata: { agent_hint: "backend" } },
+			{ cwd, now },
+		);
+		expect(updated.ok).toBe(true);
+		if (!updated.ok) throw new Error("expected ok");
+		expect(JSON.stringify(updated.data)).toContain(
+			'"metadata":{"agent_hint":"backend"}',
+		);
+
+		const rejected = updateIssueTool(
+			{ id: "MIK-001", metadata: [] },
+			{ cwd, now },
+		);
+		expect(rejected.ok).toBe(false);
+		if (rejected.ok) throw new Error("expected metadata error");
+		expect(rejected.error.message).toContain("metadata must be an object");
 	});
 
 	test("create_issue and update_issue accept depends_on dependencies", () => {

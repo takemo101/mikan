@@ -214,6 +214,74 @@ describe("watch hooks", () => {
 		expect(hooks).toContain("automation-herdr MIK-002");
 	});
 
+	test("passes Issue Metadata to hooks through env and shell-safe templates", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		writeFileSync(
+			join(cwd, ".mikan", "config.yaml"),
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\n    - id: ready\n      title: Ready\nhooks:\n  on_enter:\n    ready:\n      - 'printf "%s" "$MIKAN_ISSUE_METADATA" > .mikan/.state/metadata-env.txt'\n      - "printf '%s\\n' {{metadata.agent_hint}} {{metadata.runner.browser}} {{metadata.context_files}} >> .mikan/.state/metadata-template.txt"\n`,
+		);
+		await cli(cwd, [
+			"add",
+			"Metadata hook",
+			"--metadata",
+			JSON.stringify({
+				agent_hint: "front end's work",
+				runner: { browser: "chromium" },
+				context_files: ["packages/tui/src/index.ts"],
+			}),
+		]);
+		await runWatchOnce({ cwd });
+
+		renameSync(
+			join(cwd, ".mikan", "backlog", "MIK-001.md"),
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+		);
+		await runWatchOnce({ cwd });
+
+		expect(
+			JSON.parse(
+				readFileSync(join(cwd, ".mikan", ".state", "metadata-env.txt"), "utf8"),
+			),
+		).toEqual({
+			agent_hint: "front end's work",
+			runner: { browser: "chromium" },
+			context_files: ["packages/tui/src/index.ts"],
+		});
+		expect(
+			readFileSync(
+				join(cwd, ".mikan", ".state", "metadata-template.txt"),
+				"utf8",
+			),
+		).toBe(`front end's work\nchromium\n["packages/tui/src/index.ts"]\n`);
+	});
+
+	test("skips hook commands that reference missing Issue Metadata paths", async () => {
+		const cwd = tempProject();
+		const errors: string[] = [];
+		await cli(cwd, ["init"]);
+		writeFileSync(
+			join(cwd, ".mikan", "config.yaml"),
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\n    - id: ready\n      title: Ready\nhooks:\n  on_enter:\n    ready:\n      - "echo {{metadata.missing}} >> .mikan/.state/hooks.txt"\n`,
+		);
+		await cli(cwd, ["add", "Metadata hook"]);
+		await runWatchOnce({ cwd });
+
+		renameSync(
+			join(cwd, ".mikan", "backlog", "MIK-001.md"),
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+		);
+		await runWatchOnce({ cwd, errorLogger: (line) => errors.push(line) });
+
+		expect(errors).toContain(
+			"hook skipped: MIK-001 references missing metadata path: metadata.missing",
+		);
+		expect(existsSync(join(cwd, ".mikan", ".state", "hooks.txt"))).toBe(false);
+		expect(existsSync(join(cwd, ".mikan", ".state", "hook-log.ndjson"))).toBe(
+			false,
+		);
+	});
+
 	test("warns and skips hook commands with config-unknown label filters", async () => {
 		const cwd = tempProject();
 		const errors: string[] = [];
