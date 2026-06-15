@@ -32,6 +32,8 @@ Key bindings:
 
 Press `Enter` on a Card to open full-page Markdown detail. The title and metadata stay fixed while the Markdown body scrolls. In detail mode, left/right Column navigation is ignored so the board selection does not change underneath.
 
+If an Issue has frontmatter `metadata`, Detail shows it as compact JSON in the fixed metadata area. Dense Board Cards intentionally do not show Issue Metadata; they stay focused on Issue ID, title, labels, and dependency hints.
+
 ## Column count
 
 `mikan tui --columns <auto|2|3|4|5>` controls how many Status Columns are visible at once.
@@ -70,7 +72,7 @@ The Note input uses OpenTUI's native `textarea` for multiline editing, cursor mo
 
 Press `g` on the selected Issue in Board or Detail mode. If the Issue is already mirrored, mikan updates it immediately. If it has no `github_issue`, mikan opens a confirmation modal showing the Issue ID, title, configured GitHub repo, and a note that local Markdown remains the source of truth.
 
-Mirrored Issues show `GitHub #123` in Detail metadata. Dense Board Cards stay focused on Issue ID, title, labels, and dependency hints. See [GitHub Mirror](./github-mirror.md) for setup and rules.
+Mirrored Issues show `GitHub #123` in Detail metadata. See [GitHub Mirror](./github-mirror.md) for setup and rules.
 
 ## Warnings
 

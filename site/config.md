@@ -108,6 +108,7 @@ hooks:
   on_enter:
     active:
       - "echo '{{issue_id}} entered {{to_status}}'"
+      - "scripts/read-metadata.sh {{metadata.browser_required}}"
       - command: "scripts/start-agent.sh {{project_root}} {{issue_path}} {{issue_id}}"
         when:
           labels_include:
@@ -138,6 +139,9 @@ Supported placeholders:
 - <code v-pre>{{from_status}}</code> — previous Status directory.
 - <code v-pre>{{to_status}}</code> — new Status directory.
 - <code v-pre>{{project_root}}</code> — project root directory.
+- <code v-pre>{{metadata.path}}</code> — Issue Metadata dot path, such as <code v-pre>{{metadata.browser_required}}</code> or <code v-pre>{{metadata.runner.kind}}</code>.
+
+Hooks also receive `MIKAN_ISSUE_METADATA` as compact JSON in the process environment. Metadata template values are shell-escaped as single arguments. String, number, boolean, and null values become scalar arguments; arrays and objects become JSON strings. Missing metadata paths skip that hook command, write a warning to stderr, and do not add a hook-log entry. Metadata is not a hook filter; use `when.labels_include` for filtering.
 
 A macOS notification hook can be written as:
 
@@ -163,6 +167,19 @@ github:
 `github.repo` is the GitHub repository used by `mikan github`, the TUI `g` action, MCP Mirror tools, and watch auto-push. `github.auto_push_mirrors` defaults to `false`; set it to `true` only when `mikan watch` should push changed Issues that already have `github_issue` frontmatter.
 
 See [GitHub Mirror](./github-mirror.md) for CLI, TUI, MCP, labels, and source-of-truth rules.
+
+## Issue Metadata
+
+Issue Metadata lives in Issue frontmatter, not in config:
+
+```yaml
+metadata:
+  browser_required: true
+  context_files:
+    - packages/tui/src/index.ts
+```
+
+Metadata must be a JSON-compatible object. It is advisory context for humans, agents, scripts, and hooks; mikan does not interpret it as priority, assignment, scheduling, or workflow rules.
 
 ## Dependencies
 

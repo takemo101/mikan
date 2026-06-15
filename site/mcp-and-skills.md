@@ -45,14 +45,16 @@ Agents can use explicit tools for primitive board operations:
 
 | Tool | Purpose |
 | --- | --- |
-| `get_board` | Read grouped board snapshot and warnings. |
-| `list_issues` | List Issues, optionally including archived. |
+| `get_board` | Read grouped board snapshot, warnings, dependencies, and metadata. |
+| `list_issues` | List Issues, optionally including archived, with metadata in the structured response. |
 | `get_issue` | Read one Issue Markdown file and metadata. |
-| `create_issue` | Create an Issue, optionally with labels, Status, body, and dependencies. |
-| `update_issue` | Update title, labels, body, or dependencies. |
+| `create_issue` | Create an Issue, optionally with labels, Status, body, dependencies, and metadata. |
+| `update_issue` | Update title, labels, body, dependencies, or metadata. |
 | `move_issue` | Move an Issue to another Status and optionally append a Status Log entry. |
 | `append_issue` | Append Markdown to `Notes`, `Reports`, or another section. |
 | `mirror_issue_to_github` | Explicit external-publication operation: create the GitHub Issue mirror when missing or update it when it already exists. |
+
+`create_issue` and `update_issue` accept `metadata` as a JSON-compatible object. Omitting metadata preserves the current value on updates; passing `{}` clears it. Metadata is advisory context only, so agents should not treat it as priority, assignment, scheduling, or a transition rule.
 
 GitHub Mirror is a one-way publication helper. Markdown remains the source of truth; agents should not import GitHub Issues or treat GitHub as authoritative. See [GitHub Mirror](./github-mirror.md) for setup, label behavior, and watch auto-push.
 
