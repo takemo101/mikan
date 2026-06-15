@@ -10,9 +10,11 @@ import {
 } from "./board-scan.ts";
 import {
 	type IssueFrontmatter,
+	type IssueMetadata,
 	type ParsedIssue,
 	parseIssueDocument,
 	parseIssueMarkdown,
+	parseIssueMetadata,
 	serializeIssue,
 } from "./issue-markdown.ts";
 import {
@@ -35,6 +37,7 @@ export type CreateIssueOptions = {
 	status?: string;
 	labels?: string[];
 	dependencies?: string[];
+	metadata?: unknown;
 	now?: () => Date;
 };
 
@@ -46,6 +49,7 @@ export type UpdateIssueOptions = {
 	labels?: string[];
 	preserveUnknownLabels?: boolean;
 	dependencies?: string[];
+	metadata?: unknown;
 	body?: string;
 	now?: () => Date;
 };
@@ -81,6 +85,10 @@ export function createIssue(
 		options.dependencies ?? [],
 	);
 	if (!dependenciesValidation.ok) return dependenciesValidation;
+	const metadataValidation = validateMetadata(
+		options.metadata === undefined ? {} : options.metadata,
+	);
+	if (!metadataValidation.ok) return metadataValidation;
 	const projectKey = options.config.project?.key ?? "MIK";
 	const parsedProjectKey = parseProjectKey(projectKey);
 	if (!parsedProjectKey.ok) {
@@ -121,15 +129,19 @@ export function createIssue(
 		const id = `${projectKey}-${String(sequence).padStart(3, "0")}`;
 		const now = utcNow(options.now);
 		const body = options.body ?? defaultIssueBody(options.title);
+		const frontmatter: IssueFrontmatter = {
+			id,
+			title: options.title,
+			labels: options.labels ?? [],
+			depends_on: dependenciesValidation.value.map(String),
+			...(options.metadata !== undefined
+				? { metadata: metadataValidation.value }
+				: {}),
+			created_at: now,
+			updated_at: now,
+		};
 		const markdown = serializeIssue({
-			frontmatter: {
-				id,
-				title: options.title,
-				labels: options.labels ?? [],
-				depends_on: dependenciesValidation.value.map(String),
-				created_at: now,
-				updated_at: now,
-			},
+			frontmatter,
 			body,
 		});
 		const path = join(options.projectRoot, ".mikan", status, `${id}.md`);
@@ -183,6 +195,10 @@ export function updateIssue(
 			: undefined;
 		if (dependenciesValidation && !dependenciesValidation.ok)
 			return dependenciesValidation;
+		const metadataValidation = Object.hasOwn(options, "metadata")
+			? validateMetadata(options.metadata)
+			: undefined;
+		if (metadataValidation && !metadataValidation.ok) return metadataValidation;
 		const document = readIssueDocument(target.value.path);
 		if (!document.ok) return document;
 		const updated = serializeIssue({
@@ -193,6 +209,7 @@ export function updateIssue(
 				...(dependenciesValidation
 					? { depends_on: dependenciesValidation.value.map(String) }
 					: {}),
+				...(metadataValidation ? { metadata: metadataValidation.value } : {}),
 				updated_at: utcNow(options.now),
 			},
 			body: options.body ?? target.value.issue.body,
@@ -419,6 +436,19 @@ function validateLabels(
 		parsed.push(labelId.value);
 	}
 	return { ok: true, value: parsed };
+}
+
+function validateMetadata(
+	metadata: unknown,
+): Result<IssueMetadata, MutationError> {
+	const parsed = parseIssueMetadata(metadata);
+	if (!parsed.ok) {
+		return {
+			ok: false,
+			error: { kind: "malformed_issue", message: parsed.error.join("; ") },
+		};
+	}
+	return parsed;
 }
 
 function validateDependencies(

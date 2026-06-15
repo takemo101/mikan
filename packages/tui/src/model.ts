@@ -3,6 +3,7 @@ import {
 	type BoardIssue,
 	type BoardSnapshot,
 	type BoardWarning,
+	type IssueMetadata,
 	scanBoard,
 } from "@mikan/core";
 import { loadProjectConfig } from "@mikan/project-config";
@@ -23,6 +24,7 @@ export type TuiCard = {
 	dependsOn?: string[];
 	unmetDependencies?: string[];
 	dependencyStatus?: "ready" | "blocked";
+	metadata?: IssueMetadata;
 	githubIssue?: TuiGithubIssue;
 };
 
@@ -157,6 +159,7 @@ function formatCard(issue: BoardIssue): TuiCard {
 		dependsOn: issue.issue.dependencies.map(String),
 		unmetDependencies: issue.unmetDependencies.map(String),
 		dependencyStatus: issue.dependencyStatus,
+		metadata: issue.issue.metadata,
 		...(issue.issue.githubIssue
 			? {
 					githubIssue: {

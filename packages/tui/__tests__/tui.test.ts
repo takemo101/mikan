@@ -888,6 +888,41 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(text).not.toContain("ready · labels #automation");
 	});
 
+	test("renders Issue Metadata in detail but not on Board Cards", () => {
+		const cwd = tempProject();
+		writeFileSync(
+			join(cwd, ".mikan", "ready", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Metadata issue\nlabels: []\nmetadata:\n  agent_hint: frontend\n  browser_required: true\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Metadata issue\n`,
+		);
+		const model = loadTuiModel(cwd);
+		const detailSelection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+		const boardSelection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+
+		const page = buildDetailPageViewModel(model, detailSelection);
+		const detailTree = TuiAppView({ model, selection: detailSelection });
+		const boardTree = TuiAppView({ model, selection: boardSelection });
+
+		expect(model.columns[1]?.cards[0]?.metadata).toEqual({
+			agent_hint: "frontend",
+			browser_required: true,
+		});
+		expect(page?.metadataText).toBe(
+			'{"agent_hint":"frontend","browser_required":true}',
+		);
+		expect(collectTextContent(detailTree)).toContain(
+			'Metadata {"agent_hint":"frontend","browser_required":true}',
+		);
+		expect(collectTextContent(boardTree)).not.toContain("agent_hint");
+	});
+
 	test("renders detail title and metadata in a fixed header above the scrolling Markdown body", () => {
 		const cwd = tempProject();
 		writeFileSync(

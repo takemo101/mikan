@@ -186,6 +186,56 @@ describe("CLI read path", () => {
 		expect(show.stdout).toContain("Remember this");
 	});
 
+	test("add and update write Issue Metadata", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init", "--key", "MIK", "--name", "mikan"]);
+
+		const add = await cli(cwd, [
+			"add",
+			"Metadata issue",
+			"--metadata",
+			JSON.stringify({
+				agent_hint: "frontend",
+				browser_required: true,
+				context_files: ["packages/tui/src/index.ts"],
+			}),
+		]);
+		const update = await cli(cwd, [
+			"update",
+			"MIK-001",
+			"--metadata",
+			JSON.stringify({ agent_hint: "backend" }),
+		]);
+		const show = await cli(cwd, ["show", "MIK-001"]);
+		const list = await cli(cwd, ["list"]);
+
+		expect(add.exitCode).toBe(0);
+		expect(update.exitCode).toBe(0);
+		expect(show.stdout).toContain("metadata:");
+		expect(show.stdout).toContain("agent_hint: backend");
+		expect(show.stdout).not.toContain("browser_required");
+		expect(list.stdout).not.toContain("agent_hint");
+	});
+
+	test("add and update reject malformed Issue Metadata", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		await cli(cwd, ["add", "First"]);
+
+		const invalidJson = await cli(cwd, [
+			"add",
+			"Bad",
+			"--metadata",
+			"not-json",
+		]);
+		const nonObject = await cli(cwd, ["update", "MIK-001", "--metadata", "[]"]);
+
+		expect(invalidJson.exitCode).toBe(1);
+		expect(invalidJson.stderr).toContain("metadata must be a JSON object");
+		expect(nonObject.exitCode).toBe(1);
+		expect(nonObject.stderr).toContain("metadata must be an object");
+	});
+
 	test("add and update write Issue dependencies", async () => {
 		const cwd = tempProject();
 		await cli(cwd, ["init", "--key", "MIK", "--name", "mikan"]);

@@ -40,6 +40,7 @@ export type DetailPageViewModel = {
 	dependencyStatus: "ready" | "blocked";
 	warningCount: number;
 	githubText: string;
+	metadataText: string;
 	markdown: string;
 	visibleMarkdownLines: string[];
 	hiddenLinesBefore: number;
@@ -88,6 +89,7 @@ export function buildDetailPageViewModel(
 		githubText: details.card.githubIssue
 			? `GitHub #${details.card.githubIssue.number}`
 			: "",
+		metadataText: formatMetadataText(details.card),
 		markdown,
 		visibleMarkdownLines,
 		hiddenLinesBefore: offset,
@@ -132,6 +134,11 @@ export function buildDetailViewModel(
 			herdr: details.herdr,
 		},
 	};
+}
+
+function formatMetadataText(card: TuiCard): string {
+	const metadata = card.metadata ?? {};
+	return Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : "";
 }
 
 function formatDetailLabels(model: TuiModel, card: TuiCard): string {
