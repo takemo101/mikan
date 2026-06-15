@@ -221,6 +221,11 @@ labels:
   - herdr
 depends_on:
   - MIK-001
+metadata:
+  agent_hint: frontend
+  browser_required: true
+  context_files:
+    - packages/tui/src/index.ts
 created_at: 2026-05-30T00:00:00Z
 updated_at: 2026-05-30T00:00:00Z
 ---
@@ -272,6 +277,15 @@ Optional frontmatter:
 
 - `labels` — array of config-defined label IDs.
 - `depends_on` — array of Issue IDs that must be completed before this Issue is considered dependency-ready.
+- `metadata` — JSON-compatible object of project-defined Issue Metadata for agents, hooks, and humans to read.
+
+Issue Metadata semantics:
+
+- `metadata` must be an object whose values are JSON-compatible: string, number, boolean, null, array, or object.
+- `metadata` is advisory read context. It may inform agents, hooks, or humans, but it does not assign roles, priority, scheduling behavior, transition authority, or success judgement.
+- `metadata` is nested under the single `metadata` frontmatter field. Arbitrary top-level frontmatter keys are preserved but are not treated as Issue Metadata.
+- `metadata` is invalid frontmatter when it is not an object, contains non-JSON-compatible values, exceeds 16KB when JSON-stringified, or exceeds nesting depth 8.
+- `metadata` should hold small structured hints, not long-form context, reports, artifacts, or body content.
 
 Do not add these fields in v0:
 
@@ -357,8 +371,8 @@ v0 CLI mirrors a small primitive operation set:
 mikan init
 mikan list [--status ready] [--include-archived]
 mikan show MIK-001
-mikan add "Prototype herdr dispatcher" --label automation --label herdr --status backlog --depends-on MIK-001
-mikan update MIK-002 --title "Prototype dispatcher" --label automation --label herdr --depends-on MIK-001
+mikan add "Prototype herdr dispatcher" --label automation --label herdr --status backlog --depends-on MIK-001 --metadata '{"agent_hint":"frontend"}'
+mikan update MIK-002 --title "Prototype dispatcher" --label automation --label herdr --depends-on MIK-001 --metadata '{"agent_hint":"frontend"}'
 mikan move MIK-001 ready --log "Ready to implement"
 mikan append MIK-001 --section Reports --source docs-scout --body "..."
 mikan append MIK-001 --section Notes --body "..."
@@ -367,7 +381,7 @@ mikan watch
 mikan mcp
 ```
 
-Do not add separate `block`, `complete`, `report`, `note`, `dependencies set`, or `labels set` commands in v0. They are expressed through `move`, `update`, and `append`. `add` and `update` may accept repeated `--depends-on <issue-id>` flags to write frontmatter dependencies. `tui --columns` controls only the visible Column viewport width; it does not change configured Statuses or the board source of truth.
+Do not add separate `block`, `complete`, `report`, `note`, `dependencies set`, or `labels set` commands in v0. They are expressed through `move`, `update`, and `append`. `add` and `update` may accept repeated `--depends-on <issue-id>` flags to write frontmatter dependencies and `--metadata <json-object>` to write Issue Metadata. When `update` receives `--metadata`, it replaces the entire metadata object; omitting `--metadata` preserves existing metadata; passing `{}` clears it. `show` displays metadata, while `list` stays concise. `tui --columns` controls only the visible Column viewport width; it does not change configured Statuses or the board source of truth.
 
 ## MCP surface
 
@@ -379,8 +393,8 @@ Initial tools:
 get_board(include_archived?)
 list_issues(status?, include_archived?)
 get_issue(id)
-create_issue(title, body?, status?, labels?, depends_on?)
-update_issue(id, title?, labels?, body?, depends_on?)
+create_issue(title, body?, status?, labels?, depends_on?, metadata?)
+update_issue(id, title?, labels?, body?, depends_on?, metadata?)
 move_issue(id, status, log?)
 append_issue(id, section, body, source?)
 ```
@@ -389,11 +403,11 @@ Notes:
 
 - `move_issue` is the only status-changing MCP tool.
 - Blocking and completing are ordinary moves to `blocked` or `completed`.
-- `update_issue` handles title, labels, dependencies, and body replacement.
+- `update_issue` handles title, labels, dependencies, metadata, and body replacement.
 - `append_issue` appends Markdown to `Status Log`, `Reports`, `Notes`, or another named section.
 - `source` is meaningful for Reports and remains a free string.
 
-`get_board` returns a grouped board snapshot for TUI/agent overview. It is a read model, not separate state. Read tools should include `depends_on`, `unmet_dependencies`, and `dependency_status` so agents can choose implementation order without mikan becoming a scheduler.
+`get_board` returns a grouped board snapshot for TUI/agent overview. It is a read model, not separate state. Read tools should include `depends_on`, `unmet_dependencies`, `dependency_status`, and `metadata` so agents can choose implementation order and runtime context without mikan becoming a scheduler.
 
 ## TUI design
 
@@ -426,6 +440,7 @@ Must support:
 - keep empty Note saves in the modal with `Note cannot be empty` feedback rather than closing the modal;
 - render Note input with OpenTUI's native `textarea` rather than a custom cursor/editor model, using its built-in multiline editing, cursor movement, paste handling, wrapping, and visible input area;
 - show declared and unmet dependencies in detail/read-model views;
+- show Issue Metadata in Detail views, but not on dense Board Cards;
 - show warning details in a focused modal opened with `w`, while keeping warning absence as concise feedback;
 - show concise success/error feedback for TUI actions;
 - use a small internal semantic theme for canvas, surface, text, muted text, focus, accent, warning, error, and success states.
@@ -489,6 +504,16 @@ Hook template variables in v0:
 - `{{issue_id}}`
 - `{{from_status}}`
 - `{{to_status}}`
+- `{{metadata.<path>}}` for dot-path Issue Metadata lookup, for example `{{metadata.agent_hint}}` or `{{metadata.runner.browser}}`.
+
+Hook metadata behavior:
+
+- Hook processes receive `MIKAN_ISSUE_METADATA` as compact JSON for the full metadata object.
+- `{{metadata.<path>}}` supports object dot paths only. Array indexing is not part of the initial template syntax.
+- Metadata template values are shell-escaped as a single argument before substitution. Existing non-metadata template variables keep their current raw substitution behavior for compatibility.
+- Scalar metadata values expand to their scalar string form. Array or object metadata values expand as compact JSON, then shell-escaped.
+- If a hook command references a missing metadata path, mikan skips that hook and emits a warning instead of running a partially-rendered command.
+- Metadata is not a hook filter in v0. Do not add `when.metadata...`; hook filtering remains limited to Labels.
 
 Operational files:
 
@@ -518,6 +543,7 @@ List/TUI should warn on:
 - Markdown files under config-unknown directories;
 - malformed frontmatter;
 - missing required frontmatter;
+- invalid Issue Metadata, including non-object metadata, non-JSON-compatible metadata values, metadata larger than 16KB, or metadata nested deeper than 8 levels;
 - hook failures from hook log;
 - dependency issues: missing dependency target, malformed dependency ID, self-dependency, dependency cycles, archived dependency target, and dependencies not yet completed.
 
@@ -527,6 +553,7 @@ Mutating CLI/MCP operations should reject:
 - unknown Status;
 - unknown labels;
 - malformed dependency Issue IDs;
+- malformed Issue Metadata;
 - malformed or missing required frontmatter for the target Issue.
 
 Mutating CLI/MCP operations should not reject moves only because dependencies are unmet. Dependency ordering is advisory/read-model information for humans and agents, not transition enforcement.
@@ -535,7 +562,7 @@ Mutating CLI/MCP operations should not reject moves only because dependencies ar
 
 mikan does not model Agents, agent profiles, teams, retries, scheduling, or success judgement.
 
-External agents or dispatchers may read an Issue and decide what role/prompt to use. mikan only stores Issues and append-only Reports/Notes.
+External agents or dispatchers may read an Issue and decide what role/prompt to use. Issue Metadata may provide structured context for that decision, but mikan does not interpret it as an agent profile, role assignment, priority, scheduler input, or success rule. mikan only stores Issues, Issue Metadata, and append-only Reports/Notes.
 
 herdr integration is optional and external:
 
