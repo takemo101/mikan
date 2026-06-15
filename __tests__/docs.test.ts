@@ -72,6 +72,14 @@ describe("agent setup documentation", () => {
 		expect(packageReadme).toContain("stdio MCP only");
 		expect(packageReadme).toContain("separate");
 	});
+
+	test("README surfaces document Issue Metadata", () => {
+		for (const docs of [readme, packageReadme]) {
+			expect(docs).toContain("Issue Metadata");
+			expect(docs).toContain("--metadata");
+			expect(docs).toContain("MIKAN_ISSUE_METADATA");
+		}
+	});
 });
 
 describe("manual site documentation", () => {
@@ -82,9 +90,17 @@ describe("manual site documentation", () => {
 			"from_status",
 			"to_status",
 			"project_root",
+			"metadata.path",
 		]) {
 			expect(configManual).toContain(`<code v-pre>{{${placeholder}}}</code>`);
 		}
+	});
+
+	test("manual pages document Issue Metadata", () => {
+		expect(configManual).toContain("MIKAN_ISSUE_METADATA");
+		expect(configManual).toContain("{{metadata.browser_required}}");
+		expect(configManual).toContain("Metadata is not a hook filter");
+		expect(vitepressConfig).toContain("/cli");
 	});
 
 	test("GitHub Mirror manual documents one-way publication surfaces", () => {

@@ -30,10 +30,22 @@ mikan is currently built for Bun-based execution. The npm package installs the `
 ```sh
 mikan init
 mikan add "Prototype dispatcher" --status ready --label automation
+mikan add "Browser QA" --metadata '{"browser_required":true}'
 mikan list
 mikan show MIK-001
 mikan tui
 ```
+
+## Issue Metadata
+
+Issue Metadata is optional advisory context stored under frontmatter `metadata`. Use it for machine-readable hints such as browser requirements, context files, or local automation inputs.
+
+```sh
+mikan add "Browser QA" --metadata '{"browser_required":true,"context_files":["packages/tui/src/index.ts"]}'
+mikan update MIK-001 --metadata '{}'
+```
+
+Metadata must be a JSON-compatible object. Omitting `--metadata` preserves existing metadata; passing `{}` clears it. MCP read tools include metadata, MCP `create_issue` and `update_issue` accept it, hooks receive `MIKAN_ISSUE_METADATA`, and TUI Detail displays metadata without adding it to dense Board Cards.
 
 ## TUI columns
 

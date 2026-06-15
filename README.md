@@ -80,6 +80,10 @@ id: MIK-001
 title: Prototype dispatcher
 labels:
   - automation
+metadata:
+  browser_required: true
+  context_files:
+    - packages/tui/src/index.ts
 created_at: 2026-05-30T00:00:00Z
 updated_at: 2026-05-30T00:00:00Z
 ---
@@ -104,6 +108,8 @@ Build a small local prototype.
 
 Moving an Issue changes its directory. Updating or appending context rewrites the Markdown file safely using a project-local write lock.
 
+Issue Metadata is optional advisory context under frontmatter `metadata`. It must be a JSON-compatible object and is useful for hints such as browser requirements, context files, or local automation inputs. Metadata is not priority, scheduling, assignment, or a transition gate.
+
 ## CLI
 
 The CLI exposes small primitive operations:
@@ -111,10 +117,10 @@ The CLI exposes small primitive operations:
 | Command | Purpose |
 | --- | --- |
 | `mikan init` | Create `.mikan/` config, Status directories, state directory, and template. |
-| `mikan add <title>` | Create a new Issue. |
+| `mikan add <title>` | Create a new Issue, optionally with labels, dependencies, and metadata. |
 | `mikan list` | Print Issues grouped by Status. |
-| `mikan show <id>` | Print one Issue Markdown file. |
-| `mikan update <id>` | Update title, labels, or body. |
+| `mikan show <id>` | Print one Issue Markdown file, including frontmatter metadata. |
+| `mikan update <id>` | Update title, labels, body, dependencies, or metadata. |
 | `mikan move <id> <status>` | Move an Issue to another Status and optionally append a Status Log entry. |
 | `mikan append <id>` | Append Markdown to a section such as `Notes` or `Reports`. |
 | `mikan github` | Create or update one-way GitHub Mirrors. |
@@ -127,6 +133,7 @@ Examples:
 
 ```sh
 mikan add "Prototype dispatcher" --label automation --status backlog
+mikan add "Browser QA" --metadata '{"browser_required":true,"context_files":["packages/tui/src/index.ts"]}'
 mikan update MIK-001 --title "Prototype local dispatcher" --label automation --label herdr
 mikan move MIK-001 ready --log "Ready to implement"
 mikan append MIK-001 --section Notes --body "Keep the prototype local-first."
@@ -185,15 +192,15 @@ Available tools:
 - `get_board(include_archived?)`
 - `list_issues(status?, include_archived?)`
 - `get_issue(id)`
-- `create_issue(title, body?, status?, labels?, depends_on?)`
-- `update_issue(id, title?, labels?, body?, depends_on?)`
+- `create_issue(title, body?, status?, labels?, depends_on?, metadata?)`
+- `update_issue(id, title?, labels?, body?, depends_on?, metadata?)`
 - `move_issue(id, status, log?)`
 - `append_issue(id, section, body, source?)`
 - `mirror_issue_to_github(id)` — explicit one-way publication to create the GitHub Issue mirror when missing or update it when it already exists.
 
 GitHub Mirror keeps Markdown authoritative. It publishes outward to GitHub Issues; it does not import GitHub state.
 
-The MCP surface intentionally mirrors CLI primitives. mikan stays **stdio MCP only**: there is no HTTP server, port, auth, scheduler, workflow engine, or delegation runtime.
+The MCP surface intentionally mirrors CLI primitives. Read tools include Issue Metadata in their structured responses, and `create_issue` / `update_issue` accept a JSON-compatible metadata object. mikan stays **stdio MCP only**: there is no HTTP server, port, auth, scheduler, workflow engine, or delegation runtime.
 
 ## Agent setup
 
@@ -270,6 +277,8 @@ hooks:
 ```
 
 String entries are unconditional hook commands. Object entries use `command`; optional `when.labels_include` is an include-all Label filter, so every listed Label ID must be present on the Issue for that command to run. `labels_include` cannot be empty; config-unknown Label IDs warn to stderr and skip that hook command without writing a hook-log entry.
+
+Hooks also receive `MIKAN_ISSUE_METADATA` as compact JSON. Hook templates can reference metadata with dot paths, for example `{{metadata.browser_required}}` or `{{metadata.runner.kind}}`. Strings, numbers, booleans, and null become scalar arguments; arrays and objects become JSON strings. Metadata template values are shell-escaped as single arguments. Missing metadata paths skip the hook with a warning. Metadata is not a hook filter; use Labels for filtering.
 
 Hook failures are written to `.mikan/.state/hook-log.ndjson`. They do not roll back Issue moves because Markdown files remain the source of truth.
 
