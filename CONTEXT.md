@@ -12,6 +12,10 @@ _Avoid_: Task, ticket, work item
 A short stable identifier for an **Issue**, formed from the project key and a sequence number, such as `MIK-001`. An **Issue ID** does not change when the Issue title changes.
 _Avoid_: Slug, title ID, filename ID
 
+**Issue Metadata**:
+Structured, project-defined context stored on an **Issue** for agents, hooks, and humans to read. Issue Metadata informs decisions, but it does not assign roles, priority, scheduling behavior, or transition authority.
+_Avoid_: Profile, priority, assignee, workflow rule
+
 **Label**:
 A configured lightweight tag on an **Issue** used for filtering, grouping, and selecting optional hook commands. Labels are descriptive only; they do not assign agent profiles, roles, priority, scheduling, or success behavior.
 _Avoid_: Profile, role, priority
