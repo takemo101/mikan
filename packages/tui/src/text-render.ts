@@ -7,6 +7,7 @@ import {
 	contentLine,
 	footerText,
 	formatLabels,
+	formatRepositoryFilter,
 } from "./formatting.ts";
 import {
 	cardDependencyStatus,
@@ -24,14 +25,17 @@ import {
 	renderLabelInteraction,
 	renderMoveInteraction,
 	renderNoteInteraction,
+	renderRepositoryFilterInteraction,
 	renderWarningDetails,
 } from "./prompt-text.ts";
 import type { TuiSelection } from "./selection.ts";
+import { applyRepositoryFilter } from "./selection.ts";
 
 export function renderTuiText(
-	model: TuiModel,
+	fullModel: TuiModel,
 	selection: TuiSelection,
 ): string {
+	const model = applyRepositoryFilter(fullModel, selection.repositoryFilter);
 	const lines = [
 		"mikan board",
 		formatWarningSummary(model.warnings),
@@ -51,6 +55,9 @@ export function renderTuiText(
 	}
 	if (selection.githubConfirmOpen) {
 		lines.push("", ...renderGitHubMirrorInteraction(model, selection));
+	}
+	if (selection.repositoryFilterOpen) {
+		lines.push("", ...renderRepositoryFilterInteraction(model, selection));
 	}
 	if (selection.warningsOpen) {
 		lines.push("", ...renderWarningDetails(model));
@@ -151,6 +158,14 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 	});
 	const maxRows = Math.max(0, ...columns.map((column) => column.rows.length));
 	const lines: string[] = [];
+	const repositoryFilterText = formatRepositoryFilter({
+		workspaceMode: (model.repositories?.length ?? 0) > 0,
+		filter: selection.repositoryFilter,
+		title: selection.repositoryFilter
+			? model.repositoryTitles?.[selection.repositoryFilter]
+			: undefined,
+	});
+	if (repositoryFilterText) lines.push(repositoryFilterText);
 	lines.push(view.columnViewportText);
 	lines.push(columns.map((column) => column.header).join(" "));
 	for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {

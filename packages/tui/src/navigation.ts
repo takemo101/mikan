@@ -1,6 +1,13 @@
 import type { FooterMode } from "./formatting.ts";
 import type { TuiModel } from "./model.ts";
-import { clamp, type MoveTarget, type TuiSelection } from "./selection.ts";
+import {
+	applyRepositoryFilter,
+	clamp,
+	clampSelection,
+	findSelectionByCardId,
+	type MoveTarget,
+	type TuiSelection,
+} from "./selection.ts";
 
 type TuiAction =
 	| "left"
@@ -17,6 +24,7 @@ type TuiAction =
 	| "archive"
 	| "github"
 	| "warnings"
+	| "repository-filter"
 	| "help"
 	| "save-note"
 	| "reload"
@@ -32,6 +40,7 @@ type TuiSelectionAction =
 	| "archive"
 	| "github"
 	| "warnings"
+	| "repository-filter"
 	| "help";
 
 export function moveSelection(
@@ -69,6 +78,13 @@ export function moveSelection(
 	if (direction === "escape") {
 		if (selection.helpOpen) {
 			return { ...selection, helpOpen: false };
+		}
+		if (selection.repositoryFilterOpen) {
+			return {
+				...selection,
+				repositoryFilterOpen: false,
+				repositoryFilterFocusIndex: undefined,
+			};
 		}
 		if (selection.archiveOpen) {
 			return { ...selection, archiveOpen: false };
@@ -162,6 +178,30 @@ export function moveSelection(
 			? { ...selection, warningsOpen: !selection.warningsOpen }
 			: { ...selection, message: "No warnings" };
 	}
+	if (direction === "repository-filter") {
+		if (!isWorkspaceMode(model)) {
+			return {
+				...selection,
+				message: "Repository filter needs workspace mode",
+			};
+		}
+		return {
+			...selection,
+			archiveOpen: false,
+			detailOpen: false,
+			githubConfirmOpen: false,
+			moveOpen: false,
+			noteOpen: false,
+			noteDraft: undefined,
+			labelOpen: false,
+			repositoryFilterOpen: true,
+			repositoryFilterFocusIndex: repositoryFilterFocusForActive(
+				model,
+				selection,
+			),
+			message: undefined,
+		};
+	}
 	if (direction === "help") {
 		return { ...selection, helpOpen: !selection.helpOpen };
 	}
@@ -247,13 +287,138 @@ export function toggleFocusedLabel(
 	return { ...selection, labelDraftIds: [...current] };
 }
 
+/** A project is in workspace mode once it has at least one configured Repository. */
+export function isWorkspaceMode(model: TuiModel): boolean {
+	return (model.repositories?.length ?? 0) > 0;
+}
+
+/**
+ * Repository filter choices in modal order: `All repositories` (undefined) first,
+ * then each configured Repository ID in config order.
+ */
+export function repositoryFilterOptions(
+	model: TuiModel,
+): (string | undefined)[] {
+	return [undefined, ...(model.repositories ?? []).map((repo) => repo.id)];
+}
+
+function repositoryFilterFocusForActive(
+	model: TuiModel,
+	selection: TuiSelection,
+): number {
+	const options = repositoryFilterOptions(model);
+	const index = options.indexOf(selection.repositoryFilter);
+	return index === -1 ? 0 : index;
+}
+
+export function moveRepositoryFilterFocus(
+	model: TuiModel,
+	selection: TuiSelection,
+	direction: "up" | "down",
+): TuiSelection {
+	if (!selection.repositoryFilterOpen) return selection;
+	return {
+		...selection,
+		repositoryFilterFocusIndex: clamp(
+			(selection.repositoryFilterFocusIndex ?? 0) +
+				(direction === "down" ? 1 : -1),
+			0,
+			Math.max(0, repositoryFilterOptions(model).length - 1),
+		),
+	};
+}
+
+/**
+ * Apply the focused Repository filter choice and close the modal. The previously
+ * selected Issue is preserved by ID when it survives the new filter; otherwise the
+ * selection clamps safely into the filtered board. Pass the full (unfiltered) model.
+ */
+export function applyRepositoryFilterChoice(
+	model: TuiModel,
+	selection: TuiSelection,
+): TuiSelection {
+	const options = repositoryFilterOptions(model);
+	const focusIndex = clamp(
+		selection.repositoryFilterFocusIndex ?? 0,
+		0,
+		Math.max(0, options.length - 1),
+	);
+	const nextFilter = options[focusIndex];
+	const currentBoard = applyRepositoryFilter(model, selection.repositoryFilter);
+	const selectedId =
+		currentBoard.columns[selection.columnIndex]?.cards[selection.cardIndex]?.id;
+	const nextBoard = applyRepositoryFilter(model, nextFilter);
+	const located = selectedId
+		? findSelectionByCardId(nextBoard, selectedId)
+		: undefined;
+	const base = located ?? clampSelection(nextBoard, selection);
+	return {
+		...selection,
+		columnIndex: base.columnIndex,
+		cardIndex: base.cardIndex,
+		repositoryFilter: nextFilter,
+		repositoryFilterOpen: false,
+		repositoryFilterFocusIndex: undefined,
+		detailOpen: false,
+	};
+}
+
+/**
+ * Translate a filtered-board selection into full-model indices by Issue ID so the
+ * shared mutation/refresh helpers (which reload the full board) resolve the right
+ * Issue. A passthrough when no filter is active. Columns are never filtered, so
+ * only the Card index can shift.
+ */
+export function toFullIndexSelection(
+	model: TuiModel,
+	selection: TuiSelection,
+): TuiSelection {
+	if (!selection.repositoryFilter) return selection;
+	const board = applyRepositoryFilter(model, selection.repositoryFilter);
+	const card = board.columns[selection.columnIndex]?.cards[selection.cardIndex];
+	if (!card) return selection;
+	const located = findSelectionByCardId(model, card.id);
+	return located
+		? {
+				...selection,
+				columnIndex: located.columnIndex,
+				cardIndex: located.cardIndex,
+			}
+		: selection;
+}
+
+/**
+ * Re-map a selection produced against the full (reloaded) model back into the
+ * active filtered board, preserving the selected Issue by ID when possible. A
+ * passthrough when no filter is active. Used after mutations/refreshes so stored
+ * indices stay consistent with the filtered board the user sees.
+ */
+export function reconcileFilteredSelection(
+	model: TuiModel,
+	selection: TuiSelection,
+	filter: string | undefined,
+): TuiSelection {
+	if (!filter) return { ...selection, repositoryFilter: filter };
+	const board = applyRepositoryFilter(model, filter);
+	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+	const located = card ? findSelectionByCardId(board, card.id) : undefined;
+	const base = located ?? clampSelection(board, selection);
+	return {
+		...selection,
+		columnIndex: base.columnIndex,
+		cardIndex: base.cardIndex,
+		repositoryFilter: filter,
+	};
+}
+
 export function footerMode(selection: TuiSelection): FooterMode {
 	if (selection.noteOpen) return "note-modal";
 	if (
 		selection.moveOpen ||
 		selection.labelOpen ||
 		selection.archiveOpen ||
-		selection.githubConfirmOpen
+		selection.githubConfirmOpen ||
+		selection.repositoryFilterOpen
 	) {
 		return "modal";
 	}
@@ -304,6 +469,8 @@ export function keyToTuiAction(
 			return "github";
 		case "w":
 			return "warnings";
+		case "f":
+			return "repository-filter";
 		case "?":
 			return "help";
 		case "q":
@@ -326,6 +493,7 @@ export function keyToDirection(
 		action === "archive" ||
 		action === "github" ||
 		action === "warnings" ||
+		action === "repository-filter" ||
 		action === "help" ||
 		action === "save-note" ||
 		action === "reload" ||

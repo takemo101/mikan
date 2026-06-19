@@ -84,6 +84,9 @@ export function refreshTuiModel(options: {
 			githubBusy: stillSelected ? options.selection.githubBusy : false,
 			warningsOpen: options.selection.warningsOpen,
 			helpOpen: options.selection.helpOpen,
+			repositoryFilter: options.selection.repositoryFilter,
+			repositoryFilterOpen: options.selection.repositoryFilterOpen,
+			repositoryFilterFocusIndex: options.selection.repositoryFilterFocusIndex,
 		},
 	};
 }

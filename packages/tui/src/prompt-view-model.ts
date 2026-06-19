@@ -44,6 +44,18 @@ export type GitHubMirrorPromptViewModel = {
 	hint: string;
 };
 
+export type RepositoryFilterPromptViewModel = {
+	title: string;
+	focused: boolean;
+	options: {
+		id?: string;
+		label: string;
+		active: boolean;
+		focused: boolean;
+	}[];
+	hint: string;
+};
+
 export function buildMovePromptViewModel(
 	model: TuiModel,
 	selection: TuiSelection,
@@ -122,6 +134,30 @@ export function buildArchivePromptViewModel(
 		focused: Boolean(selection.archiveOpen),
 		body: `${card.title}\nMove to archived. It will disappear from the default board.`,
 		hint: "enter archive  esc cancel",
+	};
+}
+
+export function buildRepositoryFilterPromptViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+): RepositoryFilterPromptViewModel | undefined {
+	const repositories = model.repositories ?? [];
+	if (repositories.length === 0) return undefined;
+	const focusIndex = selection.repositoryFilterFocusIndex ?? 0;
+	const activeFilter = selection.repositoryFilter;
+	const options = [
+		{ id: undefined, label: "All repositories", active: !activeFilter },
+		...repositories.map((repository) => ({
+			id: repository.id,
+			label: `${repository.title} (${repository.id})`,
+			active: activeFilter === repository.id,
+		})),
+	].map((option, index) => ({ ...option, focused: index === focusIndex }));
+	return {
+		title: "Filter by Repository",
+		focused: Boolean(selection.repositoryFilterOpen),
+		options,
+		hint: "↑↓ move  enter apply  esc cancel",
 	};
 }
 

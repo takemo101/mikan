@@ -10,9 +10,10 @@ import {
 	LabelPrompt,
 	MovePrompt,
 	NotePrompt,
+	RepositoryFilterPrompt,
 	WarningPanel,
 } from "./modals.ts";
-import { getSelectedDetails, loadTuiModel } from "./model.ts";
+import { getSelectedDetails, loadTuiModel, type TuiModel } from "./model.ts";
 import {
 	appendSelectedIssueNote,
 	archiveSelectedIssue,
@@ -24,15 +25,23 @@ import {
 	updateSelectedIssueLabels,
 } from "./mutations.ts";
 import {
+	applyRepositoryFilterChoice,
 	beginGitHubMirrorSubmission,
 	footerMode,
 	getMoveTargets,
 	keyToTuiAction,
 	moveLabelFocus,
+	moveRepositoryFilterFocus,
 	moveSelection,
+	reconcileFilteredSelection,
+	toFullIndexSelection,
 	toggleFocusedLabel,
 } from "./navigation.ts";
-import { clamp, type TuiSelection } from "./selection.ts";
+import {
+	applyRepositoryFilter,
+	clamp,
+	type TuiSelection,
+} from "./selection.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
 
 export type { TuiAppViewProps, TuiColumnsMode } from "./app-view-props.ts";
@@ -73,6 +82,7 @@ export {
 } from "./detail-view-model.ts";
 export type { FooterMode } from "./formatting.ts";
 export {
+	formatRepositoryFilter,
 	MAX_VISIBLE_COLUMNS,
 	MIN_COLUMN_WIDTH,
 	MIN_VISIBLE_COLUMNS,
@@ -86,6 +96,7 @@ export {
 	LabelPrompt,
 	MovePrompt,
 	NotePrompt,
+	RepositoryFilterPrompt,
 	WarningPanel,
 } from "./modals.ts";
 export type {
@@ -121,13 +132,20 @@ export {
 	updateSelectedIssueLabels,
 } from "./mutations.ts";
 export {
+	applyRepositoryFilterChoice,
 	beginGitHubMirrorSubmission,
+	footerMode,
 	getAdjacentMoveTarget,
 	getMoveTargets,
+	isWorkspaceMode,
 	keyToDirection,
 	keyToTuiAction,
 	moveLabelFocus,
+	moveRepositoryFilterFocus,
 	moveSelection,
+	reconcileFilteredSelection,
+	repositoryFilterOptions,
+	toFullIndexSelection,
 	toggleFocusedLabel,
 } from "./navigation.ts";
 export type {
@@ -136,6 +154,7 @@ export type {
 	LabelPromptViewModel,
 	MovePromptViewModel,
 	NotePromptViewModel,
+	RepositoryFilterPromptViewModel,
 } from "./prompt-view-model.ts";
 export {
 	buildArchivePromptViewModel,
@@ -143,8 +162,10 @@ export {
 	buildLabelPromptViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
+	buildRepositoryFilterPromptViewModel,
 } from "./prompt-view-model.ts";
 export type { MoveTarget, TuiSelection } from "./selection.ts";
+export { applyRepositoryFilter } from "./selection.ts";
 // Public facade re-export for the extracted plain-text renderer (MIK-083).
 export { renderTuiText } from "./text-render.ts";
 export type { TuiTheme } from "./theme.ts";
@@ -161,7 +182,7 @@ export function createTuiAppElement(
 }
 
 export function TuiAppView({
-	model,
+	model: fullModel,
 	selection,
 	theme = buildTuiTheme(),
 	viewportHeight,
@@ -171,6 +192,7 @@ export function TuiAppView({
 	onNoteSubmit,
 	detailScrollBoxRef,
 }: TuiAppViewProps): React.ReactElement {
+	const model = applyRepositoryFilter(fullModel, selection.repositoryFilter);
 	const details = selection.detailOpen
 		? getSelectedDetails(model, selection)
 		: undefined;
@@ -230,6 +252,9 @@ export function TuiAppView({
 		selection.githubConfirmOpen
 			? React.createElement(GitHubMirrorPrompt, { model, selection, theme })
 			: undefined,
+		selection.repositoryFilterOpen
+			? React.createElement(RepositoryFilterPrompt, { model, selection, theme })
+			: undefined,
 		selection.warningsOpen
 			? React.createElement(WarningPanel, { model, theme })
 			: undefined,
@@ -281,18 +306,48 @@ export async function launchTui(
 		const detailScrollBoxRef = React.useRef<
 			import("@opentui/core").ScrollBoxRenderable | null
 		>(null);
-		const submitNote = React.useCallback((body: string) => {
-			const result = appendSelectedIssueNote({
-				cwd: options.cwd,
-				model: modelRef.current,
-				selection: selectionRef.current,
-				body,
-			});
-			modelRef.current = result.model;
-			selectionRef.current = { ...result.selection, message: result.message };
-			setModel(result.model);
-			setSelection({ ...result.selection, message: result.message });
-		}, []);
+		// Mutations/refreshes reload and resolve Issues against the full board, so
+		// inputs are translated to full-model indices and results are re-mapped back
+		// into the active Repository filter. Both are passthroughs when no filter is
+		// active, keeping single-project behavior unchanged.
+		const commitResult = React.useCallback(
+			(result: {
+				model: TuiModel;
+				selection: TuiSelection;
+				message?: string;
+			}) => {
+				const filter = selectionRef.current.repositoryFilter;
+				const reconciled = reconcileFilteredSelection(
+					result.model,
+					result.selection,
+					filter,
+				);
+				const next =
+					result.message !== undefined
+						? { ...reconciled, message: result.message }
+						: reconciled;
+				modelRef.current = result.model;
+				selectionRef.current = next;
+				setModel(result.model);
+				setSelection(next);
+			},
+			[],
+		);
+		const submitNote = React.useCallback(
+			(body: string) => {
+				const result = appendSelectedIssueNote({
+					cwd: options.cwd,
+					model: modelRef.current,
+					selection: toFullIndexSelection(
+						modelRef.current,
+						selectionRef.current,
+					),
+					body,
+				});
+				commitResult(result);
+			},
+			[commitResult],
+		);
 		modelRef.current = model;
 		selectionRef.current = selection;
 
@@ -301,59 +356,83 @@ export async function launchTui(
 				const refreshed = refreshTuiModel({
 					cwd: options.cwd,
 					model: modelRef.current,
-					selection: selectionRef.current,
+					selection: toFullIndexSelection(
+						modelRef.current,
+						selectionRef.current,
+					),
 				});
-				modelRef.current = refreshed.model;
-				selectionRef.current = refreshed.selection;
-				setModel(refreshed.model);
-				setSelection(refreshed.selection);
+				commitResult(refreshed);
 			}, pollMs);
 			return () => clearInterval(interval);
-		}, []);
+		}, [commitResult]);
 
 		useKeyboard((key: { name?: string; shift?: boolean; ctrl?: boolean }) => {
 			const action = keyToTuiAction(key.name, key.shift, key.ctrl);
+			// `board` is the model the user sees (Repository filter applied); `selection`
+			// indexes into it. `fullSelection` re-targets the same Issue in the unfiltered
+			// model for the shared mutation helpers. Both equal their inputs with no filter.
+			const board = applyRepositoryFilter(model, selection.repositoryFilter);
+			const fullSelection = toFullIndexSelection(model, selection);
 			if (selection.helpOpen) {
 				if (action === "escape" || action === "help") {
-					setSelection((current) => moveSelection(model, current, action));
+					setSelection((current) => moveSelection(board, current, action));
+				}
+				return;
+			}
+			if (selection.repositoryFilterOpen) {
+				if (action === "up" || action === "down") {
+					setSelection((current) =>
+						moveRepositoryFilterFocus(board, current, action),
+					);
+					return;
+				}
+				if (action === "enter") {
+					setSelection((current) =>
+						applyRepositoryFilterChoice(model, current),
+					);
+					return;
+				}
+				if (action === "escape") {
+					setSelection((current) => moveSelection(board, current, action));
+					return;
 				}
 				return;
 			}
 			if (selection.noteOpen) {
 				if (action === "escape") {
-					setSelection((current) => moveSelection(model, current, action));
+					setSelection((current) => moveSelection(board, current, action));
 					return;
 				}
 				return;
 			}
 			if (selection.archiveOpen) {
 				if (action === "help") {
-					setSelection((current) => moveSelection(model, current, action));
+					setSelection((current) => moveSelection(board, current, action));
 					return;
 				}
 				if (action === "escape") {
-					setSelection((current) => moveSelection(model, current, action));
+					setSelection((current) => moveSelection(board, current, action));
 					return;
 				}
 				if (action === "enter") {
-					const result = archiveSelectedIssue({
-						cwd: options.cwd,
-						model,
-						selection,
-					});
-					setModel(result.model);
-					setSelection({ ...result.selection, message: result.message });
+					commitResult(
+						archiveSelectedIssue({
+							cwd: options.cwd,
+							model,
+							selection: fullSelection,
+						}),
+					);
 					return;
 				}
 				return;
 			}
 			if (selection.githubConfirmOpen) {
 				if (action === "help") {
-					setSelection((current) => moveSelection(model, current, action));
+					setSelection((current) => moveSelection(board, current, action));
 					return;
 				}
 				if (action === "escape") {
-					setSelection((current) => moveSelection(model, current, action));
+					setSelection((current) => moveSelection(board, current, action));
 					return;
 				}
 				if (action === "enter") {
@@ -362,13 +441,13 @@ export async function launchTui(
 					setSelection((current) => beginGitHubMirrorSubmission(current));
 					void (async () => {
 						try {
-							const result = await confirmSelectedIssueGitHubMirror({
-								cwd: options.cwd,
-								model,
-								selection,
-							});
-							setModel(result.model);
-							setSelection({ ...result.selection, message: result.message });
+							commitResult(
+								await confirmSelectedIssueGitHubMirror({
+									cwd: options.cwd,
+									model,
+									selection: fullSelection,
+								}),
+							);
 						} finally {
 							githubBusyRef.current = false;
 						}
@@ -379,29 +458,29 @@ export async function launchTui(
 			}
 			if (selection.labelOpen) {
 				if (action === "help") {
-					setSelection((current) => moveSelection(model, current, action));
+					setSelection((current) => moveSelection(board, current, action));
 					return;
 				}
 				if (action === "escape") {
-					setSelection((current) => moveSelection(model, current, action));
+					setSelection((current) => moveSelection(board, current, action));
 					return;
 				}
 				if (action === "up" || action === "down") {
-					setSelection((current) => moveLabelFocus(model, current, action));
+					setSelection((current) => moveLabelFocus(board, current, action));
 					return;
 				}
 				if (key.name === "space") {
-					setSelection((current) => toggleFocusedLabel(model, current));
+					setSelection((current) => toggleFocusedLabel(board, current));
 					return;
 				}
 				if (action === "enter") {
-					const result = updateSelectedIssueLabels({
-						cwd: options.cwd,
-						model,
-						selection,
-					});
-					setModel(result.model);
-					setSelection({ ...result.selection, message: result.message });
+					commitResult(
+						updateSelectedIssueLabels({
+							cwd: options.cwd,
+							model,
+							selection: fullSelection,
+						}),
+					);
 					return;
 				}
 				return;
@@ -427,44 +506,48 @@ export async function launchTui(
 					moveTargetIndex: clamp(
 						(current.moveTargetIndex ?? 0) + (action === "down" ? 1 : -1),
 						0,
-						Math.max(0, getMoveTargets(model, current).length - 1),
+						Math.max(0, getMoveTargets(board, current).length - 1),
 					),
 				}));
 				return;
 			}
 			if (selection.moveOpen && action === "enter") {
-				const targets = getMoveTargets(model, selection);
+				const targets = getMoveTargets(board, selection);
 				const target = targets[selection.moveTargetIndex ?? 0];
 				if (!target) return;
-				const result = moveSelectedIssue({
-					cwd: options.cwd,
-					model,
-					selection,
-					targetStatus: target.id,
-				});
-				setModel(result.model);
-				setSelection({ ...result.selection, message: result.message });
+				commitResult(
+					moveSelectedIssue({
+						cwd: options.cwd,
+						model,
+						selection: fullSelection,
+						targetStatus: target.id,
+					}),
+				);
 				return;
 			}
 			if (action === "reload") {
-				const result = refreshTuiModel({ cwd: options.cwd, model, selection });
-				setModel(result.model);
-				setSelection(result.selection);
+				commitResult(
+					refreshTuiModel({
+						cwd: options.cwd,
+						model,
+						selection: fullSelection,
+					}),
+				);
 				return;
 			}
 			if (action === "move-left" || action === "move-right") {
-				const result = moveSelectedIssueByDirection({
-					cwd: options.cwd,
-					model,
-					selection,
-					direction: action === "move-left" ? "left" : "right",
-				});
-				setModel(result.model);
-				setSelection({ ...result.selection, message: result.message });
+				commitResult(
+					moveSelectedIssueByDirection({
+						cwd: options.cwd,
+						model,
+						selection: fullSelection,
+						direction: action === "move-left" ? "left" : "right",
+					}),
+				);
 				return;
 			}
 			if (action === "archive") {
-				setSelection((current) => moveSelection(model, current, action));
+				setSelection((current) => moveSelection(board, current, action));
 				return;
 			}
 			if (action === "save-note") return;
@@ -472,19 +555,19 @@ export async function launchTui(
 				if (githubBusyRef.current) return;
 				githubBusyRef.current = true;
 				const card =
-					model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+					board.columns[selection.columnIndex]?.cards[selection.cardIndex];
 				if (card?.githubIssue) {
 					setSelection((current) => beginGitHubMirrorSubmission(current));
 				}
 				void (async () => {
 					try {
-						const result = await beginSelectedIssueGitHubMirror({
-							cwd: options.cwd,
-							model,
-							selection,
-						});
-						setModel(result.model);
-						setSelection({ ...result.selection, message: result.message });
+						commitResult(
+							await beginSelectedIssueGitHubMirror({
+								cwd: options.cwd,
+								model,
+								selection: fullSelection,
+							}),
+						);
 					} finally {
 						githubBusyRef.current = false;
 					}
@@ -492,7 +575,7 @@ export async function launchTui(
 				return;
 			}
 			setSelection((current) =>
-				moveSelection(model, current, action, {
+				moveSelection(board, current, action, {
 					viewportHeight: renderer.height,
 				}),
 			);

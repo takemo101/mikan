@@ -4,6 +4,21 @@ export function formatLabels(labels: string[]): string {
 	return labels.map((label) => `#${label}`).join(" ");
 }
 
+/**
+ * Active Repository filter label for the board header, e.g.
+ * `Filter: Frontend App (frontend)` or `Filter: All repositories`. Returns
+ * undefined outside workspace mode so single-project boards stay unchanged.
+ */
+export function formatRepositoryFilter(options: {
+	workspaceMode: boolean;
+	filter?: string;
+	title?: string;
+}): string | undefined {
+	if (!options.workspaceMode) return undefined;
+	if (!options.filter) return "Filter: All repositories";
+	return `Filter: ${options.title ? `${options.title} (${options.filter})` : options.filter}`;
+}
+
 export function formatLineRange(options: {
 	start: number;
 	end: number;
