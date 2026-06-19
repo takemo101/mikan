@@ -20,8 +20,33 @@ github:
   auto_push_mirrors: false
 ```
 
-- `github.repo` is required before publishing a Mirror.
+- `github.repo` is required before publishing a Mirror in single-project mode.
 - `github.auto_push_mirrors` defaults to `false`. Set it to `true` only when you want `mikan watch` to push changes for Issues that already have `github_issue` frontmatter.
+
+## Single-project versus workspace targets
+
+How mikan resolves the target GitHub repository depends on the mode:
+
+- **Single-project mode** uses the top-level `github.repo`. Every Mirror is created in that one repository.
+- **Workspace mode** (config has a top-level `repositories` list) uses each Repository's own `repositories[].github.repo`. A new Mirror resolves from the Issue's required primary `repository` to that Repository's configured GitHub repo. Top-level `github.repo` is not used as a Mirror fallback in workspace mode.
+
+```yaml
+repositories:
+  - id: frontend
+    title: Frontend
+    path: ./frontend
+    github:
+      repo: org/frontend
+  - id: backend
+    title: Backend
+    path: ./backend
+    github:
+      repo: org/backend
+```
+
+An Issue with `repository: backend` mirrors to `org/backend`. Labels and `affects` never choose the Mirror target — only the primary `repository` does.
+
+Once an Issue has `github_issue`, mikan keeps updating that existing Mirror repo even if the Issue's `repository` later changes; it does not recreate or move the GitHub Issue across repositories. If `github_issue.repo` no longer matches the GitHub repo configured for the Issue's current `repository`, mikan surfaces a warning. There is no `mikan github mirror --repo owner/name` override; fix `repository` or config before creating a new Mirror.
 
 ## What gets stored locally
 

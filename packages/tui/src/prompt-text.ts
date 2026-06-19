@@ -5,6 +5,7 @@ import {
 	buildLabelPromptViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
+	buildRepositoryFilterPromptViewModel,
 } from "./prompt-view-model.ts";
 import type { TuiSelection } from "./selection.ts";
 
@@ -65,6 +66,24 @@ export function renderLabelInteraction(
 	];
 }
 
+export function renderRepositoryFilterInteraction(
+	model: TuiModel,
+	selection: TuiSelection,
+): string[] {
+	const view = buildRepositoryFilterPromptViewModel(model, selection);
+	if (!view) return ["Filter by Repository", "No Repositories configured"];
+	return [
+		view.title,
+		"",
+		...view.options.map(
+			(option) =>
+				`${option.focused ? "▶" : " "} ${option.active ? "(x)" : "( )"} ${option.label}`,
+		),
+		"",
+		view.hint,
+	];
+}
+
 export function renderArchiveInteraction(
 	model: TuiModel,
 	selection: TuiSelection,
@@ -106,6 +125,7 @@ export function renderKeyHelp(): string[] {
 		"e edit Labels",
 		"a archive Issue",
 		"g GitHub Mirror",
+		"f filter Repositories (workspace)",
 		"w warning details",
 		"r reload",
 		"q quit",

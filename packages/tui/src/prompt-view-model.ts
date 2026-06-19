@@ -44,6 +44,18 @@ export type GitHubMirrorPromptViewModel = {
 	hint: string;
 };
 
+export type RepositoryFilterPromptViewModel = {
+	title: string;
+	focused: boolean;
+	options: {
+		id?: string;
+		label: string;
+		active: boolean;
+		focused: boolean;
+	}[];
+	hint: string;
+};
+
 export function buildMovePromptViewModel(
 	model: TuiModel,
 	selection: TuiSelection,
@@ -125,16 +137,56 @@ export function buildArchivePromptViewModel(
 	};
 }
 
+export function buildRepositoryFilterPromptViewModel(
+	model: TuiModel,
+	selection: TuiSelection,
+): RepositoryFilterPromptViewModel | undefined {
+	const repositories = model.repositories ?? [];
+	if (repositories.length === 0) return undefined;
+	const focusIndex = selection.repositoryFilterFocusIndex ?? 0;
+	const activeFilter = selection.repositoryFilter;
+	const options = [
+		{ id: undefined, label: "All repositories", active: !activeFilter },
+		...repositories.map((repository) => ({
+			id: repository.id,
+			label: `${repository.title} (${repository.id})`,
+			active: activeFilter === repository.id,
+		})),
+	].map((option, index) => ({ ...option, focused: index === focusIndex }));
+	return {
+		title: "Filter by Repository",
+		focused: Boolean(selection.repositoryFilterOpen),
+		options,
+		hint: "↑↓ move  enter apply  esc cancel",
+	};
+}
+
 export function buildGitHubMirrorPromptViewModel(
 	model: TuiModel,
 	selection: TuiSelection,
 ): GitHubMirrorPromptViewModel | undefined {
 	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
 	if (!card) return undefined;
+	const targetRepo = resolveMirrorTargetRepo(model, card);
 	return {
 		title: `Create GitHub Mirror for ${card.id}?`,
 		focused: Boolean(selection.githubConfirmOpen),
-		body: `${card.title}\nRepo: ${model.githubRepo ?? "(not configured)"}\nLocal Markdown remains the source of truth.`,
+		body: `${card.title}\nRepo: ${targetRepo ?? "(not configured)"}\nLocal Markdown remains the source of truth.`,
 		hint: "enter create  esc cancel",
 	};
+}
+
+function resolveMirrorTargetRepo(
+	model: TuiModel,
+	card: { githubIssue?: { repo: string }; repository?: string },
+): string | undefined {
+	// Existing Mirrors keep their stored repo identity.
+	if (card.githubIssue?.repo) return card.githubIssue.repo;
+	const workspaceMode = (model.repositories?.length ?? 0) > 0;
+	if (workspaceMode) {
+		return card.repository
+			? model.repositoryGithubRepos?.[card.repository]
+			: undefined;
+	}
+	return model.githubRepo;
 }

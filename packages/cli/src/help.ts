@@ -61,12 +61,15 @@ Options:
   -s, --status <status> Add to Status (default: backlog)
   -l, --label <label>   Add label; repeat for multiple labels
   --depends-on <issue-id> Add dependency; repeat for multiple dependencies
+  -r, --repository <repository-id> Set primary Repository (required in workspace mode)
+  --affects <repository-id> Add affected Repository; repeat for multiple
   --metadata <json>     Set Issue Metadata from a JSON object
   -h, --help            Show this help
 
 Examples:
   mikan add "Wire MCP tools" -s ready -l automation
   mikan add "Browser QA" --metadata '{"browser_required":true}'
+  mikan add "Cross-cut change" -r backend --affects frontend --affects infra
 `;
 		case "list":
 			return `List Issues by Status.
@@ -98,9 +101,14 @@ Options:
   -t, --title <title>   Replace title
   -l, --label <label>   Replace labels; repeat for multiple labels
   --depends-on <issue-id> Replace dependencies; repeat for multiple dependencies
+  -r, --repository <repository-id> Replace primary Repository (workspace mode)
+  --affects <repository-id> Replace affected Repositories; repeat for multiple
   --metadata <json>     Replace Issue Metadata with a JSON object; use {} to clear
   -b, --body <body>     Replace body Markdown
   -h, --help            Show this help
+
+Notes:
+  Omitting --repository or --affects preserves existing values.
 `;
 		case "move":
 			return `Move an Issue to another Status.

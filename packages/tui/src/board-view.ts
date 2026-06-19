@@ -7,7 +7,12 @@ import {
 	columnWidthPercent,
 	formatWarningSummary,
 } from "./board-view-model.ts";
-import { type FooterMode, footerText, formatLabels } from "./formatting.ts";
+import {
+	type FooterMode,
+	footerText,
+	formatLabels,
+	formatRepositoryFilter,
+} from "./formatting.ts";
 import { cardDependencyStatus, type TuiCard } from "./model.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
 
@@ -27,6 +32,13 @@ export function BoardView({
 			? { visibleColumnCount: columns }
 			: { viewportWidth }),
 	});
+	const repositoryFilterText = formatRepositoryFilter({
+		workspaceMode: (model.repositories?.length ?? 0) > 0,
+		filter: selection.repositoryFilter,
+		title: selection.repositoryFilter
+			? model.repositoryTitles?.[selection.repositoryFilter]
+			: undefined,
+	});
 	return React.createElement(
 		"box",
 		{
@@ -37,6 +49,13 @@ export function BoardView({
 			? React.createElement("text", {
 					content: formatWarningSummary(model.warnings),
 					style: { color: theme.feedback.warning },
+				})
+			: undefined,
+		repositoryFilterText
+			? React.createElement("text", {
+					id: "mikan-repository-filter",
+					content: repositoryFilterText,
+					style: { color: theme.interactive.accent },
 				})
 			: undefined,
 		React.createElement("text", { content: view.columnViewportText }),
@@ -113,6 +132,9 @@ function issueCardContent(
 ): StyledText {
 	const chunks = [];
 	if (selected) chunks.push(fg(theme.interactive.focus)("▶ "));
+	if (card.repository) {
+		chunks.push(fg(theme.base.muted)(`[${card.repository}] `));
+	}
 	chunks.push(fg(theme.interactive.accent)(card.id));
 	if (cardDependencyStatus(card) === "blocked") {
 		chunks.push(fg(theme.base.text)(" "));

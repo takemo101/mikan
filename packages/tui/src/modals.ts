@@ -7,6 +7,7 @@ import {
 	renderKeyHelp,
 	renderLabelInteraction,
 	renderMoveInteraction,
+	renderRepositoryFilterInteraction,
 	renderWarningDetails,
 } from "./prompt-text.ts";
 import { buildNotePromptViewModel } from "./prompt-view-model.ts";
@@ -91,6 +92,18 @@ export function ArchivePrompt(props: TuiAppViewProps): React.ReactElement {
 		panelId: "archive-prompt",
 		title: "Archive Issue",
 		content: renderArchiveInteraction(props.model, props.selection),
+	});
+}
+
+export function RepositoryFilterPrompt(
+	props: TuiAppViewProps,
+): React.ReactElement {
+	return renderModalText({
+		theme: props.theme,
+		backdropId: "repository-filter-modal-backdrop",
+		panelId: "repository-filter-prompt",
+		title: "Filter by Repository",
+		content: renderRepositoryFilterInteraction(props.model, props.selection),
 	});
 }
 

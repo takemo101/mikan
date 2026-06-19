@@ -7,6 +7,7 @@ import {
 	contentLine,
 	footerText,
 	formatLabels,
+	formatRepositoryFilter,
 } from "./formatting.ts";
 import {
 	cardDependencyStatus,
@@ -24,14 +25,17 @@ import {
 	renderLabelInteraction,
 	renderMoveInteraction,
 	renderNoteInteraction,
+	renderRepositoryFilterInteraction,
 	renderWarningDetails,
 } from "./prompt-text.ts";
 import type { TuiSelection } from "./selection.ts";
+import { applyRepositoryFilter } from "./selection.ts";
 
 export function renderTuiText(
-	model: TuiModel,
+	fullModel: TuiModel,
 	selection: TuiSelection,
 ): string {
+	const model = applyRepositoryFilter(fullModel, selection.repositoryFilter);
 	const lines = [
 		"mikan board",
 		formatWarningSummary(model.warnings),
@@ -52,6 +56,9 @@ export function renderTuiText(
 	if (selection.githubConfirmOpen) {
 		lines.push("", ...renderGitHubMirrorInteraction(model, selection));
 	}
+	if (selection.repositoryFilterOpen) {
+		lines.push("", ...renderRepositoryFilterInteraction(model, selection));
+	}
 	if (selection.warningsOpen) {
 		lines.push("", ...renderWarningDetails(model));
 	}
@@ -68,16 +75,17 @@ export function renderTuiText(
 		? getSelectedDetails(model, selection)
 		: undefined;
 	if (details) {
-		lines.push("", ...renderDetails(details));
+		lines.push("", ...renderDetails(details, model));
 	}
 	return `${lines.join("\n")}\n`;
 }
 
-function renderDetails(details: TuiDetails): string[] {
+function renderDetails(details: TuiDetails, model: TuiModel): string[] {
 	return [
 		`Detail: ${details.card.id} ${details.card.title}`,
 		"esc back",
 		"",
+		...renderRepositorySection(details, model),
 		"## Dependencies",
 		`Depends On: ${cardDependsOn(details.card).length > 0 ? cardDependsOn(details.card).join(", ") : "none"}`,
 		`Unmet: ${cardUnmetDependencies(details.card).length > 0 ? cardUnmetDependencies(details.card).join(", ") : "none"}`,
@@ -100,6 +108,28 @@ function renderDetails(details: TuiDetails): string[] {
 	];
 }
 
+function renderRepositorySection(
+	details: TuiDetails,
+	model: TuiModel,
+): string[] {
+	if (!model.repositories) return [];
+	const repositoryTitle = (id: string): string =>
+		model.repositoryTitles?.[id] ?? id;
+	const repository = details.card.repository;
+	const repositoryText = repository
+		? model.repositoryTitles?.[repository]
+			? `${model.repositoryTitles[repository]} (${repository})`
+			: repository
+		: "none";
+	const affects = details.card.affects ?? [];
+	return [
+		"## Repository",
+		`Repository: ${repositoryText}`,
+		`Affects: ${affects.length > 0 ? affects.map(repositoryTitle).join(", ") : "none"}`,
+		"",
+	];
+}
+
 function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 	const width = 26;
 	const view = buildBoardViewModel(model, selection);
@@ -110,7 +140,7 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 					...(column.cardRangeText ? [`  ${column.cardRangeText}`] : []),
 					...column.visibleCards.map(
 						(card) =>
-							`${card.selected ? "▶" : " "} ${card.id}${
+							`${card.selected ? "▶" : " "} ${card.repository ? `[${card.repository}] ` : ""}${card.id}${
 								cardDependencyStatus(card) === "blocked" ? " deps!" : ""
 							} ${card.title}${card.labels.length > 0 ? ` ${formatLabels(card.labels)}` : ""}`,
 					),
@@ -128,6 +158,14 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 	});
 	const maxRows = Math.max(0, ...columns.map((column) => column.rows.length));
 	const lines: string[] = [];
+	const repositoryFilterText = formatRepositoryFilter({
+		workspaceMode: (model.repositories?.length ?? 0) > 0,
+		filter: selection.repositoryFilter,
+		title: selection.repositoryFilter
+			? model.repositoryTitles?.[selection.repositoryFilter]
+			: undefined,
+	});
+	if (repositoryFilterText) lines.push(repositoryFilterText);
 	lines.push(view.columnViewportText);
 	lines.push(columns.map((column) => column.header).join(" "));
 	for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {

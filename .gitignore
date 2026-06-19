@@ -9,3 +9,8 @@ packages/cli/dist/
 site/.vitepress/cache/
 site/.vitepress/dist/
 *.tsbuildinfo
+
+# asem runtime state (token-bearing files; never commit)
+.asem/sessions/
+.asem/current-session*.json
+.asem/tokens/

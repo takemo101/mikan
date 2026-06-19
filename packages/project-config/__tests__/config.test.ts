@@ -267,6 +267,139 @@ describe("project config", () => {
 		);
 	});
 
+	test("loads workspace repositories in config order", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: WKS\n  name: Product Workspace\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\nrepositories:\n  - id: workspace\n    title: Workspace\n    path: .\n    github:\n      repo: org/workspace-triage\n  - id: frontend\n    title: Frontend\n    path: ./frontend\n    github:\n      repo: org/frontend\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected valid config");
+		expect(result.value.config.repositories).toEqual([
+			{
+				id: "workspace",
+				title: "Workspace",
+				path: ".",
+				github: { repo: "org/workspace-triage" },
+			},
+			{
+				id: "frontend",
+				title: "Frontend",
+				path: "./frontend",
+				github: { repo: "org/frontend" },
+			},
+		]);
+	});
+
+	test("leaves repositories undefined in single-project mode", () => {
+		const root = tempProject();
+		initProject(root, { key: "MIK", name: "mikan" });
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected valid config");
+		expect(result.value.config.repositories).toBeUndefined();
+	});
+
+	test("allows top-level github with only auto_push_mirrors in workspace mode", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: WKS\n  name: Product Workspace\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\ngithub:\n  auto_push_mirrors: true\nrepositories:\n  - id: workspace\n    title: Workspace\n    path: .\n    github:\n      repo: org/workspace-triage\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected valid config");
+		expect(result.value.config.github).toEqual({ auto_push_mirrors: true });
+	});
+
+	test("requires github.repo in single-project mode when github is configured", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\ngithub:\n  auto_push_mirrors: true\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid config");
+		expect(result.error.kind).toBe("invalid_config");
+		expect(result.error.message).toContain("github.repo is required");
+	});
+
+	test("returns a typed error for invalid repository IDs", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: WKS\n  name: Product Workspace\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\nrepositories:\n  - id: Front End\n    title: Frontend\n    path: ./frontend\n    github:\n      repo: org/frontend\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid config");
+		expect(result.error.kind).toBe("invalid_config");
+		expect(result.error.message).toContain(
+			"repository id must be lowercase kebab-case",
+		);
+	});
+
+	test("returns a typed error for duplicate repository IDs", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: WKS\n  name: Product Workspace\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\nrepositories:\n  - id: frontend\n    title: Frontend\n    path: ./frontend\n    github:\n      repo: org/frontend\n  - id: frontend\n    title: Duplicate\n    path: ./other\n    github:\n      repo: org/other\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid config");
+		expect(result.error.kind).toBe("invalid_config");
+		expect(result.error.message).toContain("duplicate repository id");
+	});
+
+	test("returns a typed error for absolute repository paths", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: WKS\n  name: Product Workspace\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\nrepositories:\n  - id: frontend\n    title: Frontend\n    path: /abs/frontend\n    github:\n      repo: org/frontend\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid config");
+		expect(result.error.kind).toBe("invalid_config");
+		expect(result.error.message).toContain(
+			"repository path must be relative to the project root",
+		);
+	});
+
+	test("returns a typed error for malformed repository GitHub repos", () => {
+		const root = tempProject();
+		writeConfig(
+			root,
+			`project:\n  key: WKS\n  name: Product Workspace\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\nrepositories:\n  - id: frontend\n    title: Frontend\n    path: ./frontend\n    github:\n      repo: not-a-repo\n`,
+		);
+
+		const result = loadProjectConfig(root);
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected invalid config");
+		expect(result.error.kind).toBe("invalid_config");
+		expect(result.error.message).toContain(
+			"github.repo must look like owner/name",
+		);
+	});
+
 	test("writes config yaml with default columns and labels", () => {
 		const root = tempProject();
 		initProject(root, { key: "MIK", name: "mikan" });

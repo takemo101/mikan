@@ -20,6 +20,7 @@ Key bindings:
 | `Enter` | Open the selected Issue detail page |
 | `n` | Append a Note in a modal prompt |
 | `e` | Edit Labels in a modal prompt |
+| `f` | Filter Cards by primary Repository (workspace mode) |
 | `a` | Confirm Archive in a modal prompt |
 | `g` | Create or update a GitHub Mirror for the selected Issue |
 | `w` | Show warning details in a modal |
@@ -48,6 +49,12 @@ mikan tui -c 5
 ```
 
 `auto` derives between 2 and 5 visible Columns from terminal width. Fixed values pin an explicit visible count. This option changes only the TUI viewport; it does not change configured Statuses or Issue files.
+
+## Workspace Repositories
+
+In workspace mode (config has a top-level `repositories` list), each Card shows its primary Repository so the `All repositories` view stays readable, and Detail shows the primary `repository` plus any `affects` Repositories.
+
+Press `f` to open the Repository filter modal. It lists `All repositories` plus each configured Repository, and filters the visible Cards by primary `repository` only. It does not filter by `affects`, and it never edits Issue files — it only narrows the viewport. Editing `repository` or `affects` is not available from the TUI in the initial workspace slice; use the CLI or MCP for that.
 
 ## Local mutations
 

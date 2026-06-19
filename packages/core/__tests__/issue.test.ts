@@ -170,6 +170,28 @@ describe("Issue Markdown parsing", () => {
 		expect(result.error.message).toContain("github_issue must be an object");
 	});
 
+	test("parses optional workspace Repository frontmatter", () => {
+		const result = parseIssueMarkdown(
+			`---\nid: WKS-001\ntitle: Fix login contract\nrepository: backend\naffects:\n  - frontend\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected valid Issue");
+		expect(result.value.repository).toBe("backend");
+		expect(result.value.affects).toEqual(["frontend"]);
+	});
+
+	test("defaults affects to empty array and omits repository when absent", () => {
+		const result = parseIssueMarkdown(
+			`---\nid: MIK-001\ntitle: Title\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,
+		);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected valid Issue");
+		expect(result.value.affects).toEqual([]);
+		expect("repository" in result.value).toBe(false);
+	});
+
 	test("rejects missing required fields", () => {
 		const result = parseIssueMarkdown(
 			`---\ntitle: Missing ID\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\nBody`,

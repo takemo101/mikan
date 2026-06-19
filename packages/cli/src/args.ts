@@ -51,6 +51,8 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 		{ name: "status", short: "s", value: true },
 		{ name: "label", short: "l", value: true },
 		{ name: "depends-on", value: true },
+		{ name: "repository", short: "r", value: true },
+		{ name: "affects", value: true },
 		{ name: "metadata", value: true },
 	],
 	list: [
@@ -62,6 +64,8 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 		{ name: "title", short: "t", value: true },
 		{ name: "label", short: "l", value: true },
 		{ name: "depends-on", value: true },
+		{ name: "repository", short: "r", value: true },
+		{ name: "affects", value: true },
 		{ name: "metadata", value: true },
 		{ name: "body", short: "b", value: true },
 	],

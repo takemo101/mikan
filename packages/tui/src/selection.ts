@@ -16,6 +16,9 @@ export type TuiSelection = {
 	githubBusy?: boolean;
 	warningsOpen?: boolean;
 	helpOpen?: boolean;
+	repositoryFilterOpen?: boolean;
+	repositoryFilterFocusIndex?: number;
+	repositoryFilter?: string;
 	detailScrollOffset?: number;
 	detailScrollMax?: number;
 	message?: string;
@@ -61,4 +64,26 @@ export function findSelectionByCardId(
 		}
 	}
 	return undefined;
+}
+
+/**
+ * Workspace-only Repository filter. Returns a model whose Columns keep only Cards
+ * whose primary `repository` matches `filter`. `affects` never widens the result.
+ * Empty Columns are preserved so the board layout stays stable. A falsy filter or
+ * a non-workspace model (no configured Repositories) returns the model unchanged.
+ */
+export function applyRepositoryFilter(
+	model: TuiModel,
+	filter?: string,
+): TuiModel {
+	if (!filter || !model.repositories || model.repositories.length === 0) {
+		return model;
+	}
+	return {
+		...model,
+		columns: model.columns.map((column) => ({
+			...column,
+			cards: column.cards.filter((card) => card.repository === filter),
+		})),
+	};
 }

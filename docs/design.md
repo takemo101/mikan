@@ -202,6 +202,66 @@ hooks:
 
 Labels are configured with only `id` and `title` in v0. Label definitions are edited directly in config; v0 has no label-management commands.
 
+### Workspace Repository configuration
+
+A project enters workspace mode when `.mikan/config.yaml` contains top-level `repositories`. Workspace mode is for one parent `.mikan` board that coordinates multiple local repositories under the same workspace directory. It does not make mikan a multi-project scheduler: Markdown Issues still live in the parent `.mikan`, Status is still the lifecycle axis, and Issue IDs are still one workspace-wide sequence such as `WKS-001`.
+
+```yaml
+project:
+  key: WKS
+  name: Product Workspace
+
+board:
+  columns:
+    - id: backlog
+      title: Backlog
+    - id: ready
+      title: Ready
+    - id: active
+      title: Active
+    - id: blocked
+      title: Blocked
+    - id: completed
+      title: Completed
+    - id: archived
+      title: Archived
+
+repositories:
+  - id: workspace
+    title: Workspace
+    path: .
+    github:
+      repo: org/workspace-triage
+  - id: frontend
+    title: Frontend
+    path: ./frontend
+    github:
+      repo: org/frontend
+  - id: backend
+    title: Backend
+    path: ./backend
+    github:
+      repo: org/backend
+
+labels:
+  - id: bug
+    title: Bug
+  - id: integration
+    title: Integration
+```
+
+Repository config rules:
+
+- `repositories[].id` uses the same lowercase kebab-case shape as Status and Label IDs.
+- `repositories[].title` is the human-facing display name.
+- `repositories[].path` is required and is interpreted relative to the mikan project root; absolute paths are invalid so checked-in config remains portable.
+- missing repository paths are warnings, not config-load failures, so a partially cloned workspace can still use the board.
+- `repositories[].github.repo` is required in workspace mode and must look like `owner/name`.
+- workspace-level or cross-cutting Issues use an explicit Repository such as `workspace`; mikan does not allow repository-less Issues in workspace mode.
+- top-level `github.repo` is not used as a Mirror fallback in workspace mode. New GitHub Mirrors resolve only through the Issue's `repository` and `repositories[].github.repo`.
+- in workspace mode, the top-level `github` object may omit `repo` when it is only configuring `auto_push_mirrors`; `github.repo` remains required in single-project mode when GitHub Mirror is enabled.
+- top-level `github.auto_push_mirrors` may still control watcher auto-push behavior for Issues that already have `github_issue`.
+
 ## Issue Markdown format
 
 Filename convention:
@@ -272,11 +332,13 @@ Required frontmatter:
 - `title`
 - `created_at`
 - `updated_at`
+- `repository` — in workspace mode only, the single config-defined Repository ID that owns the Issue and determines the GitHub Mirror target for new mirrors.
 
 Optional frontmatter:
 
 - `labels` — array of config-defined label IDs.
 - `depends_on` — array of Issue IDs that must be completed before this Issue is considered dependency-ready.
+- `affects` — in workspace mode only, array of config-defined Repository IDs also affected by the Issue; `affects` is display/filter context and never determines the GitHub Mirror target.
 - `metadata` — JSON-compatible object of project-defined Issue Metadata for agents, hooks, and humans to read.
 
 Issue Metadata semantics:
@@ -286,6 +348,15 @@ Issue Metadata semantics:
 - `metadata` is nested under the single `metadata` frontmatter field. Arbitrary top-level frontmatter keys are preserved but are not treated as Issue Metadata.
 - `metadata` is invalid frontmatter when it is not an object, contains non-JSON-compatible values, exceeds 16KB when JSON-stringified, or exceeds nesting depth 8.
 - `metadata` should hold small structured hints, not long-form context, reports, artifacts, or body content.
+
+Workspace Repository frontmatter semantics:
+
+- `repository` is the Issue's primary Repository. It is required exactly when config has top-level `repositories`.
+- `repository` must reference one configured Repository ID.
+- `affects`, when present, must be an array of configured Repository IDs.
+- `affects` must not contain the same Repository as `repository`; the primary Repository is already implied.
+- Labels must not be used to decide Repository ownership or GitHub Mirror target. Labels remain descriptive filtering/grouping tags.
+- Issue ID sequencing remains project-wide. Moving an Issue between Repositories does not change its Issue ID.
 
 Do not add these fields in v0:
 
@@ -372,6 +443,7 @@ mikan init
 mikan list [--status ready] [--include-archived]
 mikan show MIK-001
 mikan add "Prototype herdr dispatcher" --label automation --label herdr --status backlog --depends-on MIK-001 --metadata '{"agent_hint":"frontend"}'
+mikan add "Fix login contract" --repository backend --affects frontend --label bug
 mikan update MIK-002 --title "Prototype dispatcher" --label automation --label herdr --depends-on MIK-001 --metadata '{"agent_hint":"frontend"}'
 mikan move MIK-001 ready --log "Ready to implement"
 mikan append MIK-001 --section Reports --source docs-scout --body "..."
@@ -381,7 +453,7 @@ mikan watch
 mikan mcp
 ```
 
-Do not add separate `block`, `complete`, `report`, `note`, `dependencies set`, or `labels set` commands in v0. They are expressed through `move`, `update`, and `append`. `add` and `update` may accept repeated `--depends-on <issue-id>` flags to write frontmatter dependencies and `--metadata <json-object>` to write Issue Metadata. When `update` receives `--metadata`, it replaces the entire metadata object; omitting `--metadata` preserves existing metadata; passing `{}` clears it. `show` displays metadata, while `list` stays concise. `tui --columns` controls only the visible Column viewport width; it does not change configured Statuses or the board source of truth.
+Do not add separate `block`, `complete`, `report`, `note`, `dependencies set`, or `labels set` commands in v0. They are expressed through `move`, `update`, and `append`. `add` and `update` may accept repeated `--depends-on <issue-id>` flags to write frontmatter dependencies and `--metadata <json-object>` to write Issue Metadata. When `update` receives `--metadata`, it replaces the entire metadata object; omitting `--metadata` preserves existing metadata; passing `{}` clears it. In workspace mode, `add` requires `--repository <repository-id>` or `-r <repository-id>`, and both `add` and `update` accept repeated `--affects <repository-id>` flags to write affected Repositories. `show` displays metadata and workspace Repository frontmatter, while `list` stays concise except for warnings. `tui --columns` controls only the visible Column viewport width; it does not change configured Statuses or the board source of truth.
 
 ## MCP surface
 
@@ -393,8 +465,8 @@ Initial tools:
 get_board(include_archived?)
 list_issues(status?, include_archived?)
 get_issue(id)
-create_issue(title, body?, status?, labels?, depends_on?, metadata?)
-update_issue(id, title?, labels?, body?, depends_on?, metadata?)
+create_issue(title, body?, status?, labels?, depends_on?, metadata?, repository?, affects?)
+update_issue(id, title?, labels?, body?, depends_on?, metadata?, repository?, affects?)
 move_issue(id, status, log?)
 append_issue(id, section, body, source?)
 ```
@@ -403,11 +475,11 @@ Notes:
 
 - `move_issue` is the only status-changing MCP tool.
 - Blocking and completing are ordinary moves to `blocked` or `completed`.
-- `update_issue` handles title, labels, dependencies, metadata, and body replacement.
+- `update_issue` handles title, labels, dependencies, metadata, workspace Repository frontmatter, and body replacement.
 - `append_issue` appends Markdown to `Status Log`, `Reports`, `Notes`, or another named section.
 - `source` is meaningful for Reports and remains a free string.
 
-`get_board` returns a grouped board snapshot for TUI/agent overview. It is a read model, not separate state. Read tools should include `depends_on`, `unmet_dependencies`, `dependency_status`, and `metadata` so agents can choose implementation order and runtime context without mikan becoming a scheduler.
+`get_board` returns a grouped board snapshot for TUI/agent overview. It is a read model, not separate state. Read tools should include `depends_on`, `unmet_dependencies`, `dependency_status`, `metadata`, and workspace Repository fields (`repository`, `affects`) so agents can choose implementation order and runtime context without mikan becoming a scheduler.
 
 ## TUI design
 
@@ -422,14 +494,16 @@ Must support:
 - accept fixed `mikan tui --columns 2`, `3`, `4`, or `5` for users who want to override the responsive viewport;
 - shift the visible Column viewport as focus moves, for example `Backlog / Ready / Active` → `Ready / Active / Blocked` → `Active / Blocked / Completed`;
 - show Cards from corresponding directories with compact Issue ID, title, labels, and focused Card styling;
+- in workspace mode, show each Card's primary Repository so All repositories view remains understandable;
 - highlight the selected Card/Column and keep empty Columns visible with a muted empty state;
-- use `h`/`l` or arrow keys for Column focus, `j`/`k` or arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `e` for Label editing, `w` for warning details, `r` for reload, Esc for close/back, and `q` for quit;
+- use `h`/`l` or arrow keys for Column focus, `j`/`k` or arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `f` for Repository filtering in workspace mode, `e` for Label editing, `w` for warning details, `r` for reload, Esc for close/back, and `q` for quit;
 - select a Card and press Enter/Return to switch from the board page to a full-page Markdown detail page;
 - in detail mode, render body Markdown without frontmatter and scroll it independently from board selection;
 - press Esc to return from detail, move, or note-entry modes while preserving board selection when possible;
 - periodically rescan files while preserving the selected Issue by Issue ID when possible;
 - move the selected Issue to another configured Status through the same core mutation used by CLI/MCP;
 - append a free-form multi-line Note to the selected Issue through the same append mutation used by CLI/MCP;
+- in workspace mode, filter visible Cards through a focused Repository modal opened with `f`; the modal includes `All repositories`, filters by primary `repository` only, and does not include `affects` unless a later design adds an explicit include-affected mode;
 - edit the selected Issue's Labels through a focused modal opened with `e` from either Board or Detail;
 - in the Label modal, list all config-defined Labels in config order, show current selections as checked, move with `↑`/`↓`, toggle draft selections with Space, save with Enter, and discard with Esc;
 - if no Labels are configured, show an explanatory modal instead of an empty editor;
@@ -440,7 +514,7 @@ Must support:
 - keep empty Note saves in the modal with `Note cannot be empty` feedback rather than closing the modal;
 - render Note input with OpenTUI's native `textarea` rather than a custom cursor/editor model, using its built-in multiline editing, cursor movement, paste handling, wrapping, and visible input area;
 - show declared and unmet dependencies in detail/read-model views;
-- show Issue Metadata in Detail views, but not on dense Board Cards;
+- show Issue Metadata and workspace Repository fields in Detail views, but keep dense Board Cards limited to compact Repository, Issue ID, title, labels, and dependency markers;
 - show warning details in a focused modal opened with `w`, while keeping warning absence as concise feedback;
 - show concise success/error feedback for TUI actions;
 - use a small internal semantic theme for canvas, surface, text, muted text, focus, accent, warning, error, and success states.
@@ -457,7 +531,8 @@ Must not support initially:
 - drag/drop transitions;
 - user accounts;
 - remote source-of-truth sync;
-- bidirectional GitHub sync.
+- bidirectional GitHub sync;
+- editing `repository` or `affects` from the TUI in the initial workspace slice.
 
 ## Watch and hooks
 
@@ -544,6 +619,7 @@ List/TUI should warn on:
 - malformed frontmatter;
 - missing required frontmatter;
 - invalid Issue Metadata, including non-object metadata, non-JSON-compatible metadata values, metadata larger than 16KB, or metadata nested deeper than 8 levels;
+- workspace Repository issues: unknown `repository`, unknown `affects` entries, `affects` containing the primary `repository`, missing configured repository paths, and existing `github_issue.repo` values that differ from the current `repository`'s configured GitHub repo;
 - hook failures from hook log;
 - dependency issues: missing dependency target, malformed dependency ID, self-dependency, dependency cycles, archived dependency target, and dependencies not yet completed.
 
@@ -554,6 +630,7 @@ Mutating CLI/MCP operations should reject:
 - unknown labels;
 - malformed dependency Issue IDs;
 - malformed Issue Metadata;
+- in workspace mode, missing or unknown `repository`, unknown `affects` entries, or `affects` containing the primary `repository`;
 - malformed or missing required frontmatter for the target Issue.
 
 Mutating CLI/MCP operations should not reject moves only because dependencies are unmet. Dependency ordering is advisory/read-model information for humans and agents, not transition enforcement.
@@ -652,7 +729,8 @@ Do not implement bidirectional GitHub sync, GitHub Issues import, GitHub-as-sour
 
 GitHub Mirror behavior:
 
-- configure the target repo with `github.repo` in `.mikan/config.yaml`; mikan uses the user's authenticated `gh` CLI and does not store tokens;
+- in single-project mode, configure the target repo with `github.repo` in `.mikan/config.yaml`; mikan uses the user's authenticated `gh` CLI and does not store tokens;
+- in workspace mode, configure every `repositories[].github.repo`; new Mirrors resolve from the Issue's required `repository` to that configured GitHub repo, never from Labels or `affects`;
 - create a GitHub Mirror only through an explicit command, MCP tool, or confirmed TUI action;
 - store GitHub Issue correspondence in Issue frontmatter as `github_issue`;
 - update existing GitHub Mirrors from local mikan Issue title, body, Status metadata, and mikan-managed labels;
@@ -660,8 +738,11 @@ GitHub Mirror behavior:
 - treat label creation failures as warnings, skipping that label while continuing the Issue create/update;
 - preserve GitHub labels that are not managed by current mikan config Labels;
 - keep GitHub open/closed state independent from mikan Status;
+- once an Issue has `github_issue`, update that existing Mirror repo even if the Issue's `repository` later changes; do not automatically recreate or move GitHub Issues across repositories;
+- warn when an existing `github_issue.repo` no longer matches the GitHub repo configured for the Issue's current `repository`;
+- do not add a `mikan github mirror --repo owner/name` override in the workspace slice; users should fix `repository` or config before creating a new Mirror;
 - let `mikan watch` auto-push only Issues that already have `github_issue`, and only when explicitly enabled by `github.auto_push_mirrors: true` or `mikan watch --github-push`;
-- show `GitHub #number` in TUI Detail metadata while keeping dense Board Cards free of GitHub Mirror markers.
+- show `GitHub #number` and target repo in TUI Detail metadata while keeping dense Board Cards free of GitHub Mirror markers.
 
 ## MVP implementation order
 
@@ -688,7 +769,9 @@ Start with core tests before adapters:
 - parse valid/invalid Issue frontmatter;
 - generate Issue IDs by scanning existing Issues;
 - detect duplicate IDs;
-- reject unknown labels and statuses;
+- reject unknown labels, statuses, and workspace Repository references;
+- parse workspace `repositories` config, required Issue `repository`,
+  optional `affects`, and Repository-related warnings;
 - append Status Log/Reports/Notes with missing-section creation;
 - move Issue files with atomic writes;
 - ensure archived is hidden by default;
@@ -699,7 +782,10 @@ Then add adapter tests:
 
 - CLI command parsing and output snapshots;
 - MCP tool schema/input/output tests;
-- TUI data transformation tests;
+- TUI data transformation tests, including workspace Repository display and
+  filtering;
+- GitHub Mirror target resolution tests for single-project and workspace
+  modes;
 - watch snapshot transition tests.
 
 ## Open follow-ups

@@ -40,6 +40,8 @@ export type DetailPageViewModel = {
 	dependencyStatus: "ready" | "blocked";
 	warningCount: number;
 	githubText: string;
+	repositoryText: string;
+	affectsText: string;
 	metadataText: string;
 	markdown: string;
 	visibleMarkdownLines: string[];
@@ -87,8 +89,10 @@ export function buildDetailPageViewModel(
 		dependencyStatus: cardDependencyStatus(details.card),
 		warningCount: warningCountForCard(model.warningDetails, details.card),
 		githubText: details.card.githubIssue
-			? `GitHub #${details.card.githubIssue.number}`
+			? `GitHub #${details.card.githubIssue.number} ${details.card.githubIssue.repo}`
 			: "",
+		repositoryText: formatRepositoryText(model, details.card),
+		affectsText: formatAffectsText(model, details.card),
 		metadataText: formatMetadataText(details.card),
 		markdown,
 		visibleMarkdownLines,
@@ -134,6 +138,22 @@ export function buildDetailViewModel(
 			herdr: details.herdr,
 		},
 	};
+}
+
+function repositoryTitle(model: TuiModel, id: string): string {
+	return model.repositoryTitles?.[id] ?? id;
+}
+
+function formatRepositoryText(model: TuiModel, card: TuiCard): string {
+	if (!card.repository) return "";
+	const title = model.repositoryTitles?.[card.repository];
+	return title ? `${title} (${card.repository})` : card.repository;
+}
+
+function formatAffectsText(model: TuiModel, card: TuiCard): string {
+	const affects = card.affects ?? [];
+	if (affects.length === 0) return "";
+	return affects.map((id) => repositoryTitle(model, id)).join(", ");
 }
 
 function formatMetadataText(card: TuiCard): string {

@@ -15,6 +15,8 @@ import cliPackageJson from "../../cli/package.json" with { type: "json" };
 import {
 	ArchivePrompt,
 	appendSelectedIssueNote,
+	applyRepositoryFilter,
+	applyRepositoryFilterChoice,
 	archiveSelectedIssue,
 	BoardView,
 	beginGitHubMirrorSubmission,
@@ -27,6 +29,7 @@ import {
 	buildLabelPromptViewModel,
 	buildMovePromptViewModel,
 	buildNotePromptViewModel,
+	buildRepositoryFilterPromptViewModel,
 	buildTuiModel,
 	buildTuiTheme,
 	ColumnPane,
@@ -35,12 +38,15 @@ import {
 	DetailPage,
 	DetailView,
 	Footer,
+	footerMode,
+	formatRepositoryFilter,
 	GitHubMirrorPrompt,
 	getAdjacentMoveTarget,
 	getMoveTargets,
 	getSelectedDetails,
 	Header,
 	IssueCard,
+	isWorkspaceMode,
 	keyToDirection,
 	keyToTuiAction,
 	LabelPrompt,
@@ -48,17 +54,22 @@ import {
 	MIN_COLUMN_WIDTH,
 	MovePrompt,
 	moveLabelFocus,
+	moveRepositoryFilterFocus,
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
 	moveSelection,
 	NotePrompt,
+	RepositoryFilterPrompt,
+	reconcileFilteredSelection,
 	refreshTuiModel,
 	renderTuiText,
+	repositoryFilterOptions,
 	TUI_VERSION,
 	TuiAppView,
 	type TuiGitHubMirrorOperations,
 	type TuiModel,
 	type TuiSelection,
+	toFullIndexSelection,
 	toggleFocusedLabel,
 	updateSelectedIssueLabels,
 	visibleColumnCountForViewport,
@@ -280,6 +291,60 @@ function tempProject(): string {
 	);
 	writeFileSync(join(root, ".mikan", "ready", "BAD.md"), "---\nid: [\n---\n");
 	return root;
+}
+
+function tempWorkspaceProject(): string {
+	const root = mkdtempSync(join(tmpdir(), "mikan-tui-ws-"));
+	const init = initProject(root, { key: "MIK", name: "mikan" });
+	expect(init.ok).toBe(true);
+	if (!init.ok) throw new Error("init failed");
+	writeFileSync(
+		join(root, ".mikan", "config.yaml"),
+		`project:
+  key: MIK
+  name: mikan
+board:
+  columns:
+    - id: backlog
+      title: Backlog
+    - id: ready
+      title: Ready
+    - id: active
+      title: Active
+    - id: blocked
+      title: Blocked
+    - id: completed
+      title: Completed
+    - id: archived
+      title: Archived
+labels:
+  - id: automation
+    title: Automation
+repositories:
+  - id: frontend
+    title: Frontend App
+    path: repos/frontend
+    github:
+      repo: org/frontend
+  - id: backend
+    title: Backend API
+    path: repos/backend
+    github:
+      repo: org/backend
+`,
+	);
+	return root;
+}
+
+function writeWorkspaceIssue(
+	root: string,
+	id: string,
+	frontmatter: string,
+): void {
+	writeFileSync(
+		join(root, ".mikan", "ready", `${id}.md`),
+		`---\nid: ${id}\ntitle: Workspace issue\nlabels:\n  - automation\n${frontmatter}created_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Workspace issue\n`,
+	);
 }
 
 describe("TUI model and navigation", () => {
@@ -804,8 +869,10 @@ describe("TUI model and navigation", () => {
 			repo: "takemo101/mikan",
 			number: 123,
 		});
-		expect(page?.githubText).toBe("GitHub #123");
-		expect(collectTextContent(detailTree)).toContain("GitHub #123");
+		expect(page?.githubText).toBe("GitHub #123 takemo101/mikan");
+		expect(collectTextContent(detailTree)).toContain(
+			"GitHub #123 takemo101/mikan",
+		);
 		expect(boardText).not.toContain("GitHub #123");
 	});
 
@@ -2478,5 +2545,594 @@ updated_at: 2026-05-30T00:00:00Z
 			labels: [],
 			labelTitles: {},
 		});
+	});
+
+	test("TUI model exposes configured Repositories in config order in workspace mode", () => {
+		const model = buildTuiModel({ columns: [], warnings: [] }, [], undefined, [
+			{ id: "frontend", title: "Frontend App" },
+			{ id: "backend", title: "Backend API" },
+		]);
+
+		expect(model.repositories).toEqual([
+			{ id: "frontend", title: "Frontend App" },
+			{ id: "backend", title: "Backend API" },
+		]);
+		expect(model.repositoryTitles).toEqual({
+			frontend: "Frontend App",
+			backend: "Backend API",
+		});
+	});
+
+	test("single-project model omits Repository fields", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+
+		expect(model.repositories).toBeUndefined();
+		expect(model.repositoryTitles).toBeUndefined();
+		expect(model.columns[1]?.cards[0]?.repository).toBeUndefined();
+		expect(model.columns[1]?.cards[0]?.affects).toBeUndefined();
+	});
+
+	test("workspace Cards show compact primary Repository on a single line", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(
+			cwd,
+			"MIK-001",
+			"repository: frontend\naffects:\n  - backend\n",
+		);
+		const model = loadTuiModel(cwd);
+		const card = model.columns
+			.find((column) => column.id === "ready")
+			?.cards.find((entry) => entry.id === "MIK-001");
+
+		expect(card?.repository).toBe("frontend");
+		expect(card?.affects).toEqual(["backend"]);
+
+		if (!card) throw new Error("card not found");
+		const issueCard = IssueCard({
+			card,
+			selected: false,
+			theme: buildTuiTheme(),
+		});
+		const issueCardProps = issueCard.props as {
+			style?: Record<string, unknown>;
+		};
+		expect(issueCardProps.style).toMatchObject({ height: 1 });
+		const cardText = findElementByType(issueCard, "text");
+		expect(styledContentPlain(cardText?.props?.content)).toBe(
+			"[frontend] MIK-001 │ Workspace issue #automation",
+		);
+
+		const boardText = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		});
+		expect(boardText).toContain("[frontend] MIK-001");
+	});
+
+	test("workspace Detail shows primary Repository and affected Repositories", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(
+			cwd,
+			"MIK-001",
+			"repository: frontend\naffects:\n  - backend\n",
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const page = buildDetailPageViewModel(model, selection);
+		expect(page?.repositoryText).toBe("Frontend App (frontend)");
+		expect(page?.affectsText).toBe("Backend API");
+
+		const tree = TuiAppView({ model, selection });
+		const text = collectTextContent(tree);
+		expect(text).toContain("repo Frontend App (frontend)");
+		expect(text).toContain("affects Backend API");
+	});
+
+	test("workspace GitHub Mirror confirmation resolves target repo from the Issue repository", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(cwd, "MIK-001", "repository: backend\n");
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			githubConfirmOpen: true,
+		};
+
+		const prompt = buildGitHubMirrorPromptViewModel(model, selection);
+		expect(prompt?.body).toContain("Repo: org/backend");
+		expect(prompt?.body).not.toContain("org/frontend");
+		expect(prompt?.body).not.toContain("(not configured)");
+	});
+
+	test("workspace Detail GitHub metadata shows the stored mirror repo", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(
+			cwd,
+			"MIK-001",
+			"repository: frontend\ngithub_issue:\n  repo: org/frontend\n  number: 7\n  url: https://github.com/org/frontend/issues/7\n  last_mirrored_at: 2026-05-30T00:00:00Z\n",
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const page = buildDetailPageViewModel(model, selection);
+		expect(page?.githubText).toBe("GitHub #7 org/frontend");
+		expect(collectTextContent(TuiAppView({ model, selection }))).toContain(
+			"GitHub #7 org/frontend",
+		);
+	});
+
+	test("workspace Detail omits affects when empty", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(cwd, "MIK-001", "repository: frontend\n");
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const page = buildDetailPageViewModel(model, selection);
+		expect(page?.repositoryText).toBe("Frontend App (frontend)");
+		expect(page?.affectsText).toBe("");
+
+		const tree = TuiAppView({ model, selection });
+		expect(collectTextContent(tree)).not.toContain("affects");
+	});
+
+	test("text renderer shows workspace Repository section in detail", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(
+			cwd,
+			"MIK-001",
+			"repository: frontend\naffects:\n  - backend\n",
+		);
+		const model = loadTuiModel(cwd);
+		const text = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		});
+
+		expect(text).toContain("## Repository");
+		expect(text).toContain("Repository: Frontend App (frontend)");
+		expect(text).toContain("Affects: Backend API");
+	});
+
+	test("text renderer omits Repository section in single-project mode", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const text = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		});
+
+		expect(text).not.toContain("## Repository");
+		expect(text).not.toContain("[frontend]");
+	});
+
+	test("warning modal surfaces Repository warnings", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(cwd, "MIK-001", "repository: nope\n");
+		const model = loadTuiModel(cwd);
+
+		expect(model.warnings.join("\n")).toContain("unknown_repository");
+
+		const text = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			warningsOpen: true,
+		});
+		expect(text).toContain("unknown_repository");
+		expect(text).toContain("nope");
+	});
+});
+
+function workspaceFilterModel(): TuiModel {
+	const card = (
+		id: string,
+		status: string,
+		repository: string,
+		affects?: string[],
+	): TuiModel["columns"][number]["cards"][number] => ({
+		id,
+		title: `Issue ${id}`,
+		labels: [],
+		status,
+		path: "",
+		repository,
+		...(affects ? { affects } : {}),
+	});
+	return {
+		columns: [
+			{
+				id: "ready",
+				title: "Ready",
+				cards: [
+					card("MIK-001", "ready", "frontend"),
+					// Primary backend but affects frontend — must NOT survive a frontend filter.
+					card("MIK-002", "ready", "backend", ["frontend"]),
+				],
+			},
+			{
+				id: "active",
+				title: "Active",
+				cards: [card("MIK-003", "active", "frontend")],
+			},
+			{ id: "blocked", title: "Blocked", cards: [] },
+		],
+		warnings: [],
+		labels: [],
+		labelTitles: {},
+		repositories: [
+			{ id: "frontend", title: "Frontend App" },
+			{ id: "backend", title: "Backend API" },
+		],
+		repositoryTitles: { frontend: "Frontend App", backend: "Backend API" },
+	};
+}
+
+describe("TUI Repository filter (MIK-142)", () => {
+	test("keyToTuiAction maps f to repository-filter", () => {
+		expect(keyToTuiAction("f")).toBe("repository-filter");
+		expect(keyToDirection("f")).toBeUndefined();
+	});
+
+	test("isWorkspaceMode reflects configured Repositories", () => {
+		expect(isWorkspaceMode(workspaceFilterModel())).toBe(true);
+		expect(isWorkspaceMode({ columns: [], warnings: [], labels: [] })).toBe(
+			false,
+		);
+	});
+
+	test("f opens the filter modal in workspace mode, focused on the active filter", () => {
+		const model = workspaceFilterModel();
+		const opened = moveSelection(
+			model,
+			{
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				repositoryFilter: "backend",
+			},
+			"repository-filter",
+		);
+		expect(opened.repositoryFilterOpen).toBe(true);
+		// options are [All, frontend, backend] → backend focus index is 2.
+		expect(opened.repositoryFilterFocusIndex).toBe(2);
+		expect(opened.message).toBeUndefined();
+	});
+
+	test("f is a no-op with concise feedback in single-project mode", () => {
+		const model: TuiModel = {
+			columns: [{ id: "ready", title: "Ready", cards: [] }],
+			warnings: [],
+			labels: [],
+		};
+		const result = moveSelection(
+			model,
+			{ columnIndex: 0, cardIndex: 0, detailOpen: false },
+			"repository-filter",
+		);
+		expect(result.repositoryFilterOpen).toBeUndefined();
+		expect(result.message).toBe("Repository filter needs workspace mode");
+	});
+
+	test("filter modal view model lists All plus Repositories in config order", () => {
+		const model = workspaceFilterModel();
+		const view = buildRepositoryFilterPromptViewModel(model, {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			repositoryFilterOpen: true,
+			repositoryFilterFocusIndex: 1,
+			repositoryFilter: "frontend",
+		});
+		expect(view?.options.map((option) => option.label)).toEqual([
+			"All repositories",
+			"Frontend App (frontend)",
+			"Backend API (backend)",
+		]);
+		expect(view?.options.map((option) => option.active)).toEqual([
+			false,
+			true,
+			false,
+		]);
+		expect(view?.options.map((option) => option.focused)).toEqual([
+			false,
+			true,
+			false,
+		]);
+	});
+
+	test("filter modal view model is absent in single-project mode", () => {
+		const view = buildRepositoryFilterPromptViewModel(
+			{ columns: [], warnings: [], labels: [] },
+			{ columnIndex: 0, cardIndex: 0, detailOpen: false },
+		);
+		expect(view).toBeUndefined();
+	});
+
+	test("repositoryFilterOptions are All then Repository IDs in config order", () => {
+		expect(repositoryFilterOptions(workspaceFilterModel())).toEqual([
+			undefined,
+			"frontend",
+			"backend",
+		]);
+	});
+
+	test("applyRepositoryFilter keeps only primary repository Cards, not affects", () => {
+		const filtered = applyRepositoryFilter(workspaceFilterModel(), "frontend");
+		expect(
+			filtered.columns.map((column) => column.cards.map((card) => card.id)),
+		).toEqual([["MIK-001"], ["MIK-003"], []]);
+	});
+
+	test("applyRepositoryFilter keeps empty Columns and is a no-op for All", () => {
+		const model = workspaceFilterModel();
+		const filtered = applyRepositoryFilter(model, "backend");
+		expect(filtered.columns.map((column) => column.id)).toEqual([
+			"ready",
+			"active",
+			"blocked",
+		]);
+		expect(filtered.columns[1]?.cards).toEqual([]);
+		expect(applyRepositoryFilter(model, undefined)).toBe(model);
+	});
+
+	test("moveRepositoryFilterFocus clamps within available options", () => {
+		const model = workspaceFilterModel();
+		const base: TuiSelection = {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			repositoryFilterOpen: true,
+			repositoryFilterFocusIndex: 0,
+		};
+		expect(
+			moveRepositoryFilterFocus(model, base, "up").repositoryFilterFocusIndex,
+		).toBe(0);
+		const down = moveRepositoryFilterFocus(model, base, "down");
+		expect(down.repositoryFilterFocusIndex).toBe(1);
+		const bottom = moveRepositoryFilterFocus(
+			model,
+			{ ...base, repositoryFilterFocusIndex: 2 },
+			"down",
+		);
+		expect(bottom.repositoryFilterFocusIndex).toBe(2);
+	});
+
+	test("Enter applies the focused filter, preserving selection by Issue ID", () => {
+		const model = workspaceFilterModel();
+		// Select MIK-003 (frontend, active column) in the unfiltered board.
+		const applied = applyRepositoryFilterChoice(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			repositoryFilterOpen: true,
+			repositoryFilterFocusIndex: 1, // frontend
+		});
+		expect(applied.repositoryFilter).toBe("frontend");
+		expect(applied.repositoryFilterOpen).toBe(false);
+		// MIK-003 stays selected; it is index 0 of the filtered active column.
+		expect(applied.columnIndex).toBe(1);
+		expect(applied.cardIndex).toBe(0);
+	});
+
+	test("Enter clamps safely when the selected Issue is filtered out", () => {
+		const model = workspaceFilterModel();
+		// Select MIK-001 (frontend) then filter to backend — it disappears.
+		const applied = applyRepositoryFilterChoice(model, {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			repositoryFilterOpen: true,
+			repositoryFilterFocusIndex: 2, // backend
+		});
+		expect(applied.repositoryFilter).toBe("backend");
+		const board = applyRepositoryFilter(model, "backend");
+		const card = board.columns[applied.columnIndex]?.cards[applied.cardIndex];
+		// Clamped into a valid position (the only backend Card lives in ready).
+		expect(card?.id ?? "none").not.toBe("MIK-001");
+	});
+
+	test("Enter on All resets the filter", () => {
+		const model = workspaceFilterModel();
+		const applied = applyRepositoryFilterChoice(model, {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			repositoryFilter: "frontend",
+			repositoryFilterOpen: true,
+			repositoryFilterFocusIndex: 0, // All
+		});
+		expect(applied.repositoryFilter).toBeUndefined();
+		expect(applied.repositoryFilterOpen).toBe(false);
+	});
+
+	test("Esc closes the modal without changing the active filter", () => {
+		const model = workspaceFilterModel();
+		const closed = moveSelection(
+			model,
+			{
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				repositoryFilter: "frontend",
+				repositoryFilterOpen: true,
+				repositoryFilterFocusIndex: 2,
+			},
+			"escape",
+		);
+		expect(closed.repositoryFilterOpen).toBe(false);
+		expect(closed.repositoryFilter).toBe("frontend");
+	});
+
+	test("footerMode is modal while the filter modal is open", () => {
+		expect(
+			footerMode({
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				repositoryFilterOpen: true,
+			}),
+		).toBe("modal");
+	});
+
+	test("formatRepositoryFilter renders active filter for the board header", () => {
+		expect(
+			formatRepositoryFilter({ workspaceMode: false, filter: undefined }),
+		).toBeUndefined();
+		expect(
+			formatRepositoryFilter({ workspaceMode: true, filter: undefined }),
+		).toBe("Filter: All repositories");
+		expect(
+			formatRepositoryFilter({
+				workspaceMode: true,
+				filter: "frontend",
+				title: "Frontend App",
+			}),
+		).toBe("Filter: Frontend App (frontend)");
+	});
+
+	test("toFullIndexSelection re-targets the selected Issue in the full board", () => {
+		const model = workspaceFilterModel();
+		// Filtered to frontend, MIK-003 is active column index 0; full board same here.
+		const full = toFullIndexSelection(model, {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			repositoryFilter: "frontend",
+		});
+		// In the frontend-filtered ready column index 0 is MIK-001; full ready index 0
+		// is also MIK-001, so it stays put.
+		expect(full.columnIndex).toBe(0);
+		expect(full.cardIndex).toBe(0);
+		// A frontend Card after a hidden one: active column only has MIK-003 either way.
+		const full2 = toFullIndexSelection(model, {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			repositoryFilter: "backend",
+		});
+		// Filtered backend ready index 0 is MIK-002; full ready index of MIK-002 is 1.
+		expect(full2.columnIndex).toBe(0);
+		expect(full2.cardIndex).toBe(1);
+	});
+
+	test("reconcileFilteredSelection re-maps a reloaded selection into the filter", () => {
+		const model = workspaceFilterModel();
+		// A full-model selection pointing at MIK-002 (ready index 1) under a backend filter.
+		const reconciled = reconcileFilteredSelection(
+			model,
+			{ columnIndex: 0, cardIndex: 1, detailOpen: false },
+			"backend",
+		);
+		// In the backend-filtered board MIK-002 is ready index 0.
+		expect(reconciled.columnIndex).toBe(0);
+		expect(reconciled.cardIndex).toBe(0);
+		expect(reconciled.repositoryFilter).toBe("backend");
+	});
+
+	test("reconcileFilteredSelection is a passthrough with no active filter", () => {
+		const model = workspaceFilterModel();
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+		const reconciled = reconcileFilteredSelection(model, selection, undefined);
+		expect(reconciled.columnIndex).toBe(1);
+		expect(reconciled.cardIndex).toBe(0);
+	});
+
+	test("renderTuiText filters the board and shows the active filter header", () => {
+		const model = workspaceFilterModel();
+		const text = renderTuiText(model, {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			repositoryFilter: "frontend",
+		});
+		expect(text).toContain("Filter: Frontend App (frontend)");
+		expect(text).toContain("[frontend] MIK-001");
+		expect(text).toContain("[frontend] MIK-003");
+		// MIK-002 is primary backend and must be hidden under a frontend filter.
+		expect(text).not.toContain("MIK-002");
+	});
+
+	test("renderTuiText renders the filter modal options", () => {
+		const model = workspaceFilterModel();
+		const text = renderTuiText(model, {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+			repositoryFilterOpen: true,
+			repositoryFilterFocusIndex: 1,
+		});
+		expect(text).toContain("Filter by Repository");
+		expect(text).toContain("All repositories");
+		expect(text).toContain("Frontend App (frontend)");
+		expect(text).toContain("Backend API (backend)");
+	});
+
+	test("TuiAppView renders the filter modal and active-filter header", () => {
+		const model = workspaceFilterModel();
+		const modalTree = TuiAppView({
+			model,
+			selection: {
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				repositoryFilterOpen: true,
+				repositoryFilterFocusIndex: 0,
+			},
+		});
+		const modalText = collectTextContent(modalTree);
+		expect(modalText).toContain("Filter by Repository");
+		expect(modalText).toContain("All repositories");
+
+		const headerTree = TuiAppView({
+			model,
+			selection: {
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				repositoryFilter: "frontend",
+			},
+		});
+		const headerText = collectTextContent(headerTree);
+		expect(headerText).toContain("Filter: Frontend App (frontend)");
+		expect(headerText).not.toContain("MIK-002");
+	});
+
+	test("RepositoryFilterPrompt renders standalone options", () => {
+		const model = workspaceFilterModel();
+		const prompt = RepositoryFilterPrompt({
+			model,
+			selection: {
+				columnIndex: 0,
+				cardIndex: 0,
+				detailOpen: false,
+				repositoryFilterOpen: true,
+				repositoryFilterFocusIndex: 2,
+			},
+			theme: buildTuiTheme(),
+		});
+		const text = collectTextContent(prompt);
+		expect(text).toContain("Backend API (backend)");
 	});
 });

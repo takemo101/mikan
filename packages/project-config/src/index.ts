@@ -5,7 +5,7 @@ import {
 	statSync,
 	writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { parseLabelId, parseProjectKey, parseStatusId } from "@mikan/core";
 import { parse, stringify } from "yaml";
 import { z } from "zod";
@@ -37,8 +37,19 @@ export type HookConfig = {
 };
 
 export type GitHubConfig = {
-	repo: string;
+	repo?: string;
 	auto_push_mirrors: boolean;
+};
+
+export type RepositoryGitHubConfig = {
+	repo: string;
+};
+
+export type RepositoryConfig = {
+	id: string;
+	title: string;
+	path: string;
+	github: RepositoryGitHubConfig;
 };
 
 export type ProjectConfig = {
@@ -52,6 +63,7 @@ export type ProjectConfig = {
 	labels: LabelConfig[];
 	hooks?: HookConfig;
 	github?: GitHubConfig;
+	repositories?: RepositoryConfig[];
 };
 
 export type ProjectConfigError = {
@@ -88,6 +100,7 @@ const githubRepoSchema = nonEmptyString.regex(
 	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/,
 	"github.repo must look like owner/name",
 );
+const kebabCaseId = /^[a-z][a-z0-9-]*$/;
 
 const columnSchema = z.object({
 	id: nonEmptyString,
@@ -117,8 +130,17 @@ const hookSchema = z.object({
 });
 
 const githubSchema = z.object({
-	repo: githubRepoSchema,
+	repo: githubRepoSchema.optional(),
 	auto_push_mirrors: z.boolean().optional().default(false),
+});
+
+const repositorySchema = z.object({
+	id: nonEmptyString,
+	title: nonEmptyString,
+	path: nonEmptyString,
+	github: z.object({
+		repo: githubRepoSchema,
+	}),
 });
 
 const projectConfigSchema = z
@@ -133,8 +155,10 @@ const projectConfigSchema = z
 		labels: z.array(labelSchema).optional().default([]),
 		hooks: hookSchema.optional(),
 		github: githubSchema.optional(),
+		repositories: z.array(repositorySchema).min(1).optional(),
 	})
 	.superRefine((config, context) => {
+		const workspaceMode = config.repositories !== undefined;
 		const projectKey = parseProjectKey(config.project.key);
 		if (!projectKey.ok) {
 			context.addIssue({
@@ -182,6 +206,44 @@ const projectConfigSchema = z
 				});
 			}
 			labelIds.add(label.id);
+		}
+
+		if (config.github && config.github.repo === undefined && !workspaceMode) {
+			context.addIssue({
+				code: "custom",
+				message:
+					"github.repo is required in single-project mode when GitHub Mirror is configured",
+				path: ["github", "repo"],
+			});
+		}
+
+		if (config.repositories) {
+			const repositoryIds = new Set<string>();
+			for (const [index, repository] of config.repositories.entries()) {
+				if (!kebabCaseId.test(repository.id)) {
+					context.addIssue({
+						code: "custom",
+						message: `repository id must be lowercase kebab-case: ${repository.id}`,
+						path: ["repositories", index, "id"],
+					});
+				}
+				if (repositoryIds.has(repository.id)) {
+					context.addIssue({
+						code: "custom",
+						message: `duplicate repository id: ${repository.id}`,
+						path: ["repositories", index, "id"],
+					});
+				}
+				repositoryIds.add(repository.id);
+
+				if (isAbsolute(repository.path)) {
+					context.addIssue({
+						code: "custom",
+						message: `repository path must be relative to the project root: ${repository.path}`,
+						path: ["repositories", index, "path"],
+					});
+				}
+			}
 		}
 	});
 

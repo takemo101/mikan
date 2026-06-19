@@ -301,6 +301,147 @@ describe("board scanner", () => {
 		expect(result.value.warnings[0]?.message).toContain("boom");
 	});
 
+	test("validates workspace Repository frontmatter without hiding Issues", () => {
+		const root = tempProject();
+		const workspaceConfig: BoardConfig = {
+			...config,
+			repositories: [
+				{ id: "workspace" },
+				{ id: "frontend" },
+				{ id: "backend" },
+			],
+		};
+		const workspaceIssue = (id: string, frontmatter: string): string =>
+			`---\nid: ${id}\ntitle: ${id}\n${frontmatter}created_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# ${id}\n`;
+
+		writeIssue(
+			root,
+			"ready",
+			"MIK-001",
+			workspaceIssue(
+				"MIK-001",
+				"repository: backend\naffects:\n  - frontend\n",
+			),
+		);
+		writeIssue(root, "ready", "MIK-002", workspaceIssue("MIK-002", ""));
+		writeIssue(
+			root,
+			"ready",
+			"MIK-003",
+			workspaceIssue("MIK-003", "repository: mobile\n"),
+		);
+		writeIssue(
+			root,
+			"ready",
+			"MIK-004",
+			workspaceIssue("MIK-004", "repository: backend\naffects:\n  - mobile\n"),
+		);
+		writeIssue(
+			root,
+			"ready",
+			"MIK-005",
+			workspaceIssue("MIK-005", "repository: backend\naffects:\n  - backend\n"),
+		);
+
+		const result = scanBoard({ projectRoot: root, config: workspaceConfig });
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected board");
+		// All Issues remain visible; Repository problems are warnings only.
+		expect(
+			result.value.columns
+				.flatMap((column) => column.issues)
+				.map((item) => String(item.issue.id))
+				.sort(),
+		).toEqual(["MIK-001", "MIK-002", "MIK-003", "MIK-004", "MIK-005"]);
+		const byIssue = (issueId: string) =>
+			result.value.warnings.filter((warning) => warning.issueId === issueId);
+		expect(byIssue("MIK-001")).toEqual([]);
+		expect(byIssue("MIK-002")).toContainEqual(
+			expect.objectContaining({
+				kind: "missing_repository",
+				issueId: "MIK-002",
+			}),
+		);
+		expect(byIssue("MIK-003")).toContainEqual(
+			expect.objectContaining({
+				kind: "unknown_repository",
+				issueId: "MIK-003",
+			}),
+		);
+		expect(byIssue("MIK-004")).toContainEqual(
+			expect.objectContaining({ kind: "unknown_affects", issueId: "MIK-004" }),
+		);
+		expect(byIssue("MIK-005")).toContainEqual(
+			expect.objectContaining({
+				kind: "affects_includes_primary",
+				issueId: "MIK-005",
+			}),
+		);
+	});
+
+	test("warns when github_issue.repo differs from the repository's github.repo", () => {
+		const root = tempProject();
+		const mirrorConfig: BoardConfig = {
+			...config,
+			repositories: [
+				{ id: "frontend", github: { repo: "acme/frontend" } },
+				{ id: "backend", github: { repo: "acme/backend" } },
+			],
+		};
+		const mirroredIssue = (
+			id: string,
+			repository: string,
+			mirrorRepo: string,
+		): string =>
+			`---\nid: ${id}\ntitle: ${id}\nrepository: ${repository}\ngithub_issue:\n  repo: ${mirrorRepo}\n  number: 12\n  url: https://github.com/${mirrorRepo}/issues/12\n  last_mirrored_at: 2026-05-30T00:00:00Z\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# ${id}\n`;
+
+		// Mirror stored in a different repo than the Issue's current repository.
+		writeIssue(
+			root,
+			"ready",
+			"MIK-001",
+			mirroredIssue("MIK-001", "backend", "acme/frontend"),
+		);
+		// Mirror stored in the matching repo: no warning.
+		writeIssue(
+			root,
+			"ready",
+			"MIK-002",
+			mirroredIssue("MIK-002", "backend", "acme/backend"),
+		);
+
+		const result = scanBoard({ projectRoot: root, config: mirrorConfig });
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected board");
+		const byIssue = (issueId: string) =>
+			result.value.warnings.filter((warning) => warning.issueId === issueId);
+		expect(byIssue("MIK-001")).toContainEqual(
+			expect.objectContaining({
+				kind: "mirror_repo_mismatch",
+				issueId: "MIK-001",
+			}),
+		);
+		expect(byIssue("MIK-001")[0]?.message).toContain("acme/frontend");
+		expect(byIssue("MIK-001")[0]?.message).toContain("acme/backend");
+		expect(byIssue("MIK-002")).toEqual([]);
+	});
+
+	test("does not warn about Repositories in single-project mode", () => {
+		const root = tempProject();
+		writeIssue(root, "ready", "MIK-001");
+
+		const result = scanBoard({ projectRoot: root, config });
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected board");
+		expect(result.value.warnings.map((warning) => warning.kind)).not.toContain(
+			"missing_repository",
+		);
+		expect(result.value.warnings).toEqual([]);
+	});
+
 	test("finds max Issue sequence across configured directories including archived", () => {
 		const root = tempProject();
 		writeIssue(root, "backlog", "MIK-001");

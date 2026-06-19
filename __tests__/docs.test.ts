@@ -9,6 +9,12 @@ const packageReadme = readFileSync(
 	"utf8",
 );
 const configManual = readFileSync(join(repoRoot, "site", "config.md"), "utf8");
+const cliManual = readFileSync(join(repoRoot, "site", "cli.md"), "utf8");
+const tuiManual = readFileSync(join(repoRoot, "site", "tui.md"), "utf8");
+const mcpManual = readFileSync(
+	join(repoRoot, "site", "mcp-and-skills.md"),
+	"utf8",
+);
 const githubMirrorManual = readFileSync(
 	join(repoRoot, "site", "github-mirror.md"),
 	"utf8",
@@ -119,6 +125,68 @@ describe("manual site documentation", () => {
 		]) {
 			expect(githubMirrorManual).toContain(required);
 		}
+	});
+
+	test("workspace Repository docs cover config, CLI, TUI, MCP, and Mirror", () => {
+		// README overview links to the manual and shows repository/affects.
+		expect(readme).toContain("Workspace Repositories");
+		expect(readme).toContain(
+			'mikan add "Fix login contract" --repository backend --affects frontend',
+		);
+		expect(readme).toContain("https://takemo101.github.io/mikan/config");
+		expect(packageReadme).toContain("Workspace Repositories");
+		expect(packageReadme).toContain("--repository backend --affects frontend");
+
+		// Config manual shows the complete repositories example.
+		expect(configManual).toContain("repositories:");
+		for (const repoId of ["id: workspace", "id: frontend", "id: backend"]) {
+			expect(configManual).toContain(repoId);
+		}
+		expect(configManual).toContain("repositories[].github.repo");
+
+		// CLI manual shows the add example with --repository and --affects.
+		expect(cliManual).toContain(
+			'mikan add "Fix login contract" --repository backend --affects frontend',
+		);
+
+		// TUI manual describes f filtering by primary repository only.
+		expect(tuiManual).toContain("Filter Cards by primary Repository");
+		expect(tuiManual).toContain("does not filter by `affects`");
+
+		// MCP manual documents repository/affects on create/update/read.
+		expect(mcpManual).toContain("`repository`");
+		expect(mcpManual).toContain("`affects`");
+
+		// GitHub Mirror manual distinguishes single-project vs workspace targets.
+		expect(githubMirrorManual).toContain("repositories[].github.repo");
+		expect(githubMirrorManual).toContain("Single-project versus workspace");
+	});
+
+	test("workspace docs say Labels and affects never choose the Mirror target", () => {
+		for (const manual of [
+			readme,
+			configManual,
+			cliManual,
+			githubMirrorManual,
+		]) {
+			expect(manual).toContain("affects");
+		}
+		// Explicit statements that Labels and affects do not pick the Mirror target.
+		expect(configManual).toContain(
+			"Labels also never decide Repository ownership or the Mirror target",
+		);
+		expect(githubMirrorManual).toContain(
+			"Labels and `affects` never choose the Mirror target",
+		);
+		expect(mcpManual).toContain("never choose the Mirror target");
+	});
+
+	test("workspace docs avoid bidirectional sync and assert non-scheduler scope", () => {
+		for (const manual of [readme, configManual, mcpManual]) {
+			expect(manual).not.toContain("bidirectional");
+		}
+		expect(readme).toContain("not a multi-project scheduler or worker pool");
+		expect(mcpManual).toContain("not a scheduler, worker pool");
 	});
 
 	test("GitHub Mirror docs avoid sync framing and are linked from docs surfaces", () => {

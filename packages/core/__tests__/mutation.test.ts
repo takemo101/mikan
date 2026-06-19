@@ -34,6 +34,13 @@ const config: BoardConfig & { project: { key: string; name: string } } = {
 	],
 };
 
+const workspaceConfig: BoardConfig & {
+	project: { key: string; name: string };
+} = {
+	...config,
+	repositories: [{ id: "workspace" }, { id: "backend" }, { id: "frontend" }],
+};
+
 const t1 = () => new Date("2026-05-30T00:00:00Z");
 const t2 = () => new Date("2026-05-30T01:02:03Z");
 
@@ -648,5 +655,299 @@ describe("core mutations", () => {
 		expect(malformedResult.ok).toBe(false);
 		if (malformedResult.ok) throw new Error("expected malformed target");
 		expect(malformedResult.error.kind).toBe("malformed_issue");
+	});
+});
+
+describe("workspace Repository mutations", () => {
+	test("create writes repository and affects in stable frontmatter order", () => {
+		const root = tempProject();
+
+		const result = createIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			title: "Workspace issue",
+			repository: "backend",
+			affects: ["frontend", "workspace"],
+			now: t1,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected create");
+		expect(result.value.issue.repository).toBe("backend");
+		expect(result.value.issue.affects).toEqual(["frontend", "workspace"]);
+		const markdown = readIssue(root, "backlog");
+		expect(markdown).toContain(
+			"depends_on: []\nrepository: backend\naffects:\n  - frontend\n  - workspace\n",
+		);
+	});
+
+	test("create rejects missing repository in workspace mode", () => {
+		const root = tempProject();
+
+		const result = createIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			title: "No repository",
+			now: t1,
+		});
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected missing repository");
+		expect(result.error.kind).toBe("missing_repository");
+	});
+
+	test("create rejects unknown repository and unknown affects", () => {
+		const root = tempProject();
+
+		const unknownRepository = createIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			title: "Bad repository",
+			repository: "mobile",
+			now: t1,
+		});
+		const unknownAffects = createIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			title: "Bad affects",
+			repository: "backend",
+			affects: ["mobile"],
+			now: t1,
+		});
+
+		expect(unknownRepository.ok).toBe(false);
+		if (unknownRepository.ok) throw new Error("expected unknown repository");
+		expect(unknownRepository.error.kind).toBe("unknown_repository");
+		expect(unknownAffects.ok).toBe(false);
+		if (unknownAffects.ok) throw new Error("expected unknown affects");
+		expect(unknownAffects.error.kind).toBe("unknown_affects");
+	});
+
+	test("create rejects affects containing the primary repository", () => {
+		const root = tempProject();
+
+		const result = createIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			title: "Self affects",
+			repository: "backend",
+			affects: ["backend"],
+			now: t1,
+		});
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected affects_includes_primary");
+		expect(result.error.kind).toBe("affects_includes_primary");
+	});
+
+	test("update replaces repository and affects", () => {
+		const root = tempProject();
+		expect(
+			createIssue({
+				projectRoot: root,
+				config: workspaceConfig,
+				title: "Workspace issue",
+				repository: "backend",
+				affects: ["frontend"],
+				now: t1,
+			}).ok,
+		).toBe(true);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "MIK-001",
+			repository: "frontend",
+			affects: ["workspace"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.issue.repository).toBe("frontend");
+		expect(result.value.issue.affects).toEqual(["workspace"]);
+		const markdown = readIssue(root, "backlog");
+		expect(markdown).toContain("repository: frontend");
+		expect(markdown).toContain("- workspace");
+		expect(markdown).not.toContain("- frontend");
+	});
+
+	test("update preserves repository and affects when omitted", () => {
+		const root = tempProject();
+		expect(
+			createIssue({
+				projectRoot: root,
+				config: workspaceConfig,
+				title: "Workspace issue",
+				repository: "backend",
+				affects: ["frontend"],
+				now: t1,
+			}).ok,
+		).toBe(true);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "MIK-001",
+			title: "Renamed",
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.issue.repository).toBe("backend");
+		expect(result.value.issue.affects).toEqual(["frontend"]);
+	});
+
+	test("update keeps canonical frontmatter order when affects is newly added", () => {
+		const root = tempProject();
+		expect(
+			createIssue({
+				projectRoot: root,
+				config: workspaceConfig,
+				title: "Workspace issue",
+				repository: "backend",
+				now: t1,
+			}).ok,
+		).toBe(true);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "MIK-001",
+			affects: ["frontend"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.issue.affects).toEqual(["frontend"]);
+		const markdown = readIssue(root, "backlog");
+		expect(markdown).toContain(
+			"depends_on: []\nrepository: backend\naffects:\n  - frontend\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T01:02:03Z",
+		);
+	});
+
+	test("update keeps canonical frontmatter order when repository is newly added", () => {
+		const root = tempProject();
+		writeFileSync(
+			join(root, ".mikan", "backlog", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Seed\nlabels: []\ndepends_on: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Seed\n`,
+		);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "MIK-001",
+			repository: "backend",
+			affects: ["frontend"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.issue.repository).toBe("backend");
+		expect(result.value.issue.affects).toEqual(["frontend"]);
+		expect(readIssue(root, "backlog")).toContain(
+			"depends_on: []\nrepository: backend\naffects:\n  - frontend\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T01:02:03Z",
+		);
+	});
+
+	test("update clears affects with an empty array", () => {
+		const root = tempProject();
+		expect(
+			createIssue({
+				projectRoot: root,
+				config: workspaceConfig,
+				title: "Workspace issue",
+				repository: "backend",
+				affects: ["frontend"],
+				now: t1,
+			}).ok,
+		).toBe(true);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "MIK-001",
+			affects: [],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.issue.affects).toEqual([]);
+		expect(readIssue(root, "backlog")).not.toContain("affects:");
+		expect(readIssue(root, "backlog")).toContain("repository: backend");
+	});
+
+	test("update applies the same validation as create", () => {
+		const root = tempProject();
+		expect(
+			createIssue({
+				projectRoot: root,
+				config: workspaceConfig,
+				title: "Workspace issue",
+				repository: "backend",
+				now: t1,
+			}).ok,
+		).toBe(true);
+
+		const unknownRepository = updateIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "MIK-001",
+			repository: "mobile",
+			now: t2,
+		});
+		const selfAffects = updateIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "MIK-001",
+			affects: ["backend"],
+			now: t2,
+		});
+
+		expect(unknownRepository.ok).toBe(false);
+		if (unknownRepository.ok) throw new Error("expected unknown repository");
+		expect(unknownRepository.error.kind).toBe("unknown_repository");
+		expect(selfAffects.ok).toBe(false);
+		if (selfAffects.ok) throw new Error("expected affects_includes_primary");
+		expect(selfAffects.error.kind).toBe("affects_includes_primary");
+	});
+
+	test("single-project create and update ignore repository fields", () => {
+		const root = tempProject();
+
+		const created = createIssue({
+			projectRoot: root,
+			config,
+			title: "Single project",
+			repository: "backend",
+			affects: ["frontend"],
+			now: t1,
+		});
+
+		expect(created.ok).toBe(true);
+		if (!created.ok) throw new Error("expected create");
+		expect(created.value.issue.repository).toBeUndefined();
+		expect(created.value.issue.affects).toEqual([]);
+		const markdown = readIssue(root, "backlog");
+		expect(markdown).not.toContain("repository:");
+		expect(markdown).not.toContain("affects:");
+
+		const updated = updateIssue({
+			projectRoot: root,
+			config,
+			id: "MIK-001",
+			title: "Renamed",
+			repository: "backend",
+			now: t2,
+		});
+
+		expect(updated.ok).toBe(true);
+		if (!updated.ok) throw new Error("expected update");
+		expect(updated.value.issue.repository).toBeUndefined();
+		expect(readIssue(root, "backlog")).not.toContain("repository:");
 	});
 });

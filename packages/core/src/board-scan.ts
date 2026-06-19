@@ -11,9 +11,11 @@ import {
 
 export type ColumnConfig = { id: string; title: string };
 export type LabelConfig = { id: string; title: string };
+export type RepositoryRef = { id: string; github?: { repo?: string } };
 export type BoardConfig = {
 	board: { columns: ColumnConfig[] };
 	labels: LabelConfig[];
+	repositories?: RepositoryRef[];
 };
 
 export type BoardIssue = {
@@ -32,6 +34,11 @@ export type BoardWarning = {
 		| "unknown_label"
 		| "unknown_directory"
 		| "malformed_issue"
+		| "missing_repository"
+		| "unknown_repository"
+		| "unknown_affects"
+		| "affects_includes_primary"
+		| "mirror_repo_mismatch"
 		| "hook_failure"
 		| "dependency_missing"
 		| "dependency_incomplete"
@@ -62,7 +69,11 @@ export type MutationError = {
 		| "unknown_status"
 		| "unknown_label"
 		| "duplicate_issue_id"
-		| "malformed_issue";
+		| "malformed_issue"
+		| "missing_repository"
+		| "unknown_repository"
+		| "unknown_affects"
+		| "affects_includes_primary";
 	message: string;
 	path?: string;
 };
@@ -80,6 +91,17 @@ export function scanBoard(
 		(column) => options.includeArchived || column.id !== "archived",
 	);
 	const labelIds = new Set(options.config.labels.map((label) => label.id));
+	const repositories = options.config.repositories;
+	const workspaceMode = repositories !== undefined && repositories.length > 0;
+	const repositoryIds = new Set(
+		(repositories ?? []).map((repository) => repository.id),
+	);
+	const repositoryGithubRepos = new Map(
+		(repositories ?? []).map((repository) => [
+			repository.id,
+			repository.github?.repo,
+		]),
+	);
 	const warnings: BoardWarning[] = [];
 	const byId = new Map<string, BoardIssue[]>();
 	const columns: BoardColumn[] = visibleColumns.map((column) => ({
@@ -125,6 +147,17 @@ export function scanBoard(
 						issueId: id,
 					});
 				}
+			}
+			if (workspaceMode) {
+				warnings.push(
+					...repositoryWarnings(
+						parsed.value,
+						repositoryIds,
+						repositoryGithubRepos,
+						path,
+						id,
+					),
+				);
 			}
 			visibleByStatus.get(statusId)?.issues.push(item);
 		}
@@ -237,6 +270,61 @@ export function findIssueById(options: {
 		};
 	}
 	return { ok: true, value: matches[0] as IssueLocation };
+}
+
+function repositoryWarnings(
+	issue: ParsedIssue,
+	repositoryIds: Set<string>,
+	repositoryGithubRepos: Map<string, string | undefined>,
+	path: string,
+	id: string,
+): BoardWarning[] {
+	const warnings: BoardWarning[] = [];
+	const repository = issue.repository;
+	if (repository === undefined) {
+		warnings.push({
+			kind: "missing_repository",
+			message: `Missing repository on ${id}`,
+			path,
+			issueId: id,
+		});
+	} else if (!repositoryIds.has(repository)) {
+		warnings.push({
+			kind: "unknown_repository",
+			message: `Unknown repository ${repository} on ${id}`,
+			path,
+			issueId: id,
+		});
+	} else {
+		const mirrorRepo = issue.githubIssue?.repo;
+		const configuredRepo = repositoryGithubRepos.get(repository);
+		if (mirrorRepo && configuredRepo && mirrorRepo !== configuredRepo) {
+			warnings.push({
+				kind: "mirror_repo_mismatch",
+				message: `GitHub Mirror repo ${mirrorRepo} on ${id} differs from repository ${repository}'s configured github.repo ${configuredRepo}`,
+				path,
+				issueId: id,
+			});
+		}
+	}
+	for (const affected of issue.affects) {
+		if (repository !== undefined && affected === repository) {
+			warnings.push({
+				kind: "affects_includes_primary",
+				message: `affects must not contain primary repository ${affected} on ${id}`,
+				path,
+				issueId: id,
+			});
+		} else if (!repositoryIds.has(affected)) {
+			warnings.push({
+				kind: "unknown_affects",
+				message: `Unknown affected repository ${affected} on ${id}`,
+				path,
+				issueId: id,
+			});
+		}
+	}
+	return warnings;
 }
 
 function sortedMarkdownFiles(directory: string): string[] {
