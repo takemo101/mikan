@@ -95,6 +95,7 @@ export type {
 	TuiGithubIssue,
 	TuiLabel,
 	TuiModel,
+	TuiRepository,
 	TuiWarning,
 } from "./model.ts";
 export {

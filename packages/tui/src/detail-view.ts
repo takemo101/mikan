@@ -52,6 +52,14 @@ function detailMetaContent(
 		fg(theme.base.muted)(" · labels "),
 		fg(theme.base.muted)(detailLabelsText(page)),
 	];
+	if (page.repositoryText) {
+		chunks.push(fg(theme.base.muted)(" · repo "));
+		chunks.push(fg(theme.base.text)(page.repositoryText));
+	}
+	if (page.affectsText) {
+		chunks.push(fg(theme.base.muted)(" · affects "));
+		chunks.push(fg(theme.base.text)(page.affectsText));
+	}
 	const dependency = detailDependencyText(page);
 	if (dependency) chunks.push(fg(theme.feedback.warning)(` · ${dependency}`));
 	if (page.githubText) {

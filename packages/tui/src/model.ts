@@ -26,6 +26,8 @@ export type TuiCard = {
 	dependencyStatus?: "ready" | "blocked";
 	metadata?: IssueMetadata;
 	githubIssue?: TuiGithubIssue;
+	repository?: string;
+	affects?: string[];
 };
 
 export type TuiColumn = {
@@ -47,6 +49,11 @@ export type TuiLabel = {
 	title: string;
 };
 
+export type TuiRepository = {
+	id: string;
+	title: string;
+};
+
 export type TuiModel = {
 	columns: TuiColumn[];
 	warnings: string[];
@@ -54,6 +61,8 @@ export type TuiModel = {
 	labels?: TuiLabel[];
 	labelTitles?: Record<string, string>;
 	githubRepo?: string;
+	repositories?: TuiRepository[];
+	repositoryTitles?: Record<string, string>;
 };
 
 export type TuiDetails = {
@@ -78,6 +87,7 @@ export function loadTuiModel(cwd = process.cwd()): TuiModel {
 		board.value,
 		loaded.value.config.labels,
 		loaded.value.config.github?.repo,
+		loaded.value.config.repositories,
 	);
 }
 
@@ -85,7 +95,9 @@ export function buildTuiModel(
 	board: BoardSnapshot,
 	labels: { id: string; title: string }[] = [],
 	githubRepo?: string,
+	repositories?: { id: string; title: string }[],
 ): TuiModel {
+	const workspaceMode = repositories !== undefined && repositories.length > 0;
 	return {
 		columns: board.columns.map((column) => ({
 			id: column.id,
@@ -101,6 +113,17 @@ export function buildTuiModel(
 			labels.map((label) => [label.id, label.title]),
 		),
 		githubRepo,
+		...(workspaceMode
+			? {
+					repositories: repositories.map((repository) => ({
+						id: repository.id,
+						title: repository.title,
+					})),
+					repositoryTitles: Object.fromEntries(
+						repositories.map((repository) => [repository.id, repository.title]),
+					),
+				}
+			: {}),
 	};
 }
 
@@ -160,6 +183,12 @@ function formatCard(issue: BoardIssue): TuiCard {
 		unmetDependencies: issue.unmetDependencies.map(String),
 		dependencyStatus: issue.dependencyStatus,
 		metadata: issue.issue.metadata,
+		...(issue.issue.repository !== undefined
+			? { repository: issue.issue.repository }
+			: {}),
+		...(issue.issue.affects.length > 0
+			? { affects: issue.issue.affects.map(String) }
+			: {}),
 		...(issue.issue.githubIssue
 			? {
 					githubIssue: {

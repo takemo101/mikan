@@ -68,16 +68,17 @@ export function renderTuiText(
 		? getSelectedDetails(model, selection)
 		: undefined;
 	if (details) {
-		lines.push("", ...renderDetails(details));
+		lines.push("", ...renderDetails(details, model));
 	}
 	return `${lines.join("\n")}\n`;
 }
 
-function renderDetails(details: TuiDetails): string[] {
+function renderDetails(details: TuiDetails, model: TuiModel): string[] {
 	return [
 		`Detail: ${details.card.id} ${details.card.title}`,
 		"esc back",
 		"",
+		...renderRepositorySection(details, model),
 		"## Dependencies",
 		`Depends On: ${cardDependsOn(details.card).length > 0 ? cardDependsOn(details.card).join(", ") : "none"}`,
 		`Unmet: ${cardUnmetDependencies(details.card).length > 0 ? cardUnmetDependencies(details.card).join(", ") : "none"}`,
@@ -100,6 +101,28 @@ function renderDetails(details: TuiDetails): string[] {
 	];
 }
 
+function renderRepositorySection(
+	details: TuiDetails,
+	model: TuiModel,
+): string[] {
+	if (!model.repositories) return [];
+	const repositoryTitle = (id: string): string =>
+		model.repositoryTitles?.[id] ?? id;
+	const repository = details.card.repository;
+	const repositoryText = repository
+		? model.repositoryTitles?.[repository]
+			? `${model.repositoryTitles[repository]} (${repository})`
+			: repository
+		: "none";
+	const affects = details.card.affects ?? [];
+	return [
+		"## Repository",
+		`Repository: ${repositoryText}`,
+		`Affects: ${affects.length > 0 ? affects.map(repositoryTitle).join(", ") : "none"}`,
+		"",
+	];
+}
+
 function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 	const width = 26;
 	const view = buildBoardViewModel(model, selection);
@@ -110,7 +133,7 @@ function renderBoard(model: TuiModel, selection: TuiSelection): string[] {
 					...(column.cardRangeText ? [`  ${column.cardRangeText}`] : []),
 					...column.visibleCards.map(
 						(card) =>
-							`${card.selected ? "▶" : " "} ${card.id}${
+							`${card.selected ? "▶" : " "} ${card.repository ? `[${card.repository}] ` : ""}${card.id}${
 								cardDependencyStatus(card) === "blocked" ? " deps!" : ""
 							} ${card.title}${card.labels.length > 0 ? ` ${formatLabels(card.labels)}` : ""}`,
 					),

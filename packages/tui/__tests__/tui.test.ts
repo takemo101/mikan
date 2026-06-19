@@ -282,6 +282,60 @@ function tempProject(): string {
 	return root;
 }
 
+function tempWorkspaceProject(): string {
+	const root = mkdtempSync(join(tmpdir(), "mikan-tui-ws-"));
+	const init = initProject(root, { key: "MIK", name: "mikan" });
+	expect(init.ok).toBe(true);
+	if (!init.ok) throw new Error("init failed");
+	writeFileSync(
+		join(root, ".mikan", "config.yaml"),
+		`project:
+  key: MIK
+  name: mikan
+board:
+  columns:
+    - id: backlog
+      title: Backlog
+    - id: ready
+      title: Ready
+    - id: active
+      title: Active
+    - id: blocked
+      title: Blocked
+    - id: completed
+      title: Completed
+    - id: archived
+      title: Archived
+labels:
+  - id: automation
+    title: Automation
+repositories:
+  - id: frontend
+    title: Frontend App
+    path: repos/frontend
+    github:
+      repo: org/frontend
+  - id: backend
+    title: Backend API
+    path: repos/backend
+    github:
+      repo: org/backend
+`,
+	);
+	return root;
+}
+
+function writeWorkspaceIssue(
+	root: string,
+	id: string,
+	frontmatter: string,
+): void {
+	writeFileSync(
+		join(root, ".mikan", "ready", `${id}.md`),
+		`---\nid: ${id}\ntitle: Workspace issue\nlabels:\n  - automation\n${frontmatter}created_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Workspace issue\n`,
+	);
+}
+
 describe("TUI model and navigation", () => {
 	test("loads configured columns, cards, labels, and warnings excluding archived", () => {
 		const model = loadTuiModel(tempProject());
@@ -2478,5 +2532,160 @@ updated_at: 2026-05-30T00:00:00Z
 			labels: [],
 			labelTitles: {},
 		});
+	});
+
+	test("TUI model exposes configured Repositories in config order in workspace mode", () => {
+		const model = buildTuiModel({ columns: [], warnings: [] }, [], undefined, [
+			{ id: "frontend", title: "Frontend App" },
+			{ id: "backend", title: "Backend API" },
+		]);
+
+		expect(model.repositories).toEqual([
+			{ id: "frontend", title: "Frontend App" },
+			{ id: "backend", title: "Backend API" },
+		]);
+		expect(model.repositoryTitles).toEqual({
+			frontend: "Frontend App",
+			backend: "Backend API",
+		});
+	});
+
+	test("single-project model omits Repository fields", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+
+		expect(model.repositories).toBeUndefined();
+		expect(model.repositoryTitles).toBeUndefined();
+		expect(model.columns[1]?.cards[0]?.repository).toBeUndefined();
+		expect(model.columns[1]?.cards[0]?.affects).toBeUndefined();
+	});
+
+	test("workspace Cards show compact primary Repository on a single line", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(
+			cwd,
+			"MIK-001",
+			"repository: frontend\naffects:\n  - backend\n",
+		);
+		const model = loadTuiModel(cwd);
+		const card = model.columns
+			.find((column) => column.id === "ready")
+			?.cards.find((entry) => entry.id === "MIK-001");
+
+		expect(card?.repository).toBe("frontend");
+		expect(card?.affects).toEqual(["backend"]);
+
+		if (!card) throw new Error("card not found");
+		const issueCard = IssueCard({
+			card,
+			selected: false,
+			theme: buildTuiTheme(),
+		});
+		const issueCardProps = issueCard.props as {
+			style?: Record<string, unknown>;
+		};
+		expect(issueCardProps.style).toMatchObject({ height: 1 });
+		const cardText = findElementByType(issueCard, "text");
+		expect(styledContentPlain(cardText?.props?.content)).toBe(
+			"[frontend] MIK-001 │ Workspace issue #automation",
+		);
+
+		const boardText = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		});
+		expect(boardText).toContain("[frontend] MIK-001");
+	});
+
+	test("workspace Detail shows primary Repository and affected Repositories", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(
+			cwd,
+			"MIK-001",
+			"repository: frontend\naffects:\n  - backend\n",
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const page = buildDetailPageViewModel(model, selection);
+		expect(page?.repositoryText).toBe("Frontend App (frontend)");
+		expect(page?.affectsText).toBe("Backend API");
+
+		const tree = TuiAppView({ model, selection });
+		const text = collectTextContent(tree);
+		expect(text).toContain("repo Frontend App (frontend)");
+		expect(text).toContain("affects Backend API");
+	});
+
+	test("workspace Detail omits affects when empty", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(cwd, "MIK-001", "repository: frontend\n");
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const page = buildDetailPageViewModel(model, selection);
+		expect(page?.repositoryText).toBe("Frontend App (frontend)");
+		expect(page?.affectsText).toBe("");
+
+		const tree = TuiAppView({ model, selection });
+		expect(collectTextContent(tree)).not.toContain("affects");
+	});
+
+	test("text renderer shows workspace Repository section in detail", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(
+			cwd,
+			"MIK-001",
+			"repository: frontend\naffects:\n  - backend\n",
+		);
+		const model = loadTuiModel(cwd);
+		const text = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		});
+
+		expect(text).toContain("## Repository");
+		expect(text).toContain("Repository: Frontend App (frontend)");
+		expect(text).toContain("Affects: Backend API");
+	});
+
+	test("text renderer omits Repository section in single-project mode", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const text = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		});
+
+		expect(text).not.toContain("## Repository");
+		expect(text).not.toContain("[frontend]");
+	});
+
+	test("warning modal surfaces Repository warnings", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(cwd, "MIK-001", "repository: nope\n");
+		const model = loadTuiModel(cwd);
+
+		expect(model.warnings.join("\n")).toContain("unknown_repository");
+
+		const text = renderTuiText(model, {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			warningsOpen: true,
+		});
+		expect(text).toContain("unknown_repository");
+		expect(text).toContain("nope");
 	});
 });

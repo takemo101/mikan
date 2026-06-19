@@ -113,6 +113,9 @@ function issueCardContent(
 ): StyledText {
 	const chunks = [];
 	if (selected) chunks.push(fg(theme.interactive.focus)("▶ "));
+	if (card.repository) {
+		chunks.push(fg(theme.base.muted)(`[${card.repository}] `));
+	}
 	chunks.push(fg(theme.interactive.accent)(card.id));
 	if (cardDependencyStatus(card) === "blocked") {
 		chunks.push(fg(theme.base.text)(" "));
