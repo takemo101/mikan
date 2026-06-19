@@ -68,7 +68,11 @@ export type MutationError = {
 		| "unknown_status"
 		| "unknown_label"
 		| "duplicate_issue_id"
-		| "malformed_issue";
+		| "malformed_issue"
+		| "missing_repository"
+		| "unknown_repository"
+		| "unknown_affects"
+		| "affects_includes_primary";
 	message: string;
 	path?: string;
 };

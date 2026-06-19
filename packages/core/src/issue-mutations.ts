@@ -38,6 +38,8 @@ export type CreateIssueOptions = {
 	labels?: string[];
 	dependencies?: string[];
 	metadata?: unknown;
+	repository?: string;
+	affects?: string[];
 	now?: () => Date;
 };
 
@@ -50,6 +52,8 @@ export type UpdateIssueOptions = {
 	preserveUnknownLabels?: boolean;
 	dependencies?: string[];
 	metadata?: unknown;
+	repository?: string;
+	affects?: string[];
 	body?: string;
 	now?: () => Date;
 };
@@ -89,6 +93,12 @@ export function createIssue(
 		options.metadata === undefined ? {} : options.metadata,
 	);
 	if (!metadataValidation.ok) return metadataValidation;
+	const repositoryValidation = validateRepository(
+		options.config,
+		options.repository,
+		options.affects,
+	);
+	if (!repositoryValidation.ok) return repositoryValidation;
 	const projectKey = options.config.project?.key ?? "MIK";
 	const parsedProjectKey = parseProjectKey(projectKey);
 	if (!parsedProjectKey.ok) {
@@ -134,6 +144,13 @@ export function createIssue(
 			title: options.title,
 			labels: options.labels ?? [],
 			depends_on: dependenciesValidation.value.map(String),
+			...(repositoryValidation.value.repository !== undefined
+				? { repository: repositoryValidation.value.repository }
+				: {}),
+			...(repositoryValidation.value.affects &&
+			repositoryValidation.value.affects.length > 0
+				? { affects: repositoryValidation.value.affects }
+				: {}),
 			...(options.metadata !== undefined
 				? { metadata: metadataValidation.value }
 				: {}),
@@ -201,17 +218,46 @@ export function updateIssue(
 		if (metadataValidation && !metadataValidation.ok) return metadataValidation;
 		const document = readIssueDocument(target.value.path);
 		if (!document.ok) return document;
+		const workspaceMode = isWorkspaceMode(options.config);
+		const finalRepository = workspaceMode
+			? (options.repository ?? document.value.frontmatter.repository)
+			: document.value.frontmatter.repository;
+		const finalAffects = workspaceMode
+			? (options.affects ?? document.value.frontmatter.affects)
+			: document.value.frontmatter.affects;
+		const repositoryValidation = validateRepository(
+			options.config,
+			finalRepository,
+			finalAffects,
+		);
+		if (!repositoryValidation.ok) return repositoryValidation;
+		const frontmatter: IssueFrontmatter = {
+			...document.value.frontmatter,
+			title: options.title ?? target.value.issue.title,
+			labels,
+			...(dependenciesValidation
+				? { depends_on: dependenciesValidation.value.map(String) }
+				: {}),
+			...(metadataValidation ? { metadata: metadataValidation.value } : {}),
+			updated_at: utcNow(options.now),
+		};
+		if (workspaceMode) {
+			if (repositoryValidation.value.repository !== undefined) {
+				frontmatter.repository = repositoryValidation.value.repository;
+			} else {
+				delete frontmatter.repository;
+			}
+			if (
+				repositoryValidation.value.affects &&
+				repositoryValidation.value.affects.length > 0
+			) {
+				frontmatter.affects = repositoryValidation.value.affects;
+			} else {
+				delete frontmatter.affects;
+			}
+		}
 		const updated = serializeIssue({
-			frontmatter: {
-				...document.value.frontmatter,
-				title: options.title ?? target.value.issue.title,
-				labels,
-				...(dependenciesValidation
-					? { depends_on: dependenciesValidation.value.map(String) }
-					: {}),
-				...(metadataValidation ? { metadata: metadataValidation.value } : {}),
-				updated_at: utcNow(options.now),
-			},
+			frontmatter,
 			body: options.body ?? target.value.issue.body,
 		});
 		atomicWriteFile(target.value.path, updated);
@@ -436,6 +482,65 @@ function validateLabels(
 		parsed.push(labelId.value);
 	}
 	return { ok: true, value: parsed };
+}
+
+function isWorkspaceMode(config: BoardConfig): boolean {
+	const repositories = config.repositories;
+	return repositories !== undefined && repositories.length > 0;
+}
+
+function validateRepository(
+	config: BoardConfig,
+	repository: string | undefined,
+	affects: string[] | undefined,
+): Result<{ repository?: string; affects?: string[] }, MutationError> {
+	if (!isWorkspaceMode(config)) {
+		return { ok: true, value: {} };
+	}
+	const repositoryIds = new Set(
+		(config.repositories ?? []).map((entry) => entry.id),
+	);
+	if (repository === undefined) {
+		return {
+			ok: false,
+			error: {
+				kind: "missing_repository",
+				message: "Missing repository",
+			},
+		};
+	}
+	if (!repositoryIds.has(repository)) {
+		return {
+			ok: false,
+			error: {
+				kind: "unknown_repository",
+				message: `Unknown repository: ${repository}`,
+			},
+		};
+	}
+	const validatedAffects: string[] = [];
+	for (const affected of affects ?? []) {
+		if (affected === repository) {
+			return {
+				ok: false,
+				error: {
+					kind: "affects_includes_primary",
+					message: `affects must not contain primary repository: ${affected}`,
+				},
+			};
+		}
+		if (!repositoryIds.has(affected)) {
+			return {
+				ok: false,
+				error: {
+					kind: "unknown_affects",
+					message: `Unknown affected repository: ${affected}`,
+				},
+			};
+		}
+		validatedAffects.push(affected);
+	}
+	return { ok: true, value: { repository, affects: validatedAffects } };
 }
 
 function validateMetadata(
