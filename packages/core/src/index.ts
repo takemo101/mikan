@@ -20,6 +20,7 @@ export type {
 	IssueLocation,
 	LabelConfig,
 	MutationError,
+	RepositoryRef,
 	ScanBoardOptions,
 } from "./board-scan.ts";
 export {

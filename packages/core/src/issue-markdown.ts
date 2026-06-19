@@ -34,6 +34,8 @@ export type ParsedIssue = {
 	title: string;
 	labels: LabelId[];
 	dependencies: IssueId[];
+	repository?: string;
+	affects: string[];
 	metadata: IssueMetadata;
 	githubIssue?: GitHubIssueReference;
 	createdAt: UtcTimestamp;
@@ -51,6 +53,8 @@ const frontmatterSchema = z
 		title: z.string().min(1),
 		labels: z.array(z.string()).optional().default([]),
 		depends_on: z.array(z.string()).optional().default([]),
+		repository: z.string().min(1).optional(),
+		affects: z.array(z.string()).optional(),
 		metadata: z.unknown().optional(),
 		created_at: z.string().min(1),
 		updated_at: z.string().min(1),
@@ -159,6 +163,10 @@ export function parseIssueDocument(
 				title: parsedFrontmatter.data.title,
 				labels,
 				dependencies,
+				...(parsedFrontmatter.data.repository !== undefined
+					? { repository: parsedFrontmatter.data.repository }
+					: {}),
+				affects: parsedFrontmatter.data.affects ?? [],
 				metadata: metadata ?? {},
 				...(githubIssue ? { githubIssue } : {}),
 				createdAt,
