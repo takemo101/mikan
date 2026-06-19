@@ -6,6 +6,7 @@ import {
 	type BoardIssue,
 	findIssueById,
 	type IssueFrontmatter,
+	type ParsedIssue,
 	parseIssueDocument,
 	type Result,
 	serializeIssue,
@@ -40,8 +41,14 @@ type GitHubConfig = {
 	auto_push_mirrors?: boolean;
 };
 
-type GitHubMirrorConfig = BoardConfig & {
+type GitHubMirrorRepository = {
+	id: string;
+	github?: { repo?: string };
+};
+
+type GitHubMirrorConfig = Omit<BoardConfig, "repositories"> & {
 	github?: GitHubConfig;
+	repositories?: GitHubMirrorRepository[];
 };
 
 export type GitHubMirrorOptions = {
@@ -102,13 +109,6 @@ async function mirrorOrPush(
 	options: GitHubMirrorOptions,
 	mode: { requireExistingMirror: boolean },
 ): Promise<Result<GitHubMirrorResult, GitHubMirrorError>> {
-	const repo = options.config.github?.repo;
-	if (!repo) {
-		return fail(
-			"missing_config",
-			"Set github.repo in .mikan/config.yaml before using GitHub Mirror.",
-		);
-	}
 	const found = findIssueById({
 		projectRoot: options.projectRoot,
 		config: options.config,
@@ -118,6 +118,9 @@ async function mirrorOrPush(
 	if (mode.requireExistingMirror && !found.value.issue.githubIssue) {
 		return fail("missing_config", `Issue has no GitHub Mirror: ${options.id}`);
 	}
+	const resolved = resolveTargetRepo(options.config, found.value.issue);
+	if (!resolved.ok) return resolved;
+	const repo = resolved.value;
 	const runner = options.runner ?? defaultGhApiRunner;
 	try {
 		return await writeMirror({
@@ -131,6 +134,54 @@ async function mirrorOrPush(
 	} catch (error) {
 		return fail("github_error", formatGhFailure(error));
 	}
+}
+
+function resolveTargetRepo(
+	config: GitHubMirrorConfig,
+	issue: ParsedIssue,
+): Result<string, GitHubMirrorError> {
+	// Existing Mirrors keep their stored repo identity; do not retarget them
+	// even if the Issue's repository later changes or its config goes missing.
+	const existingRepo = issue.githubIssue?.repo;
+	if (existingRepo) return { ok: true, value: existingRepo };
+
+	const repositories = config.repositories;
+	const workspaceMode = repositories !== undefined && repositories.length > 0;
+	if (workspaceMode) {
+		const repositoryId = issue.repository;
+		if (repositoryId === undefined) {
+			return fail<string>(
+				"missing_config",
+				`Issue ${String(issue.id)} has no repository; set 'repository' before creating a GitHub Mirror in workspace mode.`,
+			);
+		}
+		const match = repositories.find(
+			(repository) => repository.id === repositoryId,
+		);
+		if (!match) {
+			return fail<string>(
+				"not_found",
+				`Unknown repository '${repositoryId}' on ${String(issue.id)}; configure it under repositories in .mikan/config.yaml before creating a GitHub Mirror.`,
+			);
+		}
+		const repo = match.github?.repo;
+		if (!repo) {
+			return fail<string>(
+				"missing_config",
+				`Repository '${repositoryId}' has no github.repo configured in .mikan/config.yaml.`,
+			);
+		}
+		return { ok: true, value: repo };
+	}
+
+	const repo = config.github?.repo;
+	if (!repo) {
+		return fail<string>(
+			"missing_config",
+			"Set github.repo in .mikan/config.yaml before using GitHub Mirror.",
+		);
+	}
+	return { ok: true, value: repo };
 }
 
 async function writeMirror(options: {
@@ -323,10 +374,10 @@ function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-function fail(
+function fail<T = GitHubMirrorResult>(
 	kind: GitHubMirrorError["kind"] | string,
 	message: string,
-): Result<GitHubMirrorResult, GitHubMirrorError> {
+): Result<T, GitHubMirrorError> {
 	return {
 		ok: false,
 		error: {

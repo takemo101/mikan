@@ -48,13 +48,26 @@ function writeIssue(
 		title?: string;
 		labels?: string[];
 		githubIssue?: string;
+		repository?: string;
+		affects?: string[];
 	} = {},
 ): string {
 	const id = options.id ?? "MIK-123";
 	const status = options.status ?? "ready";
 	const labels = options.labels ?? ["automation", "herdr"];
+	const labelsBlock =
+		labels.length > 0
+			? `labels:\n${labels.map((label) => `  - ${label}`).join("\n")}\n`
+			: "labels: []\n";
 	const githubIssue = options.githubIssue ? `${options.githubIssue}\n` : "";
-	const markdown = `---\nid: ${id}\ntitle: ${options.title ?? "Add docs"}\nlabels:\n${labels.map((label) => `  - ${label}`).join("\n")}\n${githubIssue}created_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# ${options.title ?? "Add docs"}\n\n## Summary\n\nBody text.\n`;
+	const repository = options.repository
+		? `repository: ${options.repository}\n`
+		: "";
+	const affects =
+		options.affects && options.affects.length > 0
+			? `affects:\n${options.affects.map((entry) => `  - ${entry}`).join("\n")}\n`
+			: "";
+	const markdown = `---\nid: ${id}\ntitle: ${options.title ?? "Add docs"}\n${labelsBlock}${repository}${affects}${githubIssue}created_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# ${options.title ?? "Add docs"}\n\n## Summary\n\nBody text.\n`;
 	const path = join(root, ".mikan", status, `${id}.md`);
 	writeFileSync(path, markdown);
 	return path;
@@ -269,5 +282,179 @@ describe("GitHub Mirror operations", () => {
 		if (result.ok) throw new Error("expected error");
 		expect(result.error.message).toContain("GitHub Mirror requires the gh CLI");
 		expect(result.error.message).toContain("gh auth login");
+	});
+});
+
+const workspaceConfig: BoardConfig & {
+	project: { key: string; name: string };
+	github?: { repo?: string; auto_push_mirrors: boolean };
+	repositories: { id: string; title: string; github: { repo: string } }[];
+} = {
+	project: { key: "WKS", name: "Product Workspace" },
+	board: {
+		columns: [
+			{ id: "ready", title: "Ready" },
+			{ id: "active", title: "Active" },
+		],
+	},
+	labels: [
+		{ id: "automation", title: "Automation" },
+		{ id: "herdr", title: "Herdr" },
+	],
+	github: { auto_push_mirrors: false },
+	repositories: [
+		{ id: "workspace", title: "Workspace", github: { repo: "org/triage" } },
+		{ id: "frontend", title: "Frontend", github: { repo: "org/frontend" } },
+		{ id: "backend", title: "Backend", github: { repo: "org/backend" } },
+	],
+};
+
+function tempWorkspaceProject(): string {
+	const root = mkdtempSync(join(tmpdir(), "mikan-github-ws-"));
+	for (const status of workspaceConfig.board.columns) {
+		mkdirSync(join(root, ".mikan", status.id), { recursive: true });
+	}
+	return root;
+}
+
+describe("GitHub Mirror target resolution in workspace mode", () => {
+	test("resolves a new Mirror target from the Issue's primary repository", async () => {
+		const root = tempWorkspaceProject();
+		writeIssue(root, {
+			id: "WKS-001",
+			repository: "backend",
+			affects: ["frontend"],
+			labels: ["automation"],
+		});
+		const { runner, calls } = fakeRunner({
+			"GET repos/org/backend/labels": [{ name: "automation" }],
+			"POST repos/org/backend/issues": {
+				number: 7,
+				html_url: "https://github.com/org/backend/issues/7",
+			},
+		});
+
+		const result = await mirrorIssueToGitHub({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "WKS-001",
+			runner,
+			now,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error(result.error.message);
+		expect(result.value.github_issue.repo).toBe("org/backend");
+		expect(calls.map((call) => `${call.method} ${call.endpoint}`)).toEqual([
+			"GET repos/org/backend/labels",
+			"POST repos/org/backend/issues",
+		]);
+		const markdown = readFileSync(
+			join(root, ".mikan", "ready", "WKS-001.md"),
+			"utf8",
+		);
+		expect(markdown).toContain("repo: org/backend");
+	});
+
+	test("does not use top-level github.repo as a workspace fallback", async () => {
+		const root = tempWorkspaceProject();
+		writeIssue(root, { id: "WKS-002", repository: "frontend", labels: [] });
+		const { runner, calls } = fakeRunner({
+			"GET repos/org/frontend/labels": [],
+			"POST repos/org/frontend/issues": {
+				number: 3,
+				html_url: "https://github.com/org/frontend/issues/3",
+			},
+		});
+
+		const result = await mirrorIssueToGitHub({
+			projectRoot: root,
+			config: {
+				...workspaceConfig,
+				github: { repo: "org/should-not-be-used", auto_push_mirrors: false },
+			},
+			id: "WKS-002",
+			runner,
+			now,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error(result.error.message);
+		expect(result.value.github_issue.repo).toBe("org/frontend");
+		expect(
+			calls.every((call) => call.endpoint.startsWith("repos/org/frontend/")),
+		).toBe(true);
+	});
+
+	test("fails clearly when the Issue has no repository", async () => {
+		const root = tempWorkspaceProject();
+		writeIssue(root, { id: "WKS-003", labels: [] });
+		const { runner } = fakeRunner({});
+
+		const result = await mirrorIssueToGitHub({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "WKS-003",
+			runner,
+			now,
+		});
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected error");
+		expect(result.error.message).toContain("has no repository");
+	});
+
+	test("fails clearly when the Issue repository is not configured", async () => {
+		const root = tempWorkspaceProject();
+		writeIssue(root, { id: "WKS-004", repository: "mobile", labels: [] });
+		const { runner } = fakeRunner({});
+
+		const result = await mirrorIssueToGitHub({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "WKS-004",
+			runner,
+			now,
+		});
+
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("expected error");
+		expect(result.error.message).toContain("Unknown repository 'mobile'");
+	});
+
+	test("keeps an existing Mirror's repo even when the Issue repository differs", async () => {
+		const root = tempWorkspaceProject();
+		writeIssue(root, {
+			id: "WKS-005",
+			status: "active",
+			repository: "backend",
+			labels: ["automation"],
+			githubIssue:
+				"github_issue:\n  repo: org/frontend\n  number: 9\n  url: https://github.com/org/frontend/issues/9\n  last_mirrored_at: 2026-06-01T00:00:00Z",
+		});
+		const { runner, calls } = fakeRunner({
+			"GET repos/org/frontend/labels": [{ name: "automation" }],
+			"GET repos/org/frontend/issues/9": { labels: [{ name: "external" }] },
+			"PATCH repos/org/frontend/issues/9": {
+				number: 9,
+				html_url: "https://github.com/org/frontend/issues/9",
+			},
+		});
+
+		const result = await mirrorIssueToGitHub({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "WKS-005",
+			runner,
+			now,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error(result.error.message);
+		expect(result.value.action).toBe("updated");
+		expect(result.value.github_issue.repo).toBe("org/frontend");
+		expect(
+			calls.every((call) => call.endpoint.startsWith("repos/org/frontend/")),
+		).toBe(true);
 	});
 });
