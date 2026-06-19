@@ -54,6 +54,22 @@ Metadata must be a JSON-compatible object. `update --metadata` replaces the whol
 
 Metadata is advisory context only. It is not priority, assignment, scheduling input, or a transition gate.
 
+## Workspace Repositories
+
+In workspace mode (config has a top-level `repositories` list), every Issue declares one primary Repository, and may list additional Repositories it affects:
+
+```sh
+mikan add "Fix login contract" --repository backend --affects frontend --label bug
+mikan add "Cross-cut change" -r backend --affects frontend --affects infra
+mikan update WKS-002 --repository frontend --affects backend
+```
+
+- `--repository <id>` (alias `-r`) sets the primary Repository and is required by `add` in workspace mode.
+- `--affects <id>` adds an affected Repository; repeat it for several. `affects` must not repeat the primary `repository`.
+- On `update`, omitting `--repository` or `--affects` preserves the existing values.
+
+`repository` decides the GitHub Mirror target for new Mirrors. `affects` is display/filter context only, and neither `affects` nor Labels ever choose the Mirror target. `mikan show` prints the Repository frontmatter; `mikan list` stays concise. See [Config](./config.md) for workspace setup and [GitHub Mirror](./github-mirror.md) for per-Repository targets.
+
 ## GitHub Mirror
 
 GitHub Mirror publishes local Markdown Issues outward to GitHub Issues without making GitHub authoritative.

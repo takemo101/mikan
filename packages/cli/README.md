@@ -47,6 +47,16 @@ mikan update MIK-001 --metadata '{}'
 
 Metadata must be a JSON-compatible object. Omitting `--metadata` preserves existing metadata; passing `{}` clears it. MCP read tools include metadata, MCP `create_issue` and `update_issue` accept it, hooks receive `MIKAN_ISSUE_METADATA`, and TUI Detail displays metadata without adding it to dense Board Cards.
 
+## Workspace Repositories
+
+A project enters workspace mode when `.mikan/config.yaml` has a top-level `repositories` list, letting one parent `.mikan` board coordinate several local repositories. Issues stay in the parent `.mikan`, IDs stay one workspace-wide sequence, and mikan does not become a multi-project scheduler or worker pool.
+
+```sh
+mikan add "Fix login contract" --repository backend --affects frontend --label bug
+```
+
+Each Issue declares one required primary `repository`; `affects` lists other Repositories it touches and is display/filter context only. The TUI `f` modal filters by primary `repository`. New GitHub Mirrors resolve from the Issue's `repository` to that Repository's `repositories[].github.repo`; Labels and `affects` never choose the Mirror target. MCP `create_issue` / `update_issue` accept `repository` and `affects`, and read tools include them. See the manual: <https://takemo101.github.io/mikan/config>.
+
 ## TUI columns
 
 `mikan tui --columns <auto|2|3|4|5>` (default `auto`) controls how many Status Columns the board shows at once. `auto` derives between 2 and 5 visible Columns from terminal width and keeps the sliding viewport. Fixed values pin an explicit count:

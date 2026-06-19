@@ -158,6 +158,7 @@ Key bindings:
 - `Enter`: open full-page Markdown detail
 - `n`: append a Note in a modal prompt
 - `e`: edit Labels in a modal prompt
+- `f`: filter Cards by primary Repository (workspace mode)
 - `a`: confirm Archive in a modal prompt
 - `g`: create or update a one-way GitHub Mirror
 - `w`: show warning details in a modal
@@ -192,15 +193,15 @@ Available tools:
 - `get_board(include_archived?)`
 - `list_issues(status?, include_archived?)`
 - `get_issue(id)`
-- `create_issue(title, body?, status?, labels?, depends_on?, metadata?)`
-- `update_issue(id, title?, labels?, body?, depends_on?, metadata?)`
+- `create_issue(title, body?, status?, labels?, depends_on?, metadata?, repository?, affects?)`
+- `update_issue(id, title?, labels?, body?, depends_on?, metadata?, repository?, affects?)`
 - `move_issue(id, status, log?)`
 - `append_issue(id, section, body, source?)`
 - `mirror_issue_to_github(id)` — explicit one-way publication to create the GitHub Issue mirror when missing or update it when it already exists.
 
 GitHub Mirror keeps Markdown authoritative. It publishes outward to GitHub Issues; it does not import GitHub state.
 
-The MCP surface intentionally mirrors CLI primitives. Read tools include Issue Metadata in their structured responses, and `create_issue` / `update_issue` accept a JSON-compatible metadata object. mikan stays **stdio MCP only**: there is no HTTP server, port, auth, scheduler, workflow engine, or delegation runtime.
+The MCP surface intentionally mirrors CLI primitives. Read tools include Issue Metadata in their structured responses, and `create_issue` / `update_issue` accept a JSON-compatible metadata object. In workspace mode, read tools also include the Issue's primary `repository` and any `affects` Repositories, and `create_issue` / `update_issue` accept `repository` and repeated `affects` values. mikan stays **stdio MCP only**: there is no HTTP server, port, auth, scheduler, workflow engine, or delegation runtime.
 
 ## Agent setup
 
@@ -320,6 +321,42 @@ labels:
 ```
 
 Issue IDs are generated from the project key and a sequence number. `MIK-001` is the display convention, but higher sequences such as `MIK-1000` are supported.
+
+## Workspace Repositories
+
+A project enters workspace mode when `.mikan/config.yaml` has a top-level `repositories` list. One parent `.mikan` board then coordinates several local repositories under the same workspace directory. Markdown Issues still live in the parent `.mikan`, Status is still the lifecycle axis, and Issue IDs stay one workspace-wide sequence such as `WKS-001`. Workspace mode is not a multi-project scheduler or worker pool.
+
+```yaml
+repositories:
+  - id: workspace
+    title: Workspace
+    path: .
+    github:
+      repo: org/workspace-triage
+  - id: frontend
+    title: Frontend
+    path: ./frontend
+    github:
+      repo: org/frontend
+  - id: backend
+    title: Backend
+    path: ./backend
+    github:
+      repo: org/backend
+```
+
+In workspace mode every Issue declares one primary `repository`, and may list additional `affects` Repositories it also touches:
+
+```sh
+mikan add "Fix login contract" --repository backend --affects frontend --label bug
+```
+
+- `repository` is required on every Issue; workspace-level work uses an explicit Repository such as `workspace`, not a missing one.
+- `affects` is display/filter context only and must not repeat the primary `repository`.
+- The TUI `f` modal filters Cards by primary `repository` (including `All repositories`); it does not filter by `affects`.
+- New GitHub Mirrors target the Issue's `repository` → `repositories[].github.repo`. Labels and `affects` never choose the Mirror target.
+
+See the manual for the full workspace setup, config rules, and Mirror behavior: <https://takemo101.github.io/mikan/config>
 
 ## Package and release notes
 
