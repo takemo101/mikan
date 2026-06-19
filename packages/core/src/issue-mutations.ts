@@ -231,31 +231,48 @@ export function updateIssue(
 			finalAffects,
 		);
 		if (!repositoryValidation.ok) return repositoryValidation;
+		// Reconstruct frontmatter in canonical key order (matching createIssue)
+		// rather than mutating after construction, which would append newly added
+		// repository/affects keys after created_at/updated_at.
+		const {
+			id: existingId,
+			title: _existingTitle,
+			labels: _existingLabels,
+			depends_on: existingDependsOn,
+			repository: _existingRepository,
+			affects: _existingAffects,
+			metadata: existingMetadata,
+			created_at: existingCreatedAt,
+			updated_at: _existingUpdatedAt,
+			...extraFrontmatter
+		} = document.value.frontmatter;
+		const finalRepositoryValue = workspaceMode
+			? repositoryValidation.value.repository
+			: document.value.frontmatter.repository;
+		const finalAffectsValue = workspaceMode
+			? repositoryValidation.value.affects
+			: document.value.frontmatter.affects;
+		const finalMetadata = metadataValidation
+			? metadataValidation.value
+			: existingMetadata;
 		const frontmatter: IssueFrontmatter = {
-			...document.value.frontmatter,
+			id: existingId,
 			title: options.title ?? target.value.issue.title,
 			labels,
-			...(dependenciesValidation
-				? { depends_on: dependenciesValidation.value.map(String) }
+			depends_on: dependenciesValidation
+				? dependenciesValidation.value.map(String)
+				: existingDependsOn,
+			...(finalRepositoryValue !== undefined
+				? { repository: finalRepositoryValue }
 				: {}),
-			...(metadataValidation ? { metadata: metadataValidation.value } : {}),
+			...(finalAffectsValue && finalAffectsValue.length > 0
+				? { affects: finalAffectsValue }
+				: {}),
+			...(finalMetadata !== undefined ? { metadata: finalMetadata } : {}),
+			created_at: existingCreatedAt,
 			updated_at: utcNow(options.now),
+			...extraFrontmatter,
 		};
-		if (workspaceMode) {
-			if (repositoryValidation.value.repository !== undefined) {
-				frontmatter.repository = repositoryValidation.value.repository;
-			} else {
-				delete frontmatter.repository;
-			}
-			if (
-				repositoryValidation.value.affects &&
-				repositoryValidation.value.affects.length > 0
-			) {
-				frontmatter.affects = repositoryValidation.value.affects;
-			} else {
-				delete frontmatter.affects;
-			}
-		}
 		const updated = serializeIssue({
 			frontmatter,
 			body: options.body ?? target.value.issue.body,

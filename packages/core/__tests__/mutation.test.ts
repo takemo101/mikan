@@ -799,6 +799,60 @@ describe("workspace Repository mutations", () => {
 		expect(result.value.issue.affects).toEqual(["frontend"]);
 	});
 
+	test("update keeps canonical frontmatter order when affects is newly added", () => {
+		const root = tempProject();
+		expect(
+			createIssue({
+				projectRoot: root,
+				config: workspaceConfig,
+				title: "Workspace issue",
+				repository: "backend",
+				now: t1,
+			}).ok,
+		).toBe(true);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "MIK-001",
+			affects: ["frontend"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.issue.affects).toEqual(["frontend"]);
+		const markdown = readIssue(root, "backlog");
+		expect(markdown).toContain(
+			"depends_on: []\nrepository: backend\naffects:\n  - frontend\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T01:02:03Z",
+		);
+	});
+
+	test("update keeps canonical frontmatter order when repository is newly added", () => {
+		const root = tempProject();
+		writeFileSync(
+			join(root, ".mikan", "backlog", "MIK-001.md"),
+			`---\nid: MIK-001\ntitle: Seed\nlabels: []\ndepends_on: []\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# Seed\n`,
+		);
+
+		const result = updateIssue({
+			projectRoot: root,
+			config: workspaceConfig,
+			id: "MIK-001",
+			repository: "backend",
+			affects: ["frontend"],
+			now: t2,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected update");
+		expect(result.value.issue.repository).toBe("backend");
+		expect(result.value.issue.affects).toEqual(["frontend"]);
+		expect(readIssue(root, "backlog")).toContain(
+			"depends_on: []\nrepository: backend\naffects:\n  - frontend\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T01:02:03Z",
+		);
+	});
+
 	test("update clears affects with an empty array", () => {
 		const root = tempProject();
 		expect(
