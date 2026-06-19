@@ -63,6 +63,7 @@ export type TuiModel = {
 	githubRepo?: string;
 	repositories?: TuiRepository[];
 	repositoryTitles?: Record<string, string>;
+	repositoryGithubRepos?: Record<string, string>;
 };
 
 export type TuiDetails = {
@@ -95,9 +96,16 @@ export function buildTuiModel(
 	board: BoardSnapshot,
 	labels: { id: string; title: string }[] = [],
 	githubRepo?: string,
-	repositories?: { id: string; title: string }[],
+	repositories?: { id: string; title: string; github?: { repo?: string } }[],
 ): TuiModel {
 	const workspaceMode = repositories !== undefined && repositories.length > 0;
+	const repositoryGithubRepos = Object.fromEntries(
+		(repositories ?? []).flatMap((repository) =>
+			repository.github?.repo
+				? [[repository.id, repository.github.repo] as const]
+				: [],
+		),
+	);
 	return {
 		columns: board.columns.map((column) => ({
 			id: column.id,
@@ -122,6 +130,9 @@ export function buildTuiModel(
 					repositoryTitles: Object.fromEntries(
 						repositories.map((repository) => [repository.id, repository.title]),
 					),
+					...(Object.keys(repositoryGithubRepos).length > 0
+						? { repositoryGithubRepos }
+						: {}),
 				}
 			: {}),
 	};

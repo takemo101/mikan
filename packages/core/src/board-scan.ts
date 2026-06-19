@@ -11,7 +11,7 @@ import {
 
 export type ColumnConfig = { id: string; title: string };
 export type LabelConfig = { id: string; title: string };
-export type RepositoryRef = { id: string };
+export type RepositoryRef = { id: string; github?: { repo?: string } };
 export type BoardConfig = {
 	board: { columns: ColumnConfig[] };
 	labels: LabelConfig[];
@@ -38,6 +38,7 @@ export type BoardWarning = {
 		| "unknown_repository"
 		| "unknown_affects"
 		| "affects_includes_primary"
+		| "mirror_repo_mismatch"
 		| "hook_failure"
 		| "dependency_missing"
 		| "dependency_incomplete"
@@ -95,6 +96,12 @@ export function scanBoard(
 	const repositoryIds = new Set(
 		(repositories ?? []).map((repository) => repository.id),
 	);
+	const repositoryGithubRepos = new Map(
+		(repositories ?? []).map((repository) => [
+			repository.id,
+			repository.github?.repo,
+		]),
+	);
 	const warnings: BoardWarning[] = [];
 	const byId = new Map<string, BoardIssue[]>();
 	const columns: BoardColumn[] = visibleColumns.map((column) => ({
@@ -143,7 +150,13 @@ export function scanBoard(
 			}
 			if (workspaceMode) {
 				warnings.push(
-					...repositoryWarnings(parsed.value, repositoryIds, path, id),
+					...repositoryWarnings(
+						parsed.value,
+						repositoryIds,
+						repositoryGithubRepos,
+						path,
+						id,
+					),
 				);
 			}
 			visibleByStatus.get(statusId)?.issues.push(item);
@@ -262,6 +275,7 @@ export function findIssueById(options: {
 function repositoryWarnings(
 	issue: ParsedIssue,
 	repositoryIds: Set<string>,
+	repositoryGithubRepos: Map<string, string | undefined>,
 	path: string,
 	id: string,
 ): BoardWarning[] {
@@ -281,6 +295,17 @@ function repositoryWarnings(
 			path,
 			issueId: id,
 		});
+	} else {
+		const mirrorRepo = issue.githubIssue?.repo;
+		const configuredRepo = repositoryGithubRepos.get(repository);
+		if (mirrorRepo && configuredRepo && mirrorRepo !== configuredRepo) {
+			warnings.push({
+				kind: "mirror_repo_mismatch",
+				message: `GitHub Mirror repo ${mirrorRepo} on ${id} differs from repository ${repository}'s configured github.repo ${configuredRepo}`,
+				path,
+				issueId: id,
+			});
+		}
 	}
 	for (const affected of issue.affects) {
 		if (repository !== undefined && affected === repository) {

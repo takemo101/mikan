@@ -380,6 +380,54 @@ describe("board scanner", () => {
 		);
 	});
 
+	test("warns when github_issue.repo differs from the repository's github.repo", () => {
+		const root = tempProject();
+		const mirrorConfig: BoardConfig = {
+			...config,
+			repositories: [
+				{ id: "frontend", github: { repo: "acme/frontend" } },
+				{ id: "backend", github: { repo: "acme/backend" } },
+			],
+		};
+		const mirroredIssue = (
+			id: string,
+			repository: string,
+			mirrorRepo: string,
+		): string =>
+			`---\nid: ${id}\ntitle: ${id}\nrepository: ${repository}\ngithub_issue:\n  repo: ${mirrorRepo}\n  number: 12\n  url: https://github.com/${mirrorRepo}/issues/12\n  last_mirrored_at: 2026-05-30T00:00:00Z\ncreated_at: 2026-05-30T00:00:00Z\nupdated_at: 2026-05-30T00:00:00Z\n---\n\n# ${id}\n`;
+
+		// Mirror stored in a different repo than the Issue's current repository.
+		writeIssue(
+			root,
+			"ready",
+			"MIK-001",
+			mirroredIssue("MIK-001", "backend", "acme/frontend"),
+		);
+		// Mirror stored in the matching repo: no warning.
+		writeIssue(
+			root,
+			"ready",
+			"MIK-002",
+			mirroredIssue("MIK-002", "backend", "acme/backend"),
+		);
+
+		const result = scanBoard({ projectRoot: root, config: mirrorConfig });
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected board");
+		const byIssue = (issueId: string) =>
+			result.value.warnings.filter((warning) => warning.issueId === issueId);
+		expect(byIssue("MIK-001")).toContainEqual(
+			expect.objectContaining({
+				kind: "mirror_repo_mismatch",
+				issueId: "MIK-001",
+			}),
+		);
+		expect(byIssue("MIK-001")[0]?.message).toContain("acme/frontend");
+		expect(byIssue("MIK-001")[0]?.message).toContain("acme/backend");
+		expect(byIssue("MIK-002")).toEqual([]);
+	});
+
 	test("does not warn about Repositories in single-project mode", () => {
 		const root = tempProject();
 		writeIssue(root, "ready", "MIK-001");

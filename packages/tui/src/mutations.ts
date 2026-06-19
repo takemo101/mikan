@@ -298,7 +298,8 @@ export async function beginSelectedIssueGitHubMirror(options: {
 			message: loaded.error.message,
 		};
 	}
-	if (!loaded.value.config.github?.repo) {
+	const workspaceMode = (loaded.value.config.repositories?.length ?? 0) > 0;
+	if (!workspaceMode && !loaded.value.config.github?.repo) {
 		return {
 			ok: false,
 			model: options.model,

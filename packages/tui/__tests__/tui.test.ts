@@ -869,8 +869,10 @@ describe("TUI model and navigation", () => {
 			repo: "takemo101/mikan",
 			number: 123,
 		});
-		expect(page?.githubText).toBe("GitHub #123");
-		expect(collectTextContent(detailTree)).toContain("GitHub #123");
+		expect(page?.githubText).toBe("GitHub #123 takemo101/mikan");
+		expect(collectTextContent(detailTree)).toContain(
+			"GitHub #123 takemo101/mikan",
+		);
 		expect(boardText).not.toContain("GitHub #123");
 	});
 
@@ -2631,6 +2633,44 @@ updated_at: 2026-05-30T00:00:00Z
 		const text = collectTextContent(tree);
 		expect(text).toContain("repo Frontend App (frontend)");
 		expect(text).toContain("affects Backend API");
+	});
+
+	test("workspace GitHub Mirror confirmation resolves target repo from the Issue repository", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(cwd, "MIK-001", "repository: backend\n");
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+			githubConfirmOpen: true,
+		};
+
+		const prompt = buildGitHubMirrorPromptViewModel(model, selection);
+		expect(prompt?.body).toContain("Repo: org/backend");
+		expect(prompt?.body).not.toContain("org/frontend");
+		expect(prompt?.body).not.toContain("(not configured)");
+	});
+
+	test("workspace Detail GitHub metadata shows the stored mirror repo", () => {
+		const cwd = tempWorkspaceProject();
+		writeWorkspaceIssue(
+			cwd,
+			"MIK-001",
+			"repository: frontend\ngithub_issue:\n  repo: org/frontend\n  number: 7\n  url: https://github.com/org/frontend/issues/7\n  last_mirrored_at: 2026-05-30T00:00:00Z\n",
+		);
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const page = buildDetailPageViewModel(model, selection);
+		expect(page?.githubText).toBe("GitHub #7 org/frontend");
+		expect(collectTextContent(TuiAppView({ model, selection }))).toContain(
+			"GitHub #7 org/frontend",
+		);
 	});
 
 	test("workspace Detail omits affects when empty", () => {

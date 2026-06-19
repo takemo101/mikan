@@ -89,7 +89,7 @@ export function buildDetailPageViewModel(
 		dependencyStatus: cardDependencyStatus(details.card),
 		warningCount: warningCountForCard(model.warningDetails, details.card),
 		githubText: details.card.githubIssue
-			? `GitHub #${details.card.githubIssue.number}`
+			? `GitHub #${details.card.githubIssue.number} ${details.card.githubIssue.repo}`
 			: "",
 		repositoryText: formatRepositoryText(model, details.card),
 		affectsText: formatAffectsText(model, details.card),
