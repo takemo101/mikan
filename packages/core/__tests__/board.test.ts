@@ -380,6 +380,57 @@ describe("board scanner", () => {
 		);
 	});
 
+	test("warns when a configured workspace Repository path is missing", () => {
+		const root = tempProject();
+		mkdirSync(join(root, "frontend"));
+		const workspaceConfig: BoardConfig = {
+			...config,
+			repositories: [
+				{ id: "workspace", path: "." },
+				{ id: "frontend", path: "./frontend" },
+				{ id: "backend", path: "./backend" },
+			],
+		};
+
+		const result = scanBoard({ projectRoot: root, config: workspaceConfig });
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected board");
+		expect(result.value.warnings).toContainEqual(
+			expect.objectContaining({
+				kind: "missing_repository_path",
+				path: join(root, "./backend"),
+			}),
+		);
+		expect(result.value.warnings.map((warning) => warning.message)).toContain(
+			"Repository backend path does not exist: ./backend",
+		);
+		expect(result.value.warnings).not.toContainEqual(
+			expect.objectContaining({
+				kind: "missing_repository_path",
+				path: join(root, "."),
+			}),
+		);
+		expect(result.value.warnings).not.toContainEqual(
+			expect.objectContaining({
+				kind: "missing_repository_path",
+				path: join(root, "./frontend"),
+			}),
+		);
+	});
+
+	test("does not warn about Repository paths in single-project mode", () => {
+		const root = tempProject();
+
+		const result = scanBoard({ projectRoot: root, config });
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected board");
+		expect(result.value.warnings.map((warning) => warning.kind)).not.toContain(
+			"missing_repository_path",
+		);
+	});
+
 	test("warns when github_issue.repo differs from the repository's github.repo", () => {
 		const root = tempProject();
 		const mirrorConfig: BoardConfig = {

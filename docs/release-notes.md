@@ -11,7 +11,9 @@ several local repositories while keeping Issues, IDs, and storage in the parent.
 - **Workspace Repository mode**: a project enters workspace mode when
   `.mikan/config.yaml` declares a top-level `repositories` list. Each Issue
   carries one required primary `repository` plus optional `affects` Repositories
-  for display/filter context. IDs stay one workspace-wide sequence.
+  for display/filter context. IDs stay one workspace-wide sequence, and missing
+  configured Repository paths surface as board warnings rather than config-load
+  failures.
 - **TUI Repository filter**: the board `f` modal filters Issues by their primary
   `repository`.
 - **Per-Repository GitHub Mirror target resolution**: new GitHub Mirrors resolve
