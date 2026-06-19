@@ -142,6 +142,8 @@ export function createIssueTool(
 		labels?: string[];
 		depends_on?: string[];
 		metadata?: unknown;
+		repository?: string;
+		affects?: string[];
 	},
 	runtime: McpRuntime = {},
 ): McpToolResult<unknown> {
@@ -156,6 +158,8 @@ export function createIssueTool(
 		labels: args.labels,
 		dependencies: args.depends_on,
 		metadata: args.metadata,
+		repository: args.repository,
+		affects: args.affects,
 		now: runtime.now,
 	});
 	if (!result.ok) return coreError(result.error.kind, result.error.message);
@@ -170,6 +174,8 @@ export function updateIssueTool(
 		body?: string;
 		depends_on?: string[];
 		metadata?: unknown;
+		repository?: string;
+		affects?: string[];
 	},
 	runtime: McpRuntime = {},
 ): McpToolResult<unknown> {
@@ -184,6 +190,8 @@ export function updateIssueTool(
 		body: args.body,
 		dependencies: args.depends_on,
 		...(Object.hasOwn(args, "metadata") ? { metadata: args.metadata } : {}),
+		repository: args.repository,
+		affects: args.affects,
 		now: runtime.now,
 	});
 	if (!result.ok) return coreError(result.error.kind, result.error.message);
@@ -271,7 +279,8 @@ export function createMikanMcpCli(runtime: McpRuntime = {}) {
 			run: (context) => forIncur(context, getIssueTool(context.args, runtime)),
 		})
 		.command("create_issue", {
-			description: "Create an Issue with the next generated Issue ID.",
+			description:
+				"Create an Issue with the next generated Issue ID. In workspace mode, repository sets the Issue's required primary Repository ID and affects lists other affected Repository IDs.",
 			args: z.object({
 				title: z.string(),
 				body: z.string().optional(),
@@ -279,13 +288,15 @@ export function createMikanMcpCli(runtime: McpRuntime = {}) {
 				labels: z.array(z.string()).optional(),
 				depends_on: z.array(z.string()).optional(),
 				metadata: z.unknown().optional(),
+				repository: z.string().optional(),
+				affects: z.array(z.string()).optional(),
 			}),
 			run: (context) =>
 				forIncur(context, createIssueTool(context.args, runtime)),
 		})
 		.command("update_issue", {
 			description:
-				"Update title, labels, dependencies, or body through the core update primitive.",
+				"Update title, labels, dependencies, metadata, or body through the core update primitive. In workspace mode, repository sets the primary Repository ID and affects lists other affected Repository IDs.",
 			args: z.object({
 				id: z.string(),
 				title: z.string().optional(),
@@ -293,6 +304,8 @@ export function createMikanMcpCli(runtime: McpRuntime = {}) {
 				body: z.string().optional(),
 				depends_on: z.array(z.string()).optional(),
 				metadata: z.unknown().optional(),
+				repository: z.string().optional(),
+				affects: z.array(z.string()).optional(),
 			}),
 			run: (context) =>
 				forIncur(context, updateIssueTool(context.args, runtime)),
@@ -376,6 +389,10 @@ function formatIssue(issue: BoardIssue, warnings: BoardWarning[]) {
 		path: issue.path,
 		depends_on: issue.issue.dependencies.map(String),
 		unmet_dependencies: issue.unmetDependencies.map(String),
+		...(issue.issue.repository !== undefined
+			? { repository: issue.issue.repository }
+			: {}),
+		...(issue.issue.affects.length > 0 ? { affects: issue.issue.affects } : {}),
 		metadata: issue.issue.metadata,
 		dependency_status: issue.dependencyStatus,
 		warnings: warnings.filter(

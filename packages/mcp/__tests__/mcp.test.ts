@@ -26,6 +26,46 @@ function tempProject(): string {
 	return root;
 }
 
+function tempWorkspaceProject(): string {
+	const root = tempProject();
+	writeFileSync(
+		join(root, ".mikan", "config.yaml"),
+		`project:
+  key: MIK
+  name: mikan
+board:
+  columns:
+    - id: backlog
+      title: Backlog
+    - id: ready
+      title: Ready
+    - id: active
+      title: Active
+    - id: blocked
+      title: Blocked
+    - id: completed
+      title: Completed
+    - id: archived
+      title: Archived
+labels:
+  - id: automation
+    title: Automation
+repositories:
+  - id: backend
+    title: Backend API
+    path: repos/backend
+    github:
+      repo: org/backend
+  - id: frontend
+    title: Frontend App
+    path: repos/frontend
+    github:
+      repo: org/frontend
+`,
+	);
+	return root;
+}
+
 describe("MCP tools", () => {
 	test("schemas are exposed through incur manifest", async () => {
 		let stdout = "";
@@ -45,6 +85,8 @@ describe("MCP tools", () => {
 		expect(stdout).not.toContain("push_github_mirror");
 		expect(stdout).toContain("depends_on");
 		expect(stdout).toContain("metadata");
+		expect(stdout).toContain("repository");
+		expect(stdout).toContain("affects");
 		expect(stdout).toContain("Explicit external-publication");
 		expect(stdout).not.toContain("complete_issue");
 	});
@@ -292,6 +334,127 @@ describe("MCP tools", () => {
 			{ cwd, now },
 		);
 		expect(updated.ok).toBe(false);
+	});
+
+	test("non-workspace read tools omit repository and affects", () => {
+		const cwd = tempProject();
+		createIssueTool({ title: "Single project" }, { cwd, now });
+
+		const board = getBoardTool({}, { cwd });
+		const listed = listIssuesTool({}, { cwd });
+		const issue = getIssueTool({ id: "MIK-001" }, { cwd });
+
+		expect(board.ok).toBe(true);
+		expect(listed.ok).toBe(true);
+		expect(issue.ok).toBe(true);
+		if (!board.ok || !listed.ok || !issue.ok) throw new Error("expected ok");
+		for (const data of [board.data, listed.data, issue.data]) {
+			const json = JSON.stringify(data);
+			expect(json).not.toContain('"repository"');
+			expect(json).not.toContain('"affects"');
+		}
+	});
+
+	test("create_issue rejects missing or unknown repository in workspace mode", () => {
+		const cwd = tempWorkspaceProject();
+
+		const missing = createIssueTool({ title: "No repo" }, { cwd, now });
+		expect(missing.ok).toBe(false);
+		if (missing.ok) throw new Error("expected missing repository error");
+		expect(missing.error.code).toBe("missing_repository");
+		expect(missing.error.message).toContain("Missing repository");
+
+		const unknown = createIssueTool(
+			{ title: "Bad repo", repository: "nope" },
+			{ cwd, now },
+		);
+		expect(unknown.ok).toBe(false);
+		if (unknown.ok) throw new Error("expected unknown repository error");
+		expect(unknown.error.code).toBe("unknown_repository");
+		expect(unknown.error.message).toContain("Unknown repository: nope");
+	});
+
+	test("create_issue and update_issue accept workspace repository and affects", () => {
+		const cwd = tempWorkspaceProject();
+
+		const created = createIssueTool(
+			{
+				title: "Workspace issue",
+				repository: "backend",
+				affects: ["frontend"],
+			},
+			{ cwd, now },
+		);
+		expect(created.ok).toBe(true);
+		if (!created.ok) throw new Error("expected ok");
+		const createdJson = JSON.stringify(created.data);
+		expect(createdJson).toContain('"repository":"backend"');
+		expect(createdJson).toContain('"affects":["frontend"]');
+
+		const updated = updateIssueTool(
+			{ id: "MIK-001", repository: "frontend", affects: ["backend"] },
+			{ cwd, now },
+		);
+		expect(updated.ok).toBe(true);
+		if (!updated.ok) throw new Error("expected ok");
+		const updatedJson = JSON.stringify(updated.data);
+		expect(updatedJson).toContain('"repository":"frontend"');
+		expect(updatedJson).toContain('"affects":["backend"]');
+
+		const board = getBoardTool({}, { cwd });
+		const listed = listIssuesTool({}, { cwd });
+		const issue = getIssueTool({ id: "MIK-001" }, { cwd });
+		expect(board.ok).toBe(true);
+		expect(listed.ok).toBe(true);
+		expect(issue.ok).toBe(true);
+		if (!board.ok || !listed.ok || !issue.ok) throw new Error("expected ok");
+		for (const data of [board.data, listed.data, issue.data]) {
+			const json = JSON.stringify(data);
+			expect(json).toContain('"repository":"frontend"');
+			expect(json).toContain('"affects":["backend"]');
+		}
+	});
+
+	test("update_issue rejects affects that includes the primary repository", () => {
+		const cwd = tempWorkspaceProject();
+		createIssueTool(
+			{ title: "Workspace issue", repository: "backend" },
+			{
+				cwd,
+				now,
+			},
+		);
+
+		const rejected = updateIssueTool(
+			{ id: "MIK-001", affects: ["backend"] },
+			{ cwd, now },
+		);
+		expect(rejected.ok).toBe(false);
+		if (rejected.ok) throw new Error("expected affects error");
+		expect(rejected.error.code).toBe("affects_includes_primary");
+	});
+
+	test("update_issue without repository preserves existing workspace fields", () => {
+		const cwd = tempWorkspaceProject();
+		createIssueTool(
+			{
+				title: "Workspace issue",
+				repository: "backend",
+				affects: ["frontend"],
+			},
+			{ cwd, now },
+		);
+
+		const updated = updateIssueTool(
+			{ id: "MIK-001", title: "Renamed" },
+			{ cwd, now },
+		);
+		expect(updated.ok).toBe(true);
+		if (!updated.ok) throw new Error("expected ok");
+		const json = JSON.stringify(updated.data);
+		expect(json).toContain('"title":"Renamed"');
+		expect(json).toContain('"repository":"backend"');
+		expect(json).toContain('"affects":["frontend"]');
 	});
 
 	test("GitHub Mirror tool returns structured success results through fake operations", async () => {
