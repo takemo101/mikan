@@ -7,6 +7,7 @@ import {
 	type BoardWarning,
 	createIssue,
 	findIssueById,
+	type MutationError,
 	moveIssue,
 	type Result,
 	scanBoard,
@@ -178,10 +179,13 @@ export function runAdd(
 		status: parsed.flags.get("status")?.at(-1),
 		labels: parsed.flags.get("label") ?? [],
 		dependencies: parsed.flags.get("depends-on") ?? [],
+		repository: parsed.flags.get("repository")?.at(-1),
+		affects: parsed.flags.get("affects") ?? [],
 		...(metadata.value !== undefined ? { metadata: metadata.value } : {}),
 		now: options.now,
 	});
-	if (!result.ok) return fail(result.error.message);
+	if (!result.ok)
+		return fail(repositoryErrorMessage(result.error, loaded.value.config));
 	return ok(`${String(result.value.issue.id)} ${result.value.issue.title}\n`);
 }
 
@@ -257,11 +261,16 @@ export function runUpdate(
 		dependencies: parsed.flags.has("depends-on")
 			? (parsed.flags.get("depends-on") ?? [])
 			: undefined,
+		repository: parsed.flags.get("repository")?.at(-1),
+		affects: parsed.flags.has("affects")
+			? (parsed.flags.get("affects") ?? [])
+			: undefined,
 		...(parsed.flags.has("metadata") ? { metadata: metadata.value } : {}),
 		body: parsed.flags.get("body")?.at(-1),
 		now: options.now,
 	});
-	if (!result.ok) return fail(result.error.message);
+	if (!result.ok)
+		return fail(repositoryErrorMessage(result.error, loaded.value.config));
 	return ok(`${String(result.value.issue.id)} updated\n`);
 }
 
@@ -313,6 +322,23 @@ export function runAppend(
 	});
 	if (!result.ok) return fail(result.error.message);
 	return ok(`${String(result.value.issue.id)} appended ${section}\n`);
+}
+
+const repositoryErrorKinds = new Set<MutationError["kind"]>([
+	"missing_repository",
+	"unknown_repository",
+	"unknown_affects",
+	"affects_includes_primary",
+]);
+
+function repositoryErrorMessage(
+	error: MutationError,
+	config: { repositories?: Array<{ id: string }> },
+): string {
+	if (!repositoryErrorKinds.has(error.kind)) return error.message;
+	const ids = (config.repositories ?? []).map((entry) => entry.id);
+	if (ids.length === 0) return error.message;
+	return `${error.message}\nConfigured repositories: ${ids.join(", ")}`;
 }
 
 function parseMetadataFlag(

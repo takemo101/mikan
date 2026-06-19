@@ -16,6 +16,13 @@ function tempProject(): string {
 	return mkdtempSync(join(tmpdir(), "mikan-cli-"));
 }
 
+function enableWorkspaceMode(cwd: string): void {
+	writeFileSync(
+		join(cwd, ".mikan", "config.yaml"),
+		`project:\n  key: MIK\n  name: mikan\nboard:\n  columns:\n    - id: backlog\n      title: Backlog\nrepositories:\n  - id: backend\n    title: Backend\n    path: ./backend\n    github:\n      repo: org/backend\n  - id: frontend\n    title: Frontend\n    path: ./frontend\n    github:\n      repo: org/frontend\n  - id: infra\n    title: Infra\n    path: ./infra\n    github:\n      repo: org/infra\n`,
+	);
+}
+
 import { mkdtempSync } from "node:fs";
 
 async function cli(
@@ -1116,5 +1123,116 @@ describe("CLI read path", () => {
 
 		expect(result.exitCode).toBe(1);
 		expect(result.stderr).toContain("Issue not found");
+	});
+
+	test("add writes repository and ordered affects in workspace mode", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init", "--key", "MIK", "--name", "mikan"]);
+		enableWorkspaceMode(cwd);
+
+		const add = await cli(cwd, [
+			"add",
+			"Cross-cut change",
+			"-r",
+			"backend",
+			"--affects",
+			"frontend",
+			"--affects",
+			"infra",
+		]);
+		const show = await cli(cwd, ["show", "MIK-001"]);
+
+		expect(add.exitCode).toBe(0);
+		expect(show.stdout).toContain("repository: backend");
+		expect(show.stdout).toContain("affects:");
+		expect(show.stdout).toContain("- frontend");
+		expect(show.stdout).toContain("- infra");
+		expect(show.stdout.indexOf("- frontend")).toBeLessThan(
+			show.stdout.indexOf("- infra"),
+		);
+	});
+
+	test("update replaces repository and preserves omitted affects", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init", "--key", "MIK", "--name", "mikan"]);
+		enableWorkspaceMode(cwd);
+		await cli(cwd, ["add", "Issue", "-r", "backend", "--affects", "infra"]);
+
+		const update = await cli(cwd, [
+			"update",
+			"MIK-001",
+			"--repository",
+			"frontend",
+		]);
+		const show = await cli(cwd, ["show", "MIK-001"]);
+
+		expect(update.exitCode).toBe(0);
+		expect(show.stdout).toContain("repository: frontend");
+		expect(show.stdout).toContain("- infra");
+	});
+
+	test("update replaces affected repositories", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init", "--key", "MIK", "--name", "mikan"]);
+		enableWorkspaceMode(cwd);
+		await cli(cwd, ["add", "Issue", "-r", "backend", "--affects", "infra"]);
+
+		const update = await cli(cwd, [
+			"update",
+			"MIK-001",
+			"--affects",
+			"frontend",
+			"--affects",
+			"infra",
+		]);
+		const show = await cli(cwd, ["show", "MIK-001"]);
+
+		expect(update.exitCode).toBe(0);
+		expect(show.stdout).toContain("repository: backend");
+		expect(show.stdout).toContain("- frontend");
+		expect(show.stdout).toContain("- infra");
+	});
+
+	test("add in workspace mode fails clearly without repository", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init", "--key", "MIK", "--name", "mikan"]);
+		enableWorkspaceMode(cwd);
+
+		const add = await cli(cwd, ["add", "No repo"]);
+
+		expect(add.exitCode).toBe(1);
+		expect(add.stderr).toContain("Missing repository");
+		expect(add.stderr).toContain(
+			"Configured repositories: backend, frontend, infra",
+		);
+	});
+
+	test("add rejects unknown repository with configured ids", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init", "--key", "MIK", "--name", "mikan"]);
+		enableWorkspaceMode(cwd);
+
+		const add = await cli(cwd, ["add", "Bad", "-r", "nope"]);
+
+		expect(add.exitCode).toBe(1);
+		expect(add.stderr).toContain("Unknown repository: nope");
+		expect(add.stderr).toContain(
+			"Configured repositories: backend, frontend, infra",
+		);
+	});
+
+	test("add and update help document repository options", async () => {
+		const cwd = tempProject();
+
+		const addHelp = await cli(cwd, ["help", "add"]);
+		const updateHelp = await cli(cwd, ["help", "update"]);
+
+		expect(addHelp.stdout).toContain("-r, --repository <repository-id>");
+		expect(addHelp.stdout).toContain("--affects <repository-id>");
+		expect(updateHelp.stdout).toContain("-r, --repository <repository-id>");
+		expect(updateHelp.stdout).toContain("--affects <repository-id>");
+		expect(updateHelp.stdout).toContain(
+			"Omitting --repository or --affects preserves existing values.",
+		);
 	});
 });
