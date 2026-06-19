@@ -11,7 +11,11 @@ import {
 
 export type ColumnConfig = { id: string; title: string };
 export type LabelConfig = { id: string; title: string };
-export type RepositoryRef = { id: string; github?: { repo?: string } };
+export type RepositoryRef = {
+	id: string;
+	path?: string;
+	github?: { repo?: string };
+};
 export type BoardConfig = {
 	board: { columns: ColumnConfig[] };
 	labels: LabelConfig[];
@@ -39,6 +43,7 @@ export type BoardWarning = {
 		| "unknown_affects"
 		| "affects_includes_primary"
 		| "mirror_repo_mismatch"
+		| "missing_repository_path"
 		| "hook_failure"
 		| "dependency_missing"
 		| "dependency_incomplete"
@@ -102,7 +107,9 @@ export function scanBoard(
 			repository.github?.repo,
 		]),
 	);
-	const warnings: BoardWarning[] = [];
+	const warnings: BoardWarning[] = workspaceMode
+		? repositoryPathWarnings(options.projectRoot, repositories)
+		: [];
 	const byId = new Map<string, BoardIssue[]>();
 	const columns: BoardColumn[] = visibleColumns.map((column) => ({
 		...column,
@@ -270,6 +277,24 @@ export function findIssueById(options: {
 		};
 	}
 	return { ok: true, value: matches[0] as IssueLocation };
+}
+
+function repositoryPathWarnings(
+	projectRoot: string,
+	repositories: RepositoryRef[] | undefined,
+): BoardWarning[] {
+	return (repositories ?? []).flatMap((repository): BoardWarning[] => {
+		if (repository.path === undefined) return [];
+		const path = join(projectRoot, repository.path);
+		if (existsSync(path)) return [];
+		return [
+			{
+				kind: "missing_repository_path",
+				message: `Repository ${repository.id} path does not exist: ${repository.path}`,
+				path,
+			},
+		];
+	});
 }
 
 function repositoryWarnings(
