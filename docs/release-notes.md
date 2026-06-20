@@ -3,6 +3,25 @@
 Release notes for the published `@takemo101/mikan` CLI package. Versions are the
 `packages/cli/package.json` version users install from npm.
 
+## 0.0.15 — mikan browser
+
+Adds `mikan browser`, a local-first Browser UI for the board that complements the
+existing TUI. The command serves a bundled web app from the published CLI and
+opens it in your default browser.
+
+- **`mikan browser` command**: starts a local server bound to `127.0.0.1`,
+  serves the bundled Browser UI, and opens it automatically. Supports `--port`
+  to pick a port and `--no-open` to start the server without launching a browser.
+- **Board display**: the Browser UI renders the configured Status columns with
+  their Issues, including the workspace Repository filter, mirroring the board
+  read model used by the TUI.
+- **Markdown Issue detail modal**: selecting an Issue opens a modal that renders
+  its Markdown body, Reports, and Notes.
+- **Append Reports and Notes**: the detail modal can append Reports (with a
+  source) and Notes to an Issue, persisted back to the Markdown files.
+- **Drag-and-drop Status move**: Issues can be dragged between Status columns to
+  move them, updating the underlying Issue file.
+
 ## 0.0.14 — Simplified mikan Skill guidance
 
 Refines the agent-facing `mikan` Skill installed by `mikan skills add` so it is
