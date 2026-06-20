@@ -1,15 +1,20 @@
 import { resolve, sep } from "node:path";
 import { Hono } from "hono";
+import { loadBoardApiResponse } from "./board-api.ts";
 
-// Foreground local Browser server for `mikan browser`. This slice (MIK-150)
-// only serves the static app shell and binds to loopback; the board/detail and
-// write APIs land in later Browser Issues.
+// Foreground local Browser server for `mikan browser`. It serves the static app
+// shell, binds to loopback, and (MIK-151) exposes the read-only `GET /api/board`
+// endpoint over the shared `BoardViewModel`. Detail and write APIs land in later
+// Browser Issues.
 
 export const BROWSER_HOST = "127.0.0.1";
 
 export type CreateBrowserAppOptions = {
 	// Directory holding the Vite-built app shell (index.html + assets/*).
 	assetsDir: string;
+	// Active project root used by `GET /api/board` to reload config/board state
+	// from disk on each request. Defaults to the current working directory.
+	projectRoot?: string;
 };
 
 export type BrowserApp = {
@@ -62,6 +67,11 @@ export function resolveWithinAssets(
 export function createBrowserApp(options: CreateBrowserAppOptions): BrowserApp {
 	const app = new Hono();
 	const root = resolve(options.assetsDir);
+	const projectRoot = options.projectRoot ?? process.cwd();
+
+	// Register API routes before the SPA catch-all so they are never shadowed by
+	// the client-routing fallback. Board reads reload from disk on every request.
+	app.get("/api/board", (c) => c.json(loadBoardApiResponse(projectRoot)));
 
 	app.get("/assets/*", async (c) => {
 		const filePath = resolveWithinAssets(root, c.req.path);
@@ -87,7 +97,10 @@ export function createBrowserApp(options: CreateBrowserAppOptions): BrowserApp {
 export function startBrowserServer(
 	options: StartBrowserServerOptions,
 ): BrowserServerHandle {
-	const app = createBrowserApp({ assetsDir: options.assetsDir });
+	const app = createBrowserApp({
+		assetsDir: options.assetsDir,
+		projectRoot: options.projectRoot,
+	});
 	const server = Bun.serve({
 		hostname: BROWSER_HOST,
 		port: options.port ?? 0,

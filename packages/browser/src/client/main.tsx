@@ -1,13 +1,19 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { createBrowserQueryClient } from "./board-query.ts";
 import "./styles.css";
+
+const queryClient = createBrowserQueryClient();
 
 const root = document.getElementById("root");
 if (root) {
 	createRoot(root).render(
 		<StrictMode>
-			<App />
+			<QueryClientProvider client={queryClient}>
+				<App />
+			</QueryClientProvider>
 		</StrictMode>,
 	);
 }

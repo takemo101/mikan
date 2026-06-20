@@ -3,6 +3,12 @@ import { openBrowser } from "./open-browser.ts";
 import { type BrowserServerHandle, startBrowserServer } from "./server.ts";
 
 export { packagedBrowserAssetsDir } from "./assets.ts";
+export type {
+	BoardApiError,
+	BoardApiProject,
+	BoardApiResponse,
+} from "./board-api.ts";
+export { loadBoardApiResponse } from "./board-api.ts";
 export { openBrowser } from "./open-browser.ts";
 export type {
 	BrowserApp,
@@ -21,9 +27,8 @@ export {
 } from "./server.ts";
 
 export type LaunchBrowserOptions = {
-	// Active project root, discovered by the CLI. Reserved for the board/detail
-	// APIs added in later Browser Issues; the foundation slice serves only the
-	// static app shell.
+	// Active project root, discovered by the CLI. The Board API reloads config and
+	// Board state from this directory on each `GET /api/board` request.
 	cwd: string;
 	// Requested port; when omitted an available loopback port is auto-selected.
 	port?: number;
@@ -42,6 +47,7 @@ export async function launchBrowser(
 ): Promise<void> {
 	const server = startBrowserServer({
 		assetsDir: options.assetsDir ?? packagedBrowserAssetsDir(),
+		projectRoot: options.cwd,
 		port: options.port,
 	});
 	const print = options.print ?? ((message) => process.stdout.write(message));
