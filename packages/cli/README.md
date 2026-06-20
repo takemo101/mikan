@@ -1,6 +1,6 @@
 # @takemo101/mikan
 
-mikan is a tiny local-first Issue board for AI-assisted development. It stores Issues as Markdown files under `.mikan/` and exposes the same board through a CLI, keyboard-first TUI, stdio MCP server, and polling watcher.
+mikan is a tiny local-first Issue board for AI-assisted development. It stores Issues as Markdown files under `.mikan/` and exposes the same board through a CLI, keyboard-first TUI, local Browser board, stdio MCP server, and polling watcher.
 
 Manual: <https://takemo101.github.io/mikan/>
 
@@ -18,8 +18,9 @@ mikan is currently built for Bun-based execution. The npm package installs the `
 ## What it provides
 
 - **Markdown source of truth**: each Issue is a file such as `.mikan/ready/MIK-001.md`.
-- **Primitive CLI commands**: `init`, `add`, `list`, `show`, `update`, `move`, `append`, `github`, `tui`, `watch`, `mcp`, `skills`.
+- **Primitive CLI commands**: `init`, `add`, `list`, `show`, `update`, `move`, `append`, `github`, `tui`, `browser`, `watch`, `mcp`, `skills`.
 - **Keyboard TUI**: board-first flow with detail view, Label/Note/Warning modals, Move shortcuts, and Archive confirmation.
+- **Local Browser board**: `mikan browser` starts a foreground local server bound to `127.0.0.1`, prints the URL, and opens the browser (use `--no-open` to skip, `--port <port>` to pin a port).
 - **MCP server**: stdio tools for agents: `get_board`, `list_issues`, `get_issue`, `create_issue`, `update_issue`, `move_issue`, `append_issue`, `mirror_issue_to_github`.
 - **GitHub Mirror**: explicit one-way publication from local Markdown Issues to GitHub Issues.
 - **Agent setup**: register the MCP server or install agent guidance for common AI agents.
@@ -70,6 +71,20 @@ mikan tui --columns 5
 ```
 
 The option changes only how many Columns are visible at once; it never changes configured Statuses or Issue files.
+
+## Browser
+
+`mikan browser` opens a local Web board over the same `.mikan/` Markdown files.
+
+```sh
+mikan browser              # auto-select a port and open the browser
+mikan browser --port 4321  # pin a local port
+mikan browser --no-open    # print the URL without launching a browser
+```
+
+`mikan browser` runs as a foreground process bound to `127.0.0.1`, opens your browser by default, prints the local URL, and exits on Ctrl-C. The initial board renders Status Columns and Cards, a workspace Repository filter, a Focused Markdown Modal on Card click, append forms for Reports and Notes, and drag-and-drop Status moves.
+
+Markdown remains the source of truth, and the Browser is local-only: it is not a shared dashboard, mandatory daemon, scheduler, database, GitHub sync surface, or agent runtime. Full board behavior, raw HTML handling, and deferred surfaces are documented at <https://takemo101.github.io/mikan/browser>.
 
 ## GitHub Mirror
 

@@ -21,6 +21,7 @@ export type CommandName =
 	| "mcp"
 	| "skills"
 	| "tui"
+	| "browser"
 	| "watch";
 
 type ParseArgsResult =
@@ -39,6 +40,7 @@ const commands: CommandName[] = [
 	"mcp",
 	"skills",
 	"tui",
+	"browser",
 	"watch",
 ];
 
@@ -86,6 +88,10 @@ const commandOptions: Record<CommandName, OptionSpec[]> = {
 		{ name: "no-global", value: false },
 	],
 	tui: [{ name: "columns", short: "c", value: true }],
+	browser: [
+		{ name: "port", short: "p", value: true },
+		{ name: "no-open", value: false },
+	],
 	watch: [
 		{ name: "quiet", short: "q", value: false },
 		{ name: "github-push", value: false },

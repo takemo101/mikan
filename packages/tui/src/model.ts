@@ -1,70 +1,30 @@
 import { readFileSync } from "node:fs";
 import {
-	type BoardIssue,
-	type BoardSnapshot,
-	type BoardWarning,
-	type IssueMetadata,
+	type BoardCardView,
+	type BoardColumnView,
+	type BoardGithubIssue,
+	type BoardLabelView,
+	type BoardRepositoryView,
+	type BoardViewModel,
+	type BoardWarningView,
+	buildBoardViewModel,
 	scanBoard,
 } from "@mikan/core";
 import { loadProjectConfig } from "@mikan/project-config";
 
-export type TuiGithubIssue = {
-	repo: string;
-	number: number;
-	url: string;
-	lastMirroredAt: string;
-};
+// The TUI consumes the shared, TUI-neutral `BoardViewModel` from `@mikan/core`
+// (see packages/core/src/board-view-model.ts). These aliases preserve the
+// existing `Tui*` names used throughout the TUI package and its tests while the
+// underlying shapes and `buildTuiModel` behavior are now the shared model.
+export type TuiGithubIssue = BoardGithubIssue;
+export type TuiCard = BoardCardView;
+export type TuiColumn = BoardColumnView;
+export type TuiWarning = BoardWarningView;
+export type TuiLabel = BoardLabelView;
+export type TuiRepository = BoardRepositoryView;
+export type TuiModel = BoardViewModel;
 
-export type TuiCard = {
-	id: string;
-	title: string;
-	labels: string[];
-	status: string;
-	path: string;
-	dependsOn?: string[];
-	unmetDependencies?: string[];
-	dependencyStatus?: "ready" | "blocked";
-	metadata?: IssueMetadata;
-	githubIssue?: TuiGithubIssue;
-	repository?: string;
-	affects?: string[];
-};
-
-export type TuiColumn = {
-	id: string;
-	title: string;
-	cards: TuiCard[];
-};
-
-export type TuiWarning = {
-	text: string;
-	kind: string;
-	message: string;
-	issueId?: string;
-	path?: string;
-};
-
-export type TuiLabel = {
-	id: string;
-	title: string;
-};
-
-export type TuiRepository = {
-	id: string;
-	title: string;
-};
-
-export type TuiModel = {
-	columns: TuiColumn[];
-	warnings: string[];
-	warningDetails?: TuiWarning[];
-	labels?: TuiLabel[];
-	labelTitles?: Record<string, string>;
-	githubRepo?: string;
-	repositories?: TuiRepository[];
-	repositoryTitles?: Record<string, string>;
-	repositoryGithubRepos?: Record<string, string>;
-};
+export const buildTuiModel = buildBoardViewModel;
 
 export type TuiDetails = {
 	card: TuiCard;
@@ -90,66 +50,6 @@ export function loadTuiModel(cwd = process.cwd()): TuiModel {
 		loaded.value.config.github?.repo,
 		loaded.value.config.repositories,
 	);
-}
-
-export function buildTuiModel(
-	board: BoardSnapshot,
-	labels: { id: string; title: string }[] = [],
-	githubRepo?: string,
-	repositories?: { id: string; title: string; github?: { repo?: string } }[],
-): TuiModel {
-	const workspaceMode = repositories !== undefined && repositories.length > 0;
-	const repositoryGithubRepos = Object.fromEntries(
-		(repositories ?? []).flatMap((repository) =>
-			repository.github?.repo
-				? [[repository.id, repository.github.repo] as const]
-				: [],
-		),
-	);
-	return {
-		columns: board.columns.map((column) => ({
-			id: column.id,
-			title: column.title,
-			cards: column.issues.map(formatCard),
-		})),
-		warnings: board.warnings.map(formatWarning),
-		...(board.warnings.length > 0
-			? { warningDetails: board.warnings.map(formatTuiWarning) }
-			: {}),
-		labels: labels.map((label) => ({ id: label.id, title: label.title })),
-		labelTitles: Object.fromEntries(
-			labels.map((label) => [label.id, label.title]),
-		),
-		githubRepo,
-		...(workspaceMode
-			? {
-					repositories: repositories.map((repository) => ({
-						id: repository.id,
-						title: repository.title,
-					})),
-					repositoryTitles: Object.fromEntries(
-						repositories.map((repository) => [repository.id, repository.title]),
-					),
-					...(Object.keys(repositoryGithubRepos).length > 0
-						? { repositoryGithubRepos }
-						: {}),
-				}
-			: {}),
-	};
-}
-
-function formatWarning(warning: BoardWarning): string {
-	return `${warning.kind}: ${warning.message}`;
-}
-
-function formatTuiWarning(warning: BoardWarning): TuiWarning {
-	return {
-		text: formatWarning(warning),
-		kind: warning.kind,
-		message: warning.message,
-		issueId: warning.issueId,
-		path: warning.path,
-	};
 }
 
 export function getSelectedDetails(
@@ -181,36 +81,6 @@ export function cardUnmetDependencies(card: TuiCard): string[] {
 
 export function cardDependencyStatus(card: TuiCard): "ready" | "blocked" {
 	return card.dependencyStatus ?? "ready";
-}
-
-function formatCard(issue: BoardIssue): TuiCard {
-	return {
-		id: String(issue.issue.id),
-		title: issue.issue.title,
-		labels: issue.issue.labels.map(String),
-		status: String(issue.status),
-		path: issue.path,
-		dependsOn: issue.issue.dependencies.map(String),
-		unmetDependencies: issue.unmetDependencies.map(String),
-		dependencyStatus: issue.dependencyStatus,
-		metadata: issue.issue.metadata,
-		...(issue.issue.repository !== undefined
-			? { repository: issue.issue.repository }
-			: {}),
-		...(issue.issue.affects.length > 0
-			? { affects: issue.issue.affects.map(String) }
-			: {}),
-		...(issue.issue.githubIssue
-			? {
-					githubIssue: {
-						repo: issue.issue.githubIssue.repo,
-						number: issue.issue.githubIssue.number,
-						url: issue.issue.githubIssue.url,
-						lastMirroredAt: issue.issue.githubIssue.lastMirroredAt,
-					},
-				}
-			: {}),
-	};
 }
 
 export function stripFrontmatter(markdown: string): string {

@@ -28,6 +28,16 @@ export {
 	findMaxIssueSequence,
 	scanBoard,
 } from "./board-scan.ts";
+export type {
+	BoardCardView,
+	BoardColumnView,
+	BoardGithubIssue,
+	BoardLabelView,
+	BoardRepositoryView,
+	BoardViewModel,
+	BoardWarningView,
+} from "./board-view-model.ts";
+export { buildBoardViewModel, formatWarning } from "./board-view-model.ts";
 export type { DependencyStatus } from "./dependency.ts";
 export type {
 	GitHubIssueReference,

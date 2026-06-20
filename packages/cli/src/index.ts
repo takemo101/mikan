@@ -1,8 +1,10 @@
+import { launchBrowser } from "@mikan/browser";
 import { startMcpServer } from "@mikan/mcp";
 import { loadProjectConfig } from "@mikan/project-config";
 import { launchTui } from "@mikan/tui";
 import packageJson from "../package.json" with { type: "json" };
 import { isCommandName, isHelpFlag, parseArgs } from "./args.ts";
+import { parseBrowserPortOption } from "./browser-options.ts";
 import type { CliOptions, InteractiveCommandOptions } from "./cli-options.ts";
 import { type CliResult, fail, ok } from "./cli-output.ts";
 import {
@@ -84,6 +86,15 @@ export async function runCli(
 				}
 				return ok("Starting mikan OpenTUI board\n");
 			}
+			case "browser": {
+				const port = parseBrowserPortOption(
+					parsed.value.flags.get("port")?.at(-1),
+				);
+				if (!port.ok) {
+					return fail(`${port.error}\n\nRun \`mikan help browser\` for usage.`);
+				}
+				return ok("Starting mikan browser\n");
+			}
 			case "watch":
 				return await runWatch(cwd, parsed.value, options);
 			default:
@@ -139,6 +150,33 @@ export async function runInteractiveCommand(
 			)({
 				columns: columns.value,
 			});
+			return ok("");
+		}
+		if (argv[0] === "browser") {
+			const parsed = parseArgs(argv.slice(1), "browser");
+			if (!parsed.ok) {
+				return fail(`${parsed.error}\n\nRun \`mikan help browser\` for usage.`);
+			}
+			// Validate --port here so invalid values fail before the server starts.
+			const port = parseBrowserPortOption(
+				parsed.value.flags.get("port")?.at(-1),
+			);
+			if (!port.ok) {
+				return fail(`${port.error}\n\nRun \`mikan help browser\` for usage.`);
+			}
+			const open = !parsed.value.flags.has("no-open");
+			// Fail before opening the browser when project config is invalid.
+			const loaded = loadProjectConfig(cwd);
+			if (!loaded.ok) return fail(loaded.error.message);
+			await (
+				options.launchBrowser ??
+				((launchOptions) =>
+					launchBrowser({
+						cwd,
+						port: launchOptions.port,
+						open: launchOptions.open,
+					}))
+			)({ port: port.value, open });
 			return ok("");
 		}
 		if (argv[0] === "watch") {

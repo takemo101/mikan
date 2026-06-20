@@ -40,7 +40,7 @@ async function cli(
 describe("CLI read path", () => {
 	test("package metadata targets scoped npm dist bin", () => {
 		expect(packageJson.name).toBe("@takemo101/mikan");
-		expect(packageJson.version).toBe("0.0.14");
+		expect(packageJson.version).toBe("0.0.15");
 		expect(packageJson.private).toBe(false);
 		expect(packageJson.bin).toEqual({ mikan: "dist/bin.js" });
 		expect(packageJson.repository).toEqual({
@@ -85,12 +85,21 @@ describe("CLI read path", () => {
 			true,
 		);
 		expect(packed.name).toBe("@takemo101/mikan");
-		expect(packed.version).toBe("0.0.14");
+		expect(packed.version).toBe("0.0.15");
 		expect(packedFiles).toContain("dist/bin.js");
 		expect(packedFiles).toContain("package.json");
 		expect(packedFiles).toContain("README.md");
 		expect(packedFiles).not.toContain("src/bin.ts");
-	});
+		// Browser app shell is built and copied under dist/browser/ so the
+		// published CLI can serve it at runtime (MIK-150).
+		expect(
+			existsSync(join(import.meta.dir, "..", "dist", "browser", "index.html")),
+		).toBe(true);
+		expect(packedFiles).toContain("dist/browser/index.html");
+		expect(packedFiles.some((file) => file.startsWith("dist/browser/"))).toBe(
+			true,
+		);
+	}, 120_000);
 
 	test("shows global and command help", async () => {
 		const cwd = tempProject();
@@ -111,8 +120,8 @@ describe("CLI read path", () => {
 		expect(globalHelp.stdout).toContain(
 			"skills    Install agent-facing mikan usage guidance",
 		);
-		expect(version).toMatchObject({ exitCode: 0, stdout: "0.0.14\n" });
-		expect(shortVersion).toMatchObject({ exitCode: 0, stdout: "0.0.14\n" });
+		expect(version).toMatchObject({ exitCode: 0, stdout: "0.0.15\n" });
+		expect(shortVersion).toMatchObject({ exitCode: 0, stdout: "0.0.15\n" });
 		expect(addHelp.exitCode).toBe(0);
 		expect(addHelp.stdout).toContain("Usage:\n  mikan add <title>");
 		expect(addHelp.stdout).toContain("-s, --status <status>");
@@ -731,6 +740,128 @@ describe("CLI read path", () => {
 		expect(result.stdout).toContain("--columns");
 		expect(result.stdout).toContain("auto");
 		expect(result.stdout).toContain("mikan tui --columns 3");
+	});
+
+	test("browser command advertises startup", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+
+		const result = await cli(cwd, ["browser"]);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toContain("Starting mikan browser");
+	});
+
+	test("browser appears in global help and documents its options", async () => {
+		const cwd = tempProject();
+
+		const globalHelp = await cli(cwd, ["--help"]);
+		const browserHelp = await cli(cwd, ["help", "browser"]);
+		const flagHelp = await cli(cwd, ["browser", "--help"]);
+
+		expect(globalHelp.stdout).toContain("browser");
+		expect(browserHelp.exitCode).toBe(0);
+		expect(browserHelp.stdout).toContain("--port");
+		expect(browserHelp.stdout).toContain("--no-open");
+		expect(browserHelp.stdout).toContain("127.0.0.1");
+		expect(browserHelp.stdout).toContain("mikan browser --port 4321");
+		expect(flagHelp.stdout).toContain("--no-open");
+	});
+
+	test("browser accepts a valid --port and rejects invalid ones", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+
+		const valid = await cli(cwd, ["browser", "--port", "4321"]);
+		expect(valid.exitCode).toBe(0);
+		expect(valid.stdout).toContain("Starting mikan browser");
+
+		for (const value of ["0", "70000", "80.0", "abc", "8e1", "0x50"]) {
+			const result = await cli(cwd, ["browser", "--port", value]);
+			expect(result.exitCode).toBe(1);
+			expect(result.stdout).toBe("");
+			expect(result.stderr).toContain(`Invalid --port value: ${value}`);
+			expect(result.stderr).toContain("mikan help browser");
+		}
+	});
+
+	test("browser startup checks config before launching", async () => {
+		const cwd = tempProject();
+		let launched = false;
+
+		const missing = await runInteractiveCommand(["browser"], {
+			cwd,
+			launchBrowser: async () => {
+				launched = true;
+			},
+		});
+		await cli(cwd, ["init"]);
+		const present = await runInteractiveCommand(["browser"], {
+			cwd,
+			launchBrowser: async () => {
+				launched = true;
+			},
+		});
+
+		expect(missing).toEqual({
+			exitCode: 1,
+			stdout: "",
+			stderr: "Could not find .mikan/config.yaml\n",
+		});
+		expect(present).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+		expect(launched).toBe(true);
+	});
+
+	test("browser interactive launch rejects invalid --port before launching", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		let launched = false;
+
+		const result = await runInteractiveCommand(["browser", "--port", "0"], {
+			cwd,
+			launchBrowser: async () => {
+				launched = true;
+			},
+		});
+
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain("Invalid --port value: 0");
+		expect(result.stderr).toContain("mikan help browser");
+		expect(launched).toBe(false);
+	});
+
+	test("browser forwards parsed --port and open flag to the launcher", async () => {
+		const cwd = tempProject();
+		await cli(cwd, ["init"]);
+		const forwarded: Array<{ port: number | undefined; open: boolean }> = [];
+		const capture = async (launchOptions: {
+			port: number | undefined;
+			open: boolean;
+		}) => {
+			forwarded.push(launchOptions);
+		};
+
+		const withPort = await runInteractiveCommand(
+			["browser", "--port", "4321"],
+			{ cwd, launchBrowser: capture },
+		);
+		const noOpen = await runInteractiveCommand(["browser", "--no-open"], {
+			cwd,
+			launchBrowser: capture,
+		});
+		const auto = await runInteractiveCommand(["browser"], {
+			cwd,
+			launchBrowser: capture,
+		});
+
+		expect(withPort).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+		expect(noOpen).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+		expect(auto).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+		expect(forwarded).toEqual([
+			{ port: 4321, open: true },
+			{ port: undefined, open: false },
+			{ port: undefined, open: true },
+		]);
 	});
 
 	test("mcp command advertises stdio server startup", async () => {

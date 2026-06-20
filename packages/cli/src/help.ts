@@ -30,6 +30,7 @@ Commands:
   append    Append Markdown to an Issue section
   github    Create or update GitHub Mirrors
   tui       Open the read-only board
+  browser   Open the local Browser board
   watch     Run the polling watcher
   mcp       Start the stdio MCP server
   skills    Install agent-facing mikan usage guidance
@@ -166,6 +167,27 @@ Notes:
   --columns sets how many Status Columns the board shows at once. auto
   derives 2..5 Columns from terminal width and keeps the sliding viewport;
   a fixed 2..5 pins that count. It never changes configured Statuses.
+`;
+		case "browser":
+			return `Open the local Browser board.
+
+Usage:
+  mikan browser [options]
+
+Options:
+  -p, --port <port>     Port to bind (default: auto-select an available port)
+  --no-open             Do not open the browser automatically
+  -h, --help            Show this help
+
+Examples:
+  mikan browser
+  mikan browser --port 4321
+  mikan browser --no-open
+  mikan browser --port 4321 --no-open
+
+Notes:
+  The server binds to 127.0.0.1 only and runs in the foreground until Ctrl-C.
+  It prints the local URL and opens the browser unless --no-open is passed.
 `;
 		case "watch":
 			return `Run the polling watcher.

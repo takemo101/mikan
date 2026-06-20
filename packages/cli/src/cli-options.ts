@@ -23,5 +23,9 @@ export type InteractiveCommandOptions = {
 	home?: string;
 	launchMcp?: () => Promise<void>;
 	launchTui?: (options: { columns: TuiColumnsOption }) => Promise<void>;
+	launchBrowser?: (options: {
+		port: number | undefined;
+		open: boolean;
+	}) => Promise<void>;
 	launchWatch?: () => void;
 };

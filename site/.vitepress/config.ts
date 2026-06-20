@@ -17,6 +17,7 @@ export default defineConfig({
 			{ text: "Install", link: "/install" },
 			{ text: "CLI", link: "/cli" },
 			{ text: "TUI", link: "/tui" },
+			{ text: "Browser", link: "/browser" },
 			{ text: "GitHub Mirror", link: "/github-mirror" },
 			{ text: "MCP & Skills", link: "/mcp-and-skills" },
 			{ text: "GitHub", link: "https://github.com/takemo101/mikan" },
@@ -35,6 +36,7 @@ export default defineConfig({
 					items: [
 						{ text: "CLI", link: "/cli" },
 						{ text: "TUI", link: "/tui" },
+						{ text: "Browser", link: "/browser" },
 						{ text: "GitHub Mirror", link: "/github-mirror" },
 						{ text: "Config", link: "/config" },
 					],
