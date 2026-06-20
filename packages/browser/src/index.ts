@@ -12,6 +12,12 @@ export {
 	appendIssueResponse,
 	BROWSER_APPEND_SOURCE,
 } from "./append-api.ts";
+export type { ArchiveResponse } from "./archive-api.ts";
+export {
+	ARCHIVED_STATUS,
+	archiveIssueResponse,
+	BROWSER_ARCHIVE_LOG,
+} from "./archive-api.ts";
 export { packagedBrowserAssetsDir } from "./assets.ts";
 export type {
 	BoardApiError,

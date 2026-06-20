@@ -1,6 +1,7 @@
 import { resolve, sep } from "node:path";
 import { Hono } from "hono";
 import { type AppendInput, appendIssueResponse } from "./append-api.ts";
+import { archiveIssueResponse } from "./archive-api.ts";
 import { loadBoardApiResponse } from "./board-api.ts";
 import { loadIssueDetailResponse } from "./issue-api.ts";
 import { type LabelsInput, updateLabelsResponse } from "./labels-api.ts";
@@ -156,6 +157,18 @@ export function createBrowserApp(options: CreateBrowserAppOptions): BrowserApp {
 			);
 		}
 		return c.json(updateLabelsResponse(projectRoot, c.req.param("id"), input));
+	});
+
+	// Archive write endpoint backing the detail-modal Archive action. Same
+	// guard-first, reload-from-disk shape as the other write endpoints, but it
+	// carries no request body: archiving is a fixed move to the `archived` Status.
+	// The Host/Origin guard runs before any mutation, and core `moveIssue`
+	// confines the write to the located Issue file under the active project root
+	// while writing the `Archived via mikan browser` Status Log entry.
+	app.post("/api/issues/:id/archive", (c) => {
+		const guard = checkWriteOrigin(c.req.raw);
+		if (!guard.ok) return c.json({ ok: false, error: guard.error }, 403);
+		return c.json(archiveIssueResponse(projectRoot, c.req.param("id")));
 	});
 
 	app.get("/assets/*", async (c) => {

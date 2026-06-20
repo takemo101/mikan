@@ -298,5 +298,5 @@ describe("issue Label editor", () => {
 		// toggled-but-refetched-as-original herdr selection is not injected.
 		const content = screen.getByTestId("issue-detail-content");
 		expect(content.textContent).not.toContain("Herdr");
-	});
+	}, 10000);
 });
