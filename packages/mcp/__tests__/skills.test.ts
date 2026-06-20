@@ -163,7 +163,13 @@ describe("skill agent installers", () => {
 			// Explains mikan as a local-first Issue board.
 			expect(doc).toContain("local-first");
 			expect(doc).toContain("Issue board");
-			// Tells agents to use the MCP tools for reads, mutations, and appends.
+			// Tells agents to use MCP first, then fall back to the CLI when needed.
+			expect(doc).toContain("MCP-first");
+			expect(doc).toContain("CLI fallback");
+			expect(doc).toContain("MCP tools are unavailable");
+			expect(doc).toContain(
+				'mikan add "Workspace Issue" --repository backend --affects frontend',
+			);
 			expect(doc).not.toContain("push_github_mirror");
 			for (const tool of [
 				"get_board",
@@ -177,6 +183,16 @@ describe("skill agent installers", () => {
 			]) {
 				expect(doc).toContain(tool);
 			}
+			// Workspace operation and Mirror target rules.
+			expect(doc).toContain("single-project mode");
+			expect(doc).toContain("workspace mode");
+			expect(doc).toContain("primary `repository` is required");
+			expect(doc).toContain("`affects` is context only");
+			expect(doc).toContain(
+				"Issue's `repository` to `repositories[].github.repo`",
+			);
+			expect(doc).toContain("top-level `github.repo` is not required");
+			expect(doc).toContain("`github.auto_push_mirrors` is workspace-wide");
 			// Issue vocabulary and append targets.
 			expect(doc).toContain("Issue ID");
 			expect(doc).toContain("Report");

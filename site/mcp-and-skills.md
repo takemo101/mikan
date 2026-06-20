@@ -75,7 +75,7 @@ mikan skills add --agent copilot-cli
 
 Supported skill targets match the MCP target registry: `pi`, `antigravity`, `jcode`, `claude-code`, `opencode`, `codex`, `copilot-vscode`, and `copilot-cli`. Each target receives a `SKILL.md` directory using that agent's native Agent Skills location. Codex is global-only. Antigravity's global install targets `~/.gemini/antigravity-cli/skills/`; its shared location `~/.gemini/skills/` is documented but not exposed as a separate mikan scope.
 
-The installed guidance teaches the agent the mikan vocabulary, MCP tools, advisory dependency model, one-way GitHub Mirror rules, and local-first scope.
+The installed guidance teaches the agent the mikan vocabulary, MCP-first operation with CLI fallback, single-project and workspace Repository operation, advisory dependency model, one-way GitHub Mirror rules, and local-first scope.
 
 ## Discovery manifest
 
