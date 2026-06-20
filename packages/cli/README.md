@@ -18,8 +18,9 @@ mikan is currently built for Bun-based execution. The npm package installs the `
 ## What it provides
 
 - **Markdown source of truth**: each Issue is a file such as `.mikan/ready/MIK-001.md`.
-- **Primitive CLI commands**: `init`, `add`, `list`, `show`, `update`, `move`, `append`, `github`, `tui`, `watch`, `mcp`, `skills`.
+- **Primitive CLI commands**: `init`, `add`, `list`, `show`, `update`, `move`, `append`, `github`, `tui`, `browser`, `watch`, `mcp`, `skills`.
 - **Keyboard TUI**: board-first flow with detail view, Label/Note/Warning modals, Move shortcuts, and Archive confirmation.
+- **Local Browser board**: `mikan browser` starts a foreground local server bound to `127.0.0.1`, prints the URL, and opens the browser (use `--no-open` to skip, `--port <port>` to pin a port).
 - **MCP server**: stdio tools for agents: `get_board`, `list_issues`, `get_issue`, `create_issue`, `update_issue`, `move_issue`, `append_issue`, `mirror_issue_to_github`.
 - **GitHub Mirror**: explicit one-way publication from local Markdown Issues to GitHub Issues.
 - **Agent setup**: register the MCP server or install agent guidance for common AI agents.

@@ -6,6 +6,7 @@
 .superpowers/
 node_modules/
 packages/cli/dist/
+packages/browser/dist/
 site/.vitepress/cache/
 site/.vitepress/dist/
 *.tsbuildinfo

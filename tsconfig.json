@@ -20,6 +20,7 @@
 		"verbatimModuleSyntax": true,
 		"baseUrl": ".",
 		"paths": {
+			"@mikan/browser": ["packages/browser/src/index.ts"],
 			"@mikan/core": ["packages/core/src/index.ts"],
 			"@mikan/github": ["packages/github/src/index.ts"],
 			"@mikan/mcp": ["packages/mcp/src/index.ts"],
