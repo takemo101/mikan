@@ -188,6 +188,7 @@ describe("skill agent installers", () => {
 			expect(doc).not.toContain("mikan list --status ready");
 			for (const tool of [
 				"get_board",
+				"list_issues",
 				"get_issue",
 				"create_issue",
 				"update_issue",
