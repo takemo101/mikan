@@ -1,12 +1,15 @@
 import { resolve, sep } from "node:path";
 import { Hono } from "hono";
+import { type AppendInput, appendIssueResponse } from "./append-api.ts";
 import { loadBoardApiResponse } from "./board-api.ts";
 import { loadIssueDetailResponse } from "./issue-api.ts";
+import { checkWriteOrigin } from "./origin-guard.ts";
 
 // Foreground local Browser server for `mikan browser`. It serves the static app
 // shell, binds to loopback, and exposes the read-only `GET /api/board` (MIK-151)
-// and `GET /api/issues/:id` (MIK-153) endpoints over the shared read model.
-// Write APIs land in later Browser Issues.
+// and `GET /api/issues/:id` (MIK-153) endpoints over the shared read model, plus
+// the first write endpoint `POST /api/issues/:id/append` (MIK-154). Further
+// write APIs (move) land in later Browser Issues.
 
 export const BROWSER_HOST = "127.0.0.1";
 
@@ -76,6 +79,31 @@ export function createBrowserApp(options: CreateBrowserAppOptions): BrowserApp {
 	app.get("/api/issues/:id", (c) =>
 		c.json(loadIssueDetailResponse(projectRoot, c.req.param("id"))),
 	);
+
+	// First Browser write endpoint. It runs the Host/Origin guard before any
+	// mutation, reads the JSON append payload, and delegates to the append API,
+	// which reloads project state from disk for the write. Core append confines
+	// the write to the located Issue file under the active project root.
+	app.post("/api/issues/:id/append", async (c) => {
+		const guard = checkWriteOrigin(c.req.raw);
+		if (!guard.ok) return c.json({ ok: false, error: guard.error }, 403);
+		let input: AppendInput;
+		try {
+			input = (await c.req.json()) as AppendInput;
+		} catch {
+			return c.json(
+				{
+					ok: false,
+					error: {
+						code: "invalid_request",
+						message: "Request body must be valid JSON.",
+					},
+				},
+				400,
+			);
+		}
+		return c.json(appendIssueResponse(projectRoot, c.req.param("id"), input));
+	});
 
 	app.get("/assets/*", async (c) => {
 		const filePath = resolveWithinAssets(root, c.req.path);

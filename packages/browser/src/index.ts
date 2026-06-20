@@ -2,6 +2,16 @@ import { packagedBrowserAssetsDir } from "./assets.ts";
 import { openBrowser } from "./open-browser.ts";
 import { type BrowserServerHandle, startBrowserServer } from "./server.ts";
 
+export type {
+	AppendableSection,
+	AppendInput,
+	AppendResponse,
+} from "./append-api.ts";
+export {
+	APPENDABLE_SECTIONS,
+	appendIssueResponse,
+	BROWSER_APPEND_SOURCE,
+} from "./append-api.ts";
 export { packagedBrowserAssetsDir } from "./assets.ts";
 export type {
 	BoardApiError,
@@ -16,6 +26,8 @@ export type {
 } from "./issue-api.ts";
 export { loadIssueDetailResponse } from "./issue-api.ts";
 export { openBrowser } from "./open-browser.ts";
+export type { OriginGuardResult } from "./origin-guard.ts";
+export { checkWriteOrigin } from "./origin-guard.ts";
 export type {
 	BrowserApp,
 	BrowserServerHandle,

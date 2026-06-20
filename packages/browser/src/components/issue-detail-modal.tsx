@@ -2,6 +2,7 @@ import { Button, Dialog, Modal, ModalOverlay } from "react-aria-components";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { IssueDetailResponse, IssueDetailView } from "../issue-api.ts";
+import { IssueAppendForm } from "./issue-append-form.tsx";
 
 // The Focused Markdown Modal: a large, accessible dialog centered on reading the
 // selected Issue's Markdown. Built on React Aria Components' Dialog/Modal so it
@@ -67,7 +68,10 @@ export function IssueDetailModal({
 								Could not reach the issue API.
 							</p>
 						) : data?.ok ? (
-							<IssueDetailBody issue={data.issue} />
+							<>
+								<IssueDetailBody issue={data.issue} />
+								<IssueAppendForm issueId={data.issue.id} />
+							</>
 						) : (
 							<p
 								data-testid="issue-detail-status"
