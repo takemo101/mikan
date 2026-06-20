@@ -4,6 +4,7 @@ import {
 	countBoardCards,
 	filterBoardByRepository,
 } from "../client/board-filter.ts";
+import type { RepositoryFilterState } from "../client/use-repository-filter.ts";
 import type { ApiError } from "../config-error.ts";
 import { Column } from "./column.tsx";
 import { RepositoryFilter } from "./repository-filter.tsx";
@@ -22,7 +23,8 @@ import { Warnings } from "./warnings.tsx";
 type BoardProps = {
 	board: BoardViewModel;
 	repository: string | undefined;
-	onRepositoryChange: (next: string | undefined) => void;
+	includeAffected?: boolean;
+	onRepositoryChange: (next: RepositoryFilterState) => void;
 	onSelectIssue?: (id: string) => void;
 	onMoveIssue?: (command: MoveCommand) => void;
 	moveError?: ApiError;
@@ -32,13 +34,14 @@ type BoardProps = {
 export function Board({
 	board,
 	repository,
+	includeAffected = false,
 	onRepositoryChange,
 	onSelectIssue,
 	onMoveIssue,
 	moveError,
 	onDismissMoveError,
 }: BoardProps) {
-	const filtered = filterBoardByRepository(board, repository);
+	const filtered = filterBoardByRepository(board, repository, includeAffected);
 	const hasMatches = countBoardCards(filtered) > 0;
 	const filtering =
 		repository !== undefined &&
@@ -51,6 +54,7 @@ export function Board({
 				<RepositoryFilter
 					repositories={board.repositories}
 					value={repository}
+					includeAffected={includeAffected}
 					onChange={onRepositoryChange}
 				/>
 				<Warnings warnings={board.warnings} details={board.warningDetails} />

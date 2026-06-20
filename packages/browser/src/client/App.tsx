@@ -15,7 +15,7 @@ import { useSelectedIssue } from "./use-selected-issue.ts";
 // two are managed separately so closing the modal never clears the filter.
 export function App() {
 	const { data, isPending, isError } = useBoardQuery();
-	const [repository, setRepository] = useRepositoryFilter();
+	const [repositoryFilter, setRepositoryFilter] = useRepositoryFilter();
 	const [selectedIssue, setSelectedIssue] = useSelectedIssue();
 	const detail = useIssueDetailQuery(selectedIssue);
 	const { moveIssue, moveError, clearMoveError } = useBoardMove();
@@ -47,8 +47,9 @@ export function App() {
 				) : data.ok ? (
 					<Board
 						board={data.board}
-						repository={repository}
-						onRepositoryChange={setRepository}
+						repository={repositoryFilter.repository}
+						includeAffected={repositoryFilter.includeAffected}
+						onRepositoryChange={setRepositoryFilter}
 						onSelectIssue={setSelectedIssue}
 						onMoveIssue={moveIssue}
 						moveError={moveError}
