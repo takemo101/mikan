@@ -103,7 +103,10 @@ describe("POST /api/issues/:id/append", () => {
 		expect(onDisk).toContain("Investigated the failure.");
 	});
 
-	test("appends a Note as plain text without a provenance line", async () => {
+	test("appends a Note under a mikan-browser provenance line", async () => {
+		// The Browser always passes the `mikan-browser` source, so Notes (like
+		// Reports) get core's timestamped `- <ts> (mikan-browser)` provenance line
+		// rather than the bare-body form core uses only when no source is given.
 		const root = tempProject();
 		const response = await postAppend(root, "MIK-001", {
 			section: "Notes",
@@ -114,6 +117,13 @@ describe("POST /api/issues/:id/append", () => {
 		if (!payload.ok) throw new Error("expected ok response");
 		expect(payload.issue.body).toContain("## Notes");
 		expect(payload.issue.body).toContain("Remember to check the watcher.");
+		// The provenance line names the browser source and precedes the body.
+		expect(payload.issue.body).toMatch(/- .*\(mikan-browser\)/);
+		const notesSection = payload.issue.body.slice(
+			payload.issue.body.indexOf("## Notes"),
+		);
+		expect(notesSection).toContain("(mikan-browser)");
+		expect(notesSection).toContain("Remember to check the watcher.");
 	});
 
 	test("reloads project state from disk for each mutation", async () => {
