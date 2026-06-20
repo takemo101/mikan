@@ -1,8 +1,10 @@
+import type { BoardLabelView } from "@mikan/core";
 import { Button, Dialog, Modal, ModalOverlay } from "react-aria-components";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { IssueDetailResponse, IssueDetailView } from "../issue-api.ts";
 import { IssueAppendForm } from "./issue-append-form.tsx";
+import { IssueLabelEditor } from "./issue-label-editor.tsx";
 
 // The Focused Markdown Modal: a large, accessible dialog centered on reading the
 // selected Issue's Markdown. Built on React Aria Components' Dialog/Modal so it
@@ -15,6 +17,9 @@ type IssueDetailModalProps = {
 	data: IssueDetailResponse | undefined;
 	isPending: boolean;
 	isError: boolean;
+	// All config-defined Labels in config order, sourced from the Board API and
+	// used to populate the Label editor popover's checklist.
+	configLabels: BoardLabelView[];
 	onClose: () => void;
 };
 
@@ -23,6 +28,7 @@ export function IssueDetailModal({
 	data,
 	isPending,
 	isError,
+	configLabels,
 	onClose,
 }: IssueDetailModalProps) {
 	return (
@@ -54,6 +60,18 @@ export function IssueDetailModal({
 							✕
 						</Button>
 					</header>
+					{data?.ok ? (
+						<div
+							data-testid="issue-detail-action-bar"
+							className="flex items-center gap-2 border-b border-neutral-800 px-5 py-2"
+						>
+							<IssueLabelEditor
+								issueId={data.issue.id}
+								currentLabels={data.issue.labels}
+								configLabels={configLabels}
+							/>
+						</div>
+					) : null}
 					<div className="max-h-[75vh] overflow-y-auto px-5 py-4">
 						{isPending ? (
 							<p data-testid="issue-detail-status" className="text-neutral-500">

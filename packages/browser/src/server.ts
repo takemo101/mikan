@@ -3,14 +3,13 @@ import { Hono } from "hono";
 import { type AppendInput, appendIssueResponse } from "./append-api.ts";
 import { loadBoardApiResponse } from "./board-api.ts";
 import { loadIssueDetailResponse } from "./issue-api.ts";
+import { type LabelsInput, updateLabelsResponse } from "./labels-api.ts";
 import { type MoveInput, moveIssueResponse } from "./move-api.ts";
 import { checkWriteOrigin } from "./origin-guard.ts";
 
 // Foreground local Browser server for `mikan browser`. It serves the static app
-// shell, binds to loopback, and exposes the read-only `GET /api/board` (MIK-151)
-// and `GET /api/issues/:id` (MIK-153) endpoints over the shared read model, plus
-// the first write endpoint `POST /api/issues/:id/append` (MIK-154). Further
-// write APIs (move) land in later Browser Issues.
+// shell, binds to loopback, and exposes read APIs over the shared read model plus
+// guarded write endpoints for Browser Issue actions.
 
 export const BROWSER_HOST = "127.0.0.1";
 
@@ -130,6 +129,33 @@ export function createBrowserApp(options: CreateBrowserAppOptions): BrowserApp {
 			);
 		}
 		return c.json(moveIssueResponse(projectRoot, c.req.param("id"), input));
+	});
+
+	// Label update write endpoint backing the detail-modal Label editor. Same
+	// guard-first, reload-from-disk shape as append/move: the Host/Origin guard
+	// runs before any mutation, the JSON body carries the selected known Label
+	// ids, and core `updateIssue` confines the write to the located Issue file
+	// under the active project root while preserving config-unknown Labels and
+	// touching frontmatter Labels only (no Status Log/Reports/Notes/Mirror).
+	app.post("/api/issues/:id/labels", async (c) => {
+		const guard = checkWriteOrigin(c.req.raw);
+		if (!guard.ok) return c.json({ ok: false, error: guard.error }, 403);
+		let input: LabelsInput;
+		try {
+			input = (await c.req.json()) as LabelsInput;
+		} catch {
+			return c.json(
+				{
+					ok: false,
+					error: {
+						code: "invalid_request",
+						message: "Request body must be valid JSON.",
+					},
+				},
+				400,
+			);
+		}
+		return c.json(updateLabelsResponse(projectRoot, c.req.param("id"), input));
 	});
 
 	app.get("/assets/*", async (c) => {
