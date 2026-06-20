@@ -25,6 +25,8 @@ export type {
 	IssueDetailView,
 } from "./issue-api.ts";
 export { loadIssueDetailResponse } from "./issue-api.ts";
+export type { MoveInput, MoveResponse } from "./move-api.ts";
+export { BROWSER_MOVE_LOG, moveIssueResponse } from "./move-api.ts";
 export { openBrowser } from "./open-browser.ts";
 export type { OriginGuardResult } from "./origin-guard.ts";
 export { checkWriteOrigin } from "./origin-guard.ts";

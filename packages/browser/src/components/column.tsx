@@ -1,13 +1,19 @@
 import type { BoardColumnView } from "@mikan/core";
+import { useRef } from "react";
+import type { MoveCommand } from "../client/board-dnd.ts";
+import { useColumnDropTarget } from "../client/use-board-dnd.ts";
 import { Card } from "./card.tsx";
 
 // A Status Column lane. Always renders, even with zero Cards, so the board keeps
-// its full Status structure and surfaces a clear empty state.
+// its full Status structure and surfaces a clear empty state. When `onMoveIssue`
+// is provided the whole lane becomes a drag-and-drop target: dropping a Card from
+// another Column moves the Issue to this Column's Status.
 type ColumnProps = {
 	column: BoardColumnView;
 	labelTitles?: Record<string, string>;
 	repositoryTitles?: Record<string, string>;
 	onSelectIssue?: (id: string) => void;
+	onMoveIssue?: (command: MoveCommand) => void;
 };
 
 export function Column({
@@ -15,13 +21,29 @@ export function Column({
 	labelTitles,
 	repositoryTitles,
 	onSelectIssue,
+	onMoveIssue,
 }: ColumnProps) {
+	const ref = useRef<HTMLElement | null>(null);
+	const isOver = useColumnDropTarget(ref, {
+		columnId: column.id,
+		// A no-op handler keeps the hook's deps stable when DnD is disabled; the
+		// lane simply never fires a move.
+		onMove: onMoveIssue ?? (() => {}),
+	});
+	const draggable = onMoveIssue !== undefined;
+
 	return (
 		<section
+			ref={ref}
 			data-testid="board-column"
 			data-column-id={column.id}
+			data-drop-over={draggable && isOver ? "true" : undefined}
 			aria-label={column.title}
-			className="flex w-64 shrink-0 flex-col rounded-md border border-neutral-800 bg-neutral-900/40"
+			className={`flex w-64 shrink-0 flex-col rounded-md border bg-neutral-900/40 ${
+				draggable && isOver
+					? "border-sky-500 bg-sky-500/5"
+					: "border-neutral-800"
+			}`}
 		>
 			<header className="flex items-baseline justify-between border-b border-neutral-800 px-3 py-2">
 				<h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-300">
@@ -50,6 +72,7 @@ export function Column({
 								labelTitles={labelTitles}
 								repositoryTitles={repositoryTitles}
 								onSelect={onSelectIssue}
+								columnId={draggable ? column.id : undefined}
 							/>
 						</li>
 					))}

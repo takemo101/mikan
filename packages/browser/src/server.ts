@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { type AppendInput, appendIssueResponse } from "./append-api.ts";
 import { loadBoardApiResponse } from "./board-api.ts";
 import { loadIssueDetailResponse } from "./issue-api.ts";
+import { type MoveInput, moveIssueResponse } from "./move-api.ts";
 import { checkWriteOrigin } from "./origin-guard.ts";
 
 // Foreground local Browser server for `mikan browser`. It serves the static app
@@ -103,6 +104,32 @@ export function createBrowserApp(options: CreateBrowserAppOptions): BrowserApp {
 			);
 		}
 		return c.json(appendIssueResponse(projectRoot, c.req.param("id"), input));
+	});
+
+	// Status move write endpoint backing board drag-and-drop. Same guard-first,
+	// reload-from-disk shape as append: the Host/Origin guard runs before any
+	// mutation, the JSON body carries the target Status, and core `moveIssue`
+	// confines the write to the located Issue file under the active project root
+	// while writing the `Moved via mikan browser` Status Log entry.
+	app.post("/api/issues/:id/move", async (c) => {
+		const guard = checkWriteOrigin(c.req.raw);
+		if (!guard.ok) return c.json({ ok: false, error: guard.error }, 403);
+		let input: MoveInput;
+		try {
+			input = (await c.req.json()) as MoveInput;
+		} catch {
+			return c.json(
+				{
+					ok: false,
+					error: {
+						code: "invalid_request",
+						message: "Request body must be valid JSON.",
+					},
+				},
+				400,
+			);
+		}
+		return c.json(moveIssueResponse(projectRoot, c.req.param("id"), input));
 	});
 
 	app.get("/assets/*", async (c) => {

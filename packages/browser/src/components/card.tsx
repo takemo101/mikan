@@ -1,4 +1,6 @@
 import type { BoardCardView } from "@mikan/core";
+import { useRef } from "react";
+import { useCardDraggable } from "../client/use-board-dnd.ts";
 
 // A single Issue rendered as a Card.
 //
@@ -13,6 +15,9 @@ type CardProps = {
 	// When provided, the whole Card becomes an accessible trigger that opens the
 	// Focused Markdown Modal for this Issue.
 	onSelect?: (id: string) => void;
+	// The Status Column this Card lives in. When provided, the Card becomes a
+	// drag source whose drop onto another Column moves the Issue to that Status.
+	columnId?: string;
 };
 
 export function Card({
@@ -20,18 +25,28 @@ export function Card({
 	labelTitles,
 	repositoryTitles,
 	onSelect,
+	columnId,
 }: CardProps) {
 	const repositoryTitle = card.repository
 		? (repositoryTitles?.[card.repository] ?? card.repository)
 		: undefined;
 	const affects = card.affects ?? [];
 	const blocked = card.dependencyStatus === "blocked";
+	const ref = useRef<HTMLElement | null>(null);
+	const dragging = useCardDraggable(ref, {
+		issueId: card.id,
+		columnId: columnId ?? "",
+	});
 
 	return (
 		<article
+			ref={ref}
 			data-testid="board-card"
 			data-issue-id={card.id}
-			className="relative rounded border border-neutral-800 bg-neutral-900 px-2.5 py-2 text-sm"
+			data-dragging={dragging ? "true" : undefined}
+			className={`relative rounded border border-neutral-800 bg-neutral-900 px-2.5 py-2 text-sm ${
+				columnId ? "cursor-grab active:cursor-grabbing" : ""
+			} ${dragging ? "opacity-50" : ""}`}
 		>
 			{onSelect ? (
 				// Stretched trigger covering the Card: keeps the visible content as

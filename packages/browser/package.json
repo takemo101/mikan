@@ -14,6 +14,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
+		"@atlaskit/pragmatic-drag-and-drop": "^1",
 		"@mikan/core": "workspace:*",
 		"@mikan/project-config": "workspace:*",
 		"@tanstack/react-query": "^5.101.0",

@@ -2,6 +2,7 @@ import { Board } from "../components/board.tsx";
 import { IssueDetailModal } from "../components/issue-detail-modal.tsx";
 import { useBoardQuery } from "./board-query.ts";
 import { useIssueDetailQuery } from "./issue-detail-query.ts";
+import { useBoardMove } from "./move-mutation.ts";
 import { useRepositoryFilter } from "./use-repository-filter.ts";
 import { useSelectedIssue } from "./use-selected-issue.ts";
 
@@ -17,6 +18,7 @@ export function App() {
 	const [repository, setRepository] = useRepositoryFilter();
 	const [selectedIssue, setSelectedIssue] = useSelectedIssue();
 	const detail = useIssueDetailQuery(selectedIssue);
+	const { moveIssue, moveError, clearMoveError } = useBoardMove();
 
 	return (
 		<main className="min-h-screen bg-neutral-950 text-neutral-100">
@@ -48,6 +50,9 @@ export function App() {
 						repository={repository}
 						onRepositoryChange={setRepository}
 						onSelectIssue={setSelectedIssue}
+						onMoveIssue={moveIssue}
+						moveError={moveError}
+						onDismissMoveError={clearMoveError}
 					/>
 				) : (
 					<p data-testid="board-status" role="alert" className="text-red-400">
