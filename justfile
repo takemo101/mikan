@@ -39,4 +39,9 @@ fix:
 build:
     bun run build
 
+# Build the local Browser assets/CLI dist, then start `mikan browser`.
+# Pass Browser flags after `--`, e.g. `just browser-dev -- --no-open --port 4321`.
+browser-dev *args:
+    bun run browser:dev -- {{args}}
+
 validate: typecheck test check build
