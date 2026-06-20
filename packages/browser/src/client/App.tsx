@@ -67,6 +67,7 @@ export function App() {
 					data={detail.data}
 					isPending={detail.isPending}
 					isError={detail.isError}
+					configLabels={data?.ok ? (data.board.labels ?? []) : []}
 					onClose={() => setSelectedIssue(undefined)}
 				/>
 			) : null}
