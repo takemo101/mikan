@@ -121,7 +121,7 @@ Use a lightweight version of cuekit's engineering substrate:
 - `yaml` for config.
 - `incur` for stdio MCP schemas/operations.
 - OpenTUI React: `@opentui/core`, `@opentui/react`, React 19.
-- Planned Browser UI: React 19, Vite, Hono, Tailwind CSS v4 with `@tailwindcss/typography`, React Aria Components, Atlassian Pragmatic Drag and Drop, `react-markdown`, `remark-gfm`, TanStack Query, TanStack Router, Testing Library, and happy-dom.
+- Browser UI: React 19, Vite, Hono, Tailwind CSS v4 with `@tailwindcss/typography`, React Aria Components, Atlassian Pragmatic Drag and Drop, `react-markdown`, `remark-gfm`, TanStack Query, TanStack Router, Testing Library, and happy-dom.
 
 Do not copy cuekit's heavier product model:
 
@@ -140,7 +140,7 @@ packages/project-config  # .mikan/config.yaml discovery, schema, init
 packages/cli             # mikan binary and primitive commands
 packages/mcp             # stdio mikan mcp server over core operations
 packages/tui             # OpenTUI board/detail UI with small Issue mutations
-packages/browser         # planned local Web board UI adapter
+packages/browser         # local Web board UI adapter
 ```
 
 Dependency direction:
@@ -540,7 +540,7 @@ Must not support initially:
 
 ## Browser UI design
 
-`mikan browser` is the planned local Browser UI adapter for mikan. It is parallel to `mikan tui`: a human-facing Web board over the same Markdown source of truth, not a shared dashboard, hosted service, mandatory daemon, scheduler, GitHub sync surface, database, or agent runtime. See [`docs/browser.md`](./browser.md) for the detailed design and implementation slicing.
+`mikan browser` is the local Browser UI adapter for mikan. It is parallel to `mikan tui`: a human-facing Web board over the same Markdown source of truth, not a shared dashboard, hosted service, mandatory daemon, scheduler, GitHub sync surface, database, or agent runtime. See [`docs/browser.md`](./browser.md) for the detailed design and implementation slicing.
 
 Public command shape:
 
@@ -563,11 +563,11 @@ Runtime behavior:
 - serve Vite-built static assets copied into the published CLI package under `dist/browser/`;
 - keep development-only Vite/HMR scripts out of the public CLI runtime contract.
 
-Initial Browser product target:
+Released initial Browser product target:
 
 - render a real Kanban board with configured Columns and Cards using the selected **Local Command Board** visual direction: dark, compact, developer-native, and close in spirit to the TUI;
 - show board warnings, Card labels, dependency readiness markers, primary Repository prefix, affected Repository context where useful, and workspace Repository filter UI;
-- filter by primary `repository` only; `affects` does not widen results;
+- filter by primary `repository` only in the initial release; `affects` does not widen results unless an explicit include-affected mode is active;
 - reflect active Repository filter and selected Issue in URL query parameters such as `?repository=backend&issue=MIK-123`;
 - open a **Focused Markdown Modal** from Card click;
 - render Issue Markdown with `react-markdown`, `remark-gfm`, and Tailwind Typography while disabling or escaping raw HTML;
@@ -583,7 +583,8 @@ Browser APIs should stay small and local:
 - `GET /api/board` returns the current shared `BoardViewModel`;
 - `GET /api/issues/:id` returns selected Issue Markdown/detail payload;
 - `POST /api/issues/:id/append` appends to `Reports` or `Notes` using existing core append behavior;
-- `POST /api/issues/:id/move` moves to a Status using existing core move behavior and the browser Status Log message.
+- `POST /api/issues/:id/move` moves to a Status using existing core move behavior and the browser Status Log message;
+- next action-scope APIs add `POST /api/issues/:id/labels`, `POST /api/issues/:id/archive`, and `POST /api/issues/:id/github-mirror` for Label frontmatter updates, Archive moves, and explicit GitHub Mirror creation/update.
 
 Write APIs must reload current project state from disk for each mutation, return errors as `{ ok: false, error: { code, message } }`, preserve core/user-fixable error codes where possible, map unexpected failures to `internal_error`, reject requests whose Host/Origin does not match the local server origin, and never write outside the active project root.
 
@@ -591,9 +592,9 @@ Shared model boundary:
 
 - Extract TUI-neutral display data from `TuiModel` into a shared `BoardViewModel` used by both TUI and Browser.
 - Shared semantics include Columns, Cards, labels, warnings, Repository fields, GitHub Mirror metadata, Issue Metadata, and dependency readiness.
-- Browser uses TanStack Query to poll the Board API every few seconds and invalidate/refetch Board and selected Issue detail queries after append or move.
+- Browser uses TanStack Query to poll the Board API every few seconds and invalidate/refetch Board and selected Issue detail queries after append, move, label, archive, or GitHub Mirror mutations.
 
-Initial implementation should be split into Issues:
+Initial implementation was split into Issues:
 
 1. Browser foundation and CLI command.
 2. Shared `BoardViewModel` and board API.
@@ -602,12 +603,19 @@ Initial implementation should be split into Issues:
 5. Append Reports/Notes.
 6. Drag-and-drop Status move.
 
-Must not support initially:
+Next Browser action design:
 
-- GitHub Mirror actions;
-- Label editing;
-- archive/unarchive;
-- include-affected Repository filtering;
+- Repository filter gains a segmented `Primary | +Affected` scope control. `Primary` remains default. `+Affected` includes Issues whose primary `repository` matches the selected Repository plus Issues whose `affects` contains it. URL state records this as `includeAffected=1`, for example `?repository=backend&includeAffected=1&issue=MIK-123`. `affects` remains display/filter context and never determines the GitHub Mirror target.
+- Issue detail adds a top action bar below the modal header: `Edit labels`, `Create GitHub Mirror` or `Update GitHub Mirror`, and right-aligned `Archive`.
+- `Edit labels` opens a small popover inside the detail modal. It lists config-defined Labels as checkboxes, shows config-unknown existing Labels as read-only preserved values, and saves frontmatter only without Status Log, Note, or GitHub Mirror side effects.
+- `Archive` opens a confirmation modal, then moves the Issue to `archived` through core move behavior and writes `Archived via mikan browser`. This action does not add unarchive or show-archived Browser views.
+- GitHub Mirror opens a confirmation modal that shows the target Repository, then performs a synchronous create/update request using existing GitHub Mirror behavior. Single-project targets use top-level `github.repo`; workspace targets use the Issue's primary `repository` and `repositories[].github.repo`; Labels and `affects` never choose the target.
+- Successful writes refresh Board/detail data. Failed writes show structured user-facing errors. Browser still avoids optimistic persistence.
+
+Still out of scope:
+
+- unarchive and show-archived Browser views;
+- editing `repository` or `affects` from Browser;
 - full keyboard shortcut parity with TUI;
 - shared/remote dashboard mode;
 - background daemon mode.

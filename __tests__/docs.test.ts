@@ -239,6 +239,17 @@ describe("manual site documentation", () => {
 		expect(browserDesignDoc).toContain(
 			"Repository filtering by primary `repository` only",
 		);
+		for (const actionDesign of [
+			"Primary | +Affected",
+			"includeAffected=1",
+			"top action bar",
+			"Edit labels",
+			"Archived via mikan browser",
+			"POST /api/issues/:id/github-mirror",
+		]) {
+			expect(browserDesignDoc).toContain(actionDesign);
+			expect(designDoc).toContain(actionDesign);
+		}
 		expect(browserDesignDoc).toContain("Host/Origin");
 		expect(browserDesignDoc).toContain("packages/browser");
 		expect(designDoc).toContain("packages/browser");
@@ -308,12 +319,21 @@ describe("mikan browser user documentation", () => {
 		expect(browserManual).toContain("cannot inject elements");
 	});
 
-	test("Browser manual lists the deferred surfaces", () => {
+	test("Browser manual documents planned detail actions and remaining deferred surfaces", () => {
+		for (const planned of [
+			"Primary | +Affected",
+			"includeAffected=1",
+			"Edit labels",
+			"Create/Update GitHub Mirror",
+			"Archived via mikan browser",
+			"Labels and `affects` never choose the target",
+		]) {
+			expect(browserManual).toContain(planned);
+		}
+
 		for (const deferred of [
-			"GitHub Mirror actions",
-			"Label editing",
-			"archive/unarchive",
-			"include-affected Repository filtering",
+			"unarchive and show-archived Browser views",
+			"editing `repository` or `affects` from Browser",
 			"full keyboard shortcut parity with the TUI",
 			"remote or shared dashboard mode",
 		]) {
