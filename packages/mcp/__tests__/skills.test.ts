@@ -168,9 +168,10 @@ describe("skill agent installers", () => {
 			for (const phrase of [
 				"Read the board or target Issue first",
 				"Check warnings and unmet_dependencies",
-				"Move substantial work to `active`",
+				"Move substantial work to the board's active work column",
 				"Append Reports for findings, validation, blockers, and review results",
-				"Move to `completed` only after acceptance criteria and validation pass",
+				"Move to the done column only after acceptance criteria and validation pass",
+				"Use the board's configured Status columns",
 			]) {
 				expect(doc).toContain(phrase);
 			}
@@ -201,6 +202,7 @@ describe("skill agent installers", () => {
 			expect(doc).toContain("## Workspace mode");
 			expect(doc).toContain("every Issue needs a primary `repository`");
 			expect(doc).toContain("`affects` only for additional Repositories");
+			expect(doc).toContain("repeat the primary `repository` in `affects`");
 			expect(doc).toContain(
 				"New Mirrors use `Issue.repository -> repositories[].github.repo`",
 			);

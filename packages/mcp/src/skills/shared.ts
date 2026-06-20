@@ -62,9 +62,12 @@ Use mikan as this project's local-first Markdown Issue board. Issues live in
 
 1. Read the board or target Issue first.
 2. Check warnings and unmet_dependencies before choosing or changing work.
-3. Move substantial work to \`active\` when starting.
+3. Move substantial work to the board's active work column when starting.
 4. Append Reports for findings, validation, blockers, and review results.
-5. Move to \`completed\` only after acceptance criteria and validation pass.
+5. Move to the done column only after acceptance criteria and validation pass.
+
+Use the board's configured Status columns; defaults are \`active\` for started
+work and \`completed\` for done work.
 
 ## Tools
 
@@ -92,7 +95,8 @@ MCP and CLI are unavailable. If a command fails, report the error exactly.
 ## Workspace mode
 
 If config has top-level \`repositories\`, every Issue needs a primary \`repository\`.
-Use \`affects\` only for additional Repositories touched by the Issue.
+Use \`affects\` only for additional Repositories touched by the Issue; never
+repeat the primary \`repository\` in \`affects\`.
 
 Examples:
 
