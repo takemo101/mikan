@@ -19,6 +19,12 @@ const githubMirrorManual = readFileSync(
 	join(repoRoot, "site", "github-mirror.md"),
 	"utf8",
 );
+const designDoc = readFileSync(join(repoRoot, "docs", "design.md"), "utf8");
+const browserDesignDoc = readFileSync(
+	join(repoRoot, "docs", "browser.md"),
+	"utf8",
+);
+const contextDoc = readFileSync(join(repoRoot, "CONTEXT.md"), "utf8");
 const vitepressConfig = readFileSync(
 	join(repoRoot, "site", ".vitepress", "config.ts"),
 	"utf8",
@@ -200,5 +206,40 @@ describe("manual site documentation", () => {
 		);
 		expect(vitepressConfig).toContain("/github-mirror");
 		expect(configManual).toContain("github.auto_push_mirrors");
+	});
+
+	test("durable docs capture the planned mikan browser design", () => {
+		for (const required of [
+			"mikan browser",
+			"local Browser UI adapter",
+			"React 19",
+			"Vite",
+			"Hono",
+			"Tailwind CSS v4",
+			"React Aria Components",
+			"Atlassian Pragmatic Drag and Drop",
+			"react-markdown",
+			"remark-gfm",
+			"TanStack Query",
+			"TanStack Router",
+			"Local Command Board",
+			"Focused Markdown Modal",
+			"Moved via mikan browser",
+			"{ ok: false, error: { code, message } }",
+		]) {
+			expect(browserDesignDoc).toContain(required);
+			expect(designDoc).toContain(required);
+		}
+
+		expect(browserDesignDoc).toContain("raw HTML disabled or escaped");
+		expect(browserDesignDoc).toContain(
+			"Repository filtering by primary `repository` only",
+		);
+		expect(browserDesignDoc).toContain("Host/Origin");
+		expect(browserDesignDoc).toContain("packages/browser");
+		expect(designDoc).toContain("packages/browser");
+		expect(designDoc).toContain("no mandatory/shared server");
+		expect(contextDoc).toContain("**Browser UI**");
+		expect(contextDoc).toContain("not a shared dashboard");
 	});
 });

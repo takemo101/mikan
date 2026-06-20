@@ -6,10 +6,10 @@ mikan is a tiny, local-first micro-kanban for AI-assisted development. It gives 
 
 - Use plain Markdown files as the source of truth.
 - Let agents update Issues through safe CLI/MCP operations.
-- Let humans observe and perform small Issue mutations through the TUI.
+- Let humans observe and perform small Issue mutations through the TUI and planned local Browser UI.
 - Keep the public command surface small and primitive.
 - Support optional status-transition hooks without making hooks authoritative.
-- Stay lightweight: no SQLite, no server, no bidirectional GitHub sync, no agent/profile model in v0.
+- Stay lightweight: no SQLite, no mandatory/shared server, no bidirectional GitHub sync, no agent/profile model in v0.
 
 ## Non-goals
 
@@ -21,6 +21,7 @@ mikan v0 is not:
 - a replacement for herdr/tmux/zellij;
 - a GitHub Issues clone;
 - a mandatory daemon;
+- a shared or hosted dashboard service;
 - a database-backed state machine.
 
 ## Core principle
@@ -67,7 +68,7 @@ Canonical terms are defined in [`CONTEXT.md`](../CONTEXT.md). The most important
 - **Label**: configured descriptive tag used for filtering, grouping, and selecting optional hook commands; not an agent profile, role, priority, scheduler rule, or success behavior.
 - **Report**: append-only finding from a named source.
 - **Note**: lightweight free-form context.
-- **Card**: TUI representation of an Issue.
+- **Card**: visual board UI representation of an Issue in the TUI or Browser UI.
 
 Avoid `Task`, `ticket`, `profile`, `role`, and `spawned` as mikan domain terms.
 
@@ -92,7 +93,7 @@ mikan borrows a lightweight subset of ideas from `j5ik2o/okite-ai`:
    - Operational hook failures: record in `hook-log.ndjson`; never roll back Issue status.
 
 5. **Clean architecture without ceremony**
-   - `core` must not depend on CLI, MCP, TUI, OpenTUI, or UI concerns.
+   - `core` must not depend on CLI, MCP, TUI, Browser, OpenTUI, Hono, React, or UI concerns.
    - Adapters call core operations.
    - Avoid DDD/CQRS/repository ceremony that does not serve this file-backed model.
    - Avoiding ceremony does not mean keeping package internals in one large file.
@@ -120,6 +121,7 @@ Use a lightweight version of cuekit's engineering substrate:
 - `yaml` for config.
 - `incur` for stdio MCP schemas/operations.
 - OpenTUI React: `@opentui/core`, `@opentui/react`, React 19.
+- Planned Browser UI: React 19, Vite, Hono, Tailwind CSS v4 with `@tailwindcss/typography`, React Aria Components, Atlassian Pragmatic Drag and Drop, `react-markdown`, `remark-gfm`, TanStack Query, TanStack Router, Testing Library, and happy-dom.
 
 Do not copy cuekit's heavier product model:
 
@@ -138,6 +140,7 @@ packages/project-config  # .mikan/config.yaml discovery, schema, init
 packages/cli             # mikan binary and primitive commands
 packages/mcp             # stdio mikan mcp server over core operations
 packages/tui             # OpenTUI board/detail UI with small Issue mutations
+packages/browser         # planned local Web board UI adapter
 ```
 
 Dependency direction:
@@ -145,15 +148,16 @@ Dependency direction:
 ```txt
 cli ─┐
 mcp ─┼──> core <── project-config
-tui ─┘
+tui ─┤
+browser ─┘
 ```
 
-`core` owns domain operations and file mutation rules. CLI/MCP/TUI are adapters.
+`core` owns domain operations and file mutation rules. CLI/MCP/TUI/Browser are adapters.
 
 Within each package, keep public surface and internal implementation separate:
 
 - `src/index.ts` is the package facade: export the public Interface and compose internal Modules.
-- Internal files should group cohesive behavior, not arbitrary layers. Good seams include Issue parsing, board scanning, dependency readiness, CLI command handling, MCP tool adapters, TUI board view models, TUI detail view models, TUI navigation, TUI mutations, and OpenTUI components.
+- Internal files should group cohesive behavior, not arbitrary layers. Good seams include Issue parsing, board scanning, dependency readiness, CLI command handling, MCP tool adapters, shared board view models, TUI board/detail view models, TUI navigation, TUI mutations, Browser API handlers, Browser React components, and OpenTUI components.
 - Prefer a few deep Modules over many shallow pass-through files. If deleting a Module would simply move the same complexity into every caller, the Module is earning its keep; if deletion removes only forwarding code, the Module is too shallow.
 - Tests should target durable Interfaces. Exporting internals only for tests is acceptable temporarily, but it should not cause `index.ts` to become a catch-all public API.
 
@@ -534,6 +538,80 @@ Must not support initially:
 - bidirectional GitHub sync;
 - editing `repository` or `affects` from the TUI in the initial workspace slice.
 
+## Browser UI design
+
+`mikan browser` is the planned local Browser UI adapter for mikan. It is parallel to `mikan tui`: a human-facing Web board over the same Markdown source of truth, not a shared dashboard, hosted service, mandatory daemon, scheduler, GitHub sync surface, database, or agent runtime. See [`docs/browser.md`](./browser.md) for the detailed design and implementation slicing.
+
+Public command shape:
+
+```sh
+mikan browser
+mikan browser --port 4321
+mikan browser --no-open
+mikan browser --port 4321 --no-open
+```
+
+Runtime behavior:
+
+- discover the project by walking upward for `.mikan/config.yaml`;
+- fail before opening the browser when config loading fails;
+- bind a foreground Hono server to `127.0.0.1` only;
+- auto-select an available port by default;
+- open the browser automatically unless `--no-open` is passed;
+- print the local URL;
+- stop when the CLI process receives Ctrl-C;
+- serve Vite-built static assets copied into the published CLI package under `dist/browser/`;
+- keep development-only Vite/HMR scripts out of the public CLI runtime contract.
+
+Initial Browser product target:
+
+- render a real Kanban board with configured Columns and Cards using the selected **Local Command Board** visual direction: dark, compact, developer-native, and close in spirit to the TUI;
+- show board warnings, Card labels, dependency readiness markers, primary Repository prefix, affected Repository context where useful, and workspace Repository filter UI;
+- filter by primary `repository` only; `affects` does not widen results;
+- reflect active Repository filter and selected Issue in URL query parameters such as `?repository=backend&issue=MIK-123`;
+- open a **Focused Markdown Modal** from Card click;
+- render Issue Markdown with `react-markdown`, `remark-gfm`, and Tailwind Typography while disabling or escaping raw HTML;
+- append Reports and Notes from forms/tabs inside the Issue detail modal;
+- drag-and-drop Cards between Status Columns using Atlassian Pragmatic Drag and Drop;
+- perform drag-and-drop moves immediately and write `Moved via mikan browser` to the Status Log;
+- avoid optimistic write UI initially: successful writes refresh Board/detail data, failed writes show structured user-facing errors.
+
+Browser APIs should stay small and local:
+
+- `GET /` serves the app shell;
+- `GET /assets/*` serves built static assets;
+- `GET /api/board` returns the current shared `BoardViewModel`;
+- `GET /api/issues/:id` returns selected Issue Markdown/detail payload;
+- `POST /api/issues/:id/append` appends to `Reports` or `Notes` using existing core append behavior;
+- `POST /api/issues/:id/move` moves to a Status using existing core move behavior and the browser Status Log message.
+
+Write APIs must reload current project state from disk for each mutation, return errors as `{ ok: false, error: { code, message } }`, preserve core/user-fixable error codes where possible, map unexpected failures to `internal_error`, reject requests whose Host/Origin does not match the local server origin, and never write outside the active project root.
+
+Shared model boundary:
+
+- Extract TUI-neutral display data from `TuiModel` into a shared `BoardViewModel` used by both TUI and Browser.
+- Shared semantics include Columns, Cards, labels, warnings, Repository fields, GitHub Mirror metadata, Issue Metadata, and dependency readiness.
+- Browser uses TanStack Query to poll the Board API every few seconds and invalidate/refetch Board and selected Issue detail queries after append or move.
+
+Initial implementation should be split into Issues:
+
+1. Browser foundation and CLI command.
+2. Shared `BoardViewModel` and board API.
+3. Real Web board display with Repository filter.
+4. Markdown Issue detail modal.
+5. Append Reports/Notes.
+6. Drag-and-drop Status move.
+
+Must not support initially:
+
+- GitHub Mirror actions;
+- Label editing;
+- archive/unarchive;
+- include-affected Repository filtering;
+- full keyboard shortcut parity with TUI;
+- shared/remote dashboard mode;
+- background daemon mode.
+
 ## Watch and hooks
 
 `mikan watch` is a polling watcher. Start with periodic rescan, not native file watchers.
@@ -784,6 +862,9 @@ Then add adapter tests:
 - MCP tool schema/input/output tests;
 - TUI data transformation tests, including workspace Repository display and
   filtering;
+- Browser server/API tests, shared `BoardViewModel` tests, React component tests
+  with Testing Library + happy-dom, and package dry-run coverage for bundled
+  Browser assets;
 - GitHub Mirror target resolution tests for single-project and workspace
   modes;
 - watch snapshot transition tests.
@@ -794,3 +875,4 @@ Then add adapter tests:
 - Exact Markdown parser/frontmatter library choice.
 - Whether `get_board` remains separate from `list_issues` after first implementation spike.
 - Whether TUI should support a toggle for archived Issues in v0 or only via list/MCP flags.
+- Whether Browser write APIs need a stronger per-run token beyond Host/Origin checks after append/move.

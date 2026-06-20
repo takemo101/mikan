@@ -81,8 +81,12 @@ A lightweight free-form addition to an **Issue** for context, judgement, or remi
 _Avoid_: Comment, chat message
 
 **Card**:
-The visual representation of an **Issue** in the human-facing board UI. A **Card** is not a separate domain object from the **Issue** it displays.
+The visual representation of an **Issue** in a human-facing board UI such as the TUI or Browser UI. A **Card** is not a separate domain object from the **Issue** it displays.
 _Avoid_: Task card, item
+
+**Browser UI**:
+The planned local Web UI adapter opened by `mikan browser`. It is a human-facing board over the same Markdown source of truth as the CLI, MCP server, TUI, and watcher. It runs only while invoked, binds locally, and is not a shared dashboard, hosted service, scheduler, database, GitHub sync surface, or agent runtime.
+_Avoid_: Hosted dashboard, server source of truth, web scheduler
 
 ## Example dialogue
 
