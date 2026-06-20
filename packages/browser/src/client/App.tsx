@@ -1,41 +1,48 @@
+import { Board } from "../components/board.tsx";
 import { useBoardQuery } from "./board-query.ts";
+import { useRepositoryFilter } from "./use-repository-filter.ts";
 
-// Minimal Browser app shell (MIK-150) now wired to the Board API poll (MIK-151).
-// The visual direction is the dark, compact, developer-native "Local Command
-// Board". This slice only renders a debug board summary; the real Kanban board,
-// Repository filter, Markdown detail, and write actions arrive in later Issues.
+// Browser app shell wired to the Board API poll (MIK-151) and rendering the real
+// Kanban board with primary-Repository filtering (MIK-152). The visual direction
+// is the dark, compact, developer-native "Local Command Board", close in spirit
+// to the TUI. The active Repository filter is mirrored in the `repository` URL
+// query parameter and restored on reload.
 export function App() {
 	const { data, isPending, isError } = useBoardQuery();
+	const [repository, setRepository] = useRepositoryFilter();
+
 	return (
 		<main className="min-h-screen bg-neutral-950 text-neutral-100">
-			<div className="mx-auto max-w-3xl px-6 py-16">
-				<h1 className="text-2xl font-semibold tracking-tight">mikan browser</h1>
-				<p className="mt-3 text-neutral-400">
-					Local board UI is starting. The Kanban board renders in an upcoming
-					release.
-				</p>
+			<div className="mx-auto max-w-7xl px-6 py-8">
+				<header className="mb-6 flex items-baseline gap-3">
+					<h1 className="text-lg font-semibold tracking-tight">
+						mikan browser
+					</h1>
+					{data?.ok ? (
+						<span
+							data-testid="board-project"
+							className="text-sm text-neutral-500"
+						>
+							{data.project.name} · {data.project.key}
+						</span>
+					) : null}
+				</header>
 				{isPending ? (
-					<p data-testid="board-status" className="mt-6 text-neutral-500">
+					<p data-testid="board-status" className="text-neutral-500">
 						Loading board…
 					</p>
 				) : isError ? (
-					<p
-						data-testid="board-status"
-						role="alert"
-						className="mt-6 text-red-400"
-					>
+					<p data-testid="board-status" role="alert" className="text-red-400">
 						Could not reach the board API.
 					</p>
 				) : data.ok ? (
-					<p data-testid="board-status" className="mt-6 text-neutral-400">
-						{`${data.project.key} · ${data.board.columns.length} columns · ${data.board.warnings.length} warnings`}
-					</p>
+					<Board
+						board={data.board}
+						repository={repository}
+						onRepositoryChange={setRepository}
+					/>
 				) : (
-					<p
-						data-testid="board-status"
-						role="alert"
-						className="mt-6 text-red-400"
-					>
+					<p data-testid="board-status" role="alert" className="text-red-400">
 						{`${data.error.code}: ${data.error.message}`}
 					</p>
 				)}

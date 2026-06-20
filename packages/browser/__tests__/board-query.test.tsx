@@ -29,6 +29,7 @@ function stubFetch(body: BoardApiResponse): void {
 afterEach(() => {
 	cleanup();
 	globalThis.fetch = originalFetch;
+	window.history.replaceState(null, "", "/");
 });
 
 function renderApp() {
@@ -44,7 +45,7 @@ describe("browser board polling", () => {
 		expect(BOARD_POLL_INTERVAL_MS).toBeGreaterThan(0);
 	});
 
-	test("polls /api/board and renders a board summary", async () => {
+	test("polls /api/board and renders the board columns", async () => {
 		stubFetch({
 			ok: true,
 			project: { key: "MIK", name: "mikan", root: "/tmp/mikan" },
@@ -59,10 +60,11 @@ describe("browser board polling", () => {
 		});
 		renderApp();
 
-		const status = await screen.findByTestId("board-status");
-		expect(status.textContent).toContain("MIK");
-		expect(status.textContent).toContain("2 columns");
-		expect(status.textContent).toContain("1 warnings");
+		expect(
+			await screen.findByRole("heading", { name: "Backlog" }),
+		).toBeDefined();
+		expect(screen.getByRole("heading", { name: "Ready" })).toBeDefined();
+		expect(screen.getByTestId("board-project").textContent).toContain("mikan");
 		expect(requestedUrls.some((url) => url.includes("/api/board"))).toBe(true);
 	});
 

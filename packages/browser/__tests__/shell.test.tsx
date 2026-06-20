@@ -46,13 +46,6 @@ describe("browser app shell", () => {
 		).toBeDefined();
 	});
 
-	test("explains the board is not yet fully rendered", () => {
-		renderApp();
-		expect(
-			screen.getByText(/board renders in an upcoming release/i),
-		).toBeDefined();
-	});
-
 	test("shows the board polling loading state before data arrives", () => {
 		renderApp();
 		expect(screen.getByTestId("board-status").textContent).toContain(
