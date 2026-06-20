@@ -153,27 +153,40 @@ describe("skill agent installers", () => {
 		}
 	});
 
-	test("the installed skill teaches mikan, the MCP tools, and advisory deps", () => {
+	test("the installed skill teaches compact mikan operating rules", () => {
 		const home = tempDir("mikan-skill-content-");
 		try {
 			const result = installSkillForAgent("claude-code", { home });
 			const doc = readFileSync(result.path, "utf8");
-			// SKILL.md frontmatter convention.
+			// SKILL.md frontmatter convention and scope.
 			expect(doc).toContain("name: mikan");
-			// Explains mikan as a local-first Issue board.
-			expect(doc).toContain("local-first");
-			expect(doc).toContain("Issue board");
+			expect(doc).toContain("local-first Markdown Issue board");
+
+			// The skill should be compact operating guidance, not a mini manual.
+			expect(doc.length).toBeLessThan(3800);
+			expect(doc).toContain("## Default workflow");
+			for (const phrase of [
+				"Read the board or target Issue first",
+				"Check warnings and unmet_dependencies",
+				"Move substantial work to `active`",
+				"Append Reports for findings, validation, blockers, and review results",
+				"Move to `completed` only after acceptance criteria and validation pass",
+			]) {
+				expect(doc).toContain(phrase);
+			}
+
 			// Tells agents to use MCP first, then fall back to the CLI when needed.
-			expect(doc).toContain("MCP-first");
-			expect(doc).toContain("CLI fallback");
-			expect(doc).toContain("MCP tools are unavailable");
+			expect(doc).toContain("Prefer MCP tools");
+			expect(doc).toContain("Use CLI only when MCP is unavailable");
+			expect(doc).toContain("Do not edit `.mikan/**/*.md` directly");
+			expect(doc).toContain("MCP and CLI are unavailable");
 			expect(doc).toContain(
-				'mikan add "Workspace Issue" --repository backend --affects frontend',
+				'mikan add "Title" --repository backend --affects frontend',
 			);
 			expect(doc).not.toContain("push_github_mirror");
+			expect(doc).not.toContain("mikan list --status ready");
 			for (const tool of [
 				"get_board",
-				"list_issues",
 				"get_issue",
 				"create_issue",
 				"update_issue",
@@ -183,27 +196,28 @@ describe("skill agent installers", () => {
 			]) {
 				expect(doc).toContain(tool);
 			}
-			// Workspace operation and Mirror target rules.
-			expect(doc).toContain("single-project mode");
-			expect(doc).toContain("workspace mode");
-			expect(doc).toContain("primary `repository` is required");
-			expect(doc).toContain("`affects` is context only");
+
+			// Workspace operation and Mirror target invariants remain explicit.
+			expect(doc).toContain("## Workspace mode");
+			expect(doc).toContain("every Issue needs a primary `repository`");
+			expect(doc).toContain("`affects` only for additional Repositories");
 			expect(doc).toContain(
-				"Issue's `repository` to `repositories[].github.repo`",
+				"New Mirrors use `Issue.repository -> repositories[].github.repo`",
 			);
-			expect(doc).toContain("top-level `github.repo` is not required");
-			expect(doc).toContain("`github.auto_push_mirrors` is workspace-wide");
-			// Issue vocabulary and append targets.
-			expect(doc).toContain("Issue ID");
-			expect(doc).toContain("Report");
-			expect(doc).toContain("Note");
-			// Dependencies described as advisory read-model data.
-			expect(doc).toContain("depends_on");
-			expect(doc).toContain("dependency_status");
-			expect(doc).toContain("advisory");
-			// GitHub Mirror described as explicit one-way publication.
-			expect(doc).toContain("GitHub Mirror is one-way");
-			expect(doc).toContain("external mirrors only");
+			expect(doc).toContain(
+				"Labels and `affects` never choose the Mirror target",
+			);
+			expect(doc).toContain(
+				"top-level `github.repo` is not a workspace fallback",
+			);
+			expect(doc).toContain(
+				"`github.auto_push_mirrors` only controls `mikan watch`",
+			);
+
+			// Boundaries and vocabulary stay concise.
+			expect(doc).toContain("Dependencies are advisory");
+			expect(doc).toContain("GitHub Mirror is one-way publication");
+			expect(doc).toContain("Use Issue, not Task or ticket");
 		} finally {
 			rmSync(home, { recursive: true, force: true });
 		}

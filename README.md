@@ -227,7 +227,7 @@ mikan mcp add --agent copilot-cli             # ~/.copilot/mcp-config.json (glob
 
 ### Install agent guidance with `mikan skills add`
 
-`mikan skills add` is **separate** from MCP registration. It installs a small mikan `SKILL.md` using each agent's native Agent Skills convention so the agent knows what mikan is, drives the board MCP-first, falls back to the `mikan` CLI when MCP is unavailable, and handles single-project versus workspace Repository rules. Installing skills never changes MCP config, and registering MCP never installs skills.
+`mikan skills add` is **separate** from MCP registration. It installs a compact mikan `SKILL.md` using each agent's native Agent Skills convention so the agent follows a board-first operating loop, uses MCP before CLI, falls back to the `mikan` CLI only when MCP is unavailable, and handles single-project versus workspace Repository rules. Installing skills never changes MCP config, and registering MCP never installs skills.
 
 ```sh
 mikan skills add --agent <agent> [--no-global]
