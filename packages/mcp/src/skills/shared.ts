@@ -50,46 +50,94 @@ export type SkillAgentAdapter = {
 
 const skillFrontmatter = `---
 name: mikan
-description: mikan is a local-first Issue board for AI-assisted development. Use it to read the board; create, update, move, and append to Issues; and explicitly publish GitHub Mirrors through the mikan MCP tools. Trigger when the user wants to see the board, add or change an Issue, move an Issue to another Status, record a Report or Note, publish a GitHub Mirror, or decide what to work on next.
+description: Use mikan as a local-first Markdown Issue board. Trigger when the user wants to inspect, create, update, move, annotate, or mirror mikan Issues; manage workspace Repository Issues; or decide what to work on next. Use MCP-first with CLI fallback.
 ---`;
 
 const instructionDocument = `# mikan
 
-mikan is a tiny, local-first, Markdown-backed Issue board. Each Issue has a
-stable Issue ID such as \`MIK-001\`, one current Status (the board Column it
-lives in), optional Labels, and a body that can hold Reports and Notes.
+mikan is a local-first Markdown Issue board. Issues live under \`.mikan/\`; MCP,
+CLI, TUI, and watch operate on the same files.
 
-Drive mikan through its MCP tools rather than editing the Markdown files
-directly:
+## MCP-first
 
-- \`get_board\`, \`list_issues\`, \`get_issue\` — read the board and individual Issues.
-- \`create_issue\` — create an Issue (title, optional body, status, labels, depends_on).
-- \`update_issue\` — update an Issue's title, labels, dependencies, or body.
-- \`move_issue\` — move an Issue to another Status, including \`blocked\` and \`completed\`.
-- \`append_issue\` — append a Report (with a source) or a Note to an Issue.
-- \`mirror_issue_to_github\` — explicit external-publication operation that creates the GitHub Issue mirror when missing or updates it when it already exists.
+Use MCP tools before shell commands or file edits:
 
-GitHub Mirror is one-way: mikan Markdown remains the source of truth, and GitHub
-Issues are external mirrors only. Do not import GitHub Issues or treat GitHub as
-authoritative.
+- \`get_board\`, \`list_issues\`, \`get_issue\` — read Issues and scanner warnings.
+- \`create_issue\` — create an Issue.
+- \`update_issue\` — update title, Labels, Dependencies, body, metadata, Repository fields.
+- \`move_issue\` — move Status.
+- \`append_issue\` — append a Report or Note.
+- \`mirror_issue_to_github\` — explicitly create or update a GitHub Mirror.
 
-## Statuses
+Read before changing an existing Issue. Do not edit \`.mikan/**/*.md\` directly
+unless the user explicitly asks or both MCP and CLI are unusable.
 
-The standard Statuses are \`backlog\`, \`ready\`, \`active\`, \`blocked\`,
-\`completed\`, and \`archived\`. An Issue's Status is the board Column it sits in;
-change it with \`move_issue\`.
+## CLI fallback
 
-## Dependencies are advisory
+When MCP tools are unavailable, run \`mikan\` CLI commands from the project root:
 
-An Issue may declare \`depends_on\` (prerequisite Issue IDs). Read tools also
-return \`unmet_dependencies\` and \`dependency_status\` (\`ready\` or \`blocked\`).
-These are advisory read-model data to help humans and agents pick an order.
-mikan does not schedule, auto-move, or block Issues on dependencies.
+\`\`\`sh
+mikan list
+mikan list --status ready
+mikan show MIK-123
+mikan add "Issue title" --status backlog --label automation
+mikan update MIK-123 --title "New title"
+mikan update MIK-123 --label automation --depends-on MIK-122
+mikan move MIK-123 active --log "Starting implementation"
+mikan append MIK-123 --section Reports --source agent --body "Finding text"
+mikan append MIK-123 --section Notes --body "Note text"
+mikan github mirror MIK-123
+\`\`\`
 
-## Vocabulary
+CLI fallback rules:
 
-Use Issue, Issue ID, Status, Column, Label, Report, Note, and Dependency. Avoid
-Task, ticket, profile, and role.
+- Run \`mikan show <id>\` before changing an existing Issue.
+- Use repeated \`--label\`, \`--depends-on\`, and \`--affects\` flags for multiple values.
+- Keep Status values aligned with the project's configured Columns.
+- If a command fails, report the error exactly; do not hand-edit around it.
+
+## Single-project mode
+
+Without top-level \`repositories\` config, mikan is in single-project mode.
+Issues do not need \`repository\` or \`affects\`. GitHub Mirrors use top-level
+\`github.repo\`.
+
+## Workspace mode
+
+A project with top-level \`repositories\` config is in workspace mode. One parent
+\`.mikan\` board coordinates several local repositories while Issue files and IDs
+stay in the parent board.
+
+Workspace Issue rules:
+
+- A primary \`repository\` is required for every Issue.
+- \`affects\` is context only; it must not repeat the primary \`repository\`.
+- Create with MCP: \`create_issue({ title, repository: "backend", affects: ["frontend"] })\`.
+- Update with MCP: \`update_issue({ id: "MIK-123", repository: "frontend", affects: ["backend"] })\`.
+- CLI fallback: \`mikan add "Workspace Issue" --repository backend --affects frontend\`.
+- CLI fallback: \`mikan update MIK-123 --repository frontend --affects backend\`.
+
+Workspace GitHub Mirror rules:
+
+- New Mirrors resolve from the Issue's \`repository\` to \`repositories[].github.repo\`.
+- Labels and \`affects\` never choose the Mirror target.
+- Existing Mirrors keep the stored \`github_issue.repo\`.
+- top-level \`github.repo\` is not required and is not a workspace fallback.
+- \`github.auto_push_mirrors\` is workspace-wide; it only controls \`mikan watch\`
+  auto-push for Issues that already have \`github_issue\` frontmatter.
+
+## Dependencies and vocabulary
+
+Dependencies are advisory. Use \`depends_on\`, \`unmet_dependencies\`, and
+\`dependency_status\` to explain ordering; do not treat them as a scheduler or
+transition blocker.
+
+GitHub Mirror is one-way publication. Local Markdown remains authoritative;
+GitHub Issues are external mirrors only. Do not import GitHub Issues or treat
+GitHub as source of truth.
+
+Use Issue, Issue ID, Status, Column, Label, Report, Note, Dependency, Repository,
+and GitHub Mirror. Avoid Task, ticket, profile, role, team, or scheduler framing.
 `;
 
 // The agent-facing mikan skill. The same body is installed for every agent;
