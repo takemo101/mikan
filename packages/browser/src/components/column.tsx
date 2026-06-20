@@ -7,9 +7,15 @@ type ColumnProps = {
 	column: BoardColumnView;
 	labelTitles?: Record<string, string>;
 	repositoryTitles?: Record<string, string>;
+	onSelectIssue?: (id: string) => void;
 };
 
-export function Column({ column, labelTitles, repositoryTitles }: ColumnProps) {
+export function Column({
+	column,
+	labelTitles,
+	repositoryTitles,
+	onSelectIssue,
+}: ColumnProps) {
 	return (
 		<section
 			data-testid="board-column"
@@ -43,6 +49,7 @@ export function Column({ column, labelTitles, repositoryTitles }: ColumnProps) {
 								card={card}
 								labelTitles={labelTitles}
 								repositoryTitles={repositoryTitles}
+								onSelect={onSelectIssue}
 							/>
 						</li>
 					))}

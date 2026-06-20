@@ -9,6 +9,12 @@ export type {
 	BoardApiResponse,
 } from "./board-api.ts";
 export { loadBoardApiResponse } from "./board-api.ts";
+export type { ApiError } from "./config-error.ts";
+export type {
+	IssueDetailResponse,
+	IssueDetailView,
+} from "./issue-api.ts";
+export { loadIssueDetailResponse } from "./issue-api.ts";
 export { openBrowser } from "./open-browser.ts";
 export type {
 	BrowserApp,

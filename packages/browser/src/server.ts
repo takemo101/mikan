@@ -1,11 +1,12 @@
 import { resolve, sep } from "node:path";
 import { Hono } from "hono";
 import { loadBoardApiResponse } from "./board-api.ts";
+import { loadIssueDetailResponse } from "./issue-api.ts";
 
 // Foreground local Browser server for `mikan browser`. It serves the static app
-// shell, binds to loopback, and (MIK-151) exposes the read-only `GET /api/board`
-// endpoint over the shared `BoardViewModel`. Detail and write APIs land in later
-// Browser Issues.
+// shell, binds to loopback, and exposes the read-only `GET /api/board` (MIK-151)
+// and `GET /api/issues/:id` (MIK-153) endpoints over the shared read model.
+// Write APIs land in later Browser Issues.
 
 export const BROWSER_HOST = "127.0.0.1";
 
@@ -72,6 +73,9 @@ export function createBrowserApp(options: CreateBrowserAppOptions): BrowserApp {
 	// Register API routes before the SPA catch-all so they are never shadowed by
 	// the client-routing fallback. Board reads reload from disk on every request.
 	app.get("/api/board", (c) => c.json(loadBoardApiResponse(projectRoot)));
+	app.get("/api/issues/:id", (c) =>
+		c.json(loadIssueDetailResponse(projectRoot, c.req.param("id"))),
+	);
 
 	app.get("/assets/*", async (c) => {
 		const filePath = resolveWithinAssets(root, c.req.path);

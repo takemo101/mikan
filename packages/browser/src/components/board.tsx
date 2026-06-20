@@ -15,9 +15,15 @@ type BoardProps = {
 	board: BoardViewModel;
 	repository: string | undefined;
 	onRepositoryChange: (next: string | undefined) => void;
+	onSelectIssue?: (id: string) => void;
 };
 
-export function Board({ board, repository, onRepositoryChange }: BoardProps) {
+export function Board({
+	board,
+	repository,
+	onRepositoryChange,
+	onSelectIssue,
+}: BoardProps) {
 	const filtered = filterBoardByRepository(board, repository);
 	const hasMatches = countBoardCards(filtered) > 0;
 	const filtering =
@@ -50,6 +56,7 @@ export function Board({ board, repository, onRepositoryChange }: BoardProps) {
 						column={column}
 						labelTitles={board.labelTitles}
 						repositoryTitles={board.repositoryTitles}
+						onSelectIssue={onSelectIssue}
 					/>
 				))}
 			</div>

@@ -10,9 +10,17 @@ type CardProps = {
 	card: BoardCardView;
 	labelTitles?: Record<string, string>;
 	repositoryTitles?: Record<string, string>;
+	// When provided, the whole Card becomes an accessible trigger that opens the
+	// Focused Markdown Modal for this Issue.
+	onSelect?: (id: string) => void;
 };
 
-export function Card({ card, labelTitles, repositoryTitles }: CardProps) {
+export function Card({
+	card,
+	labelTitles,
+	repositoryTitles,
+	onSelect,
+}: CardProps) {
 	const repositoryTitle = card.repository
 		? (repositoryTitles?.[card.repository] ?? card.repository)
 		: undefined;
@@ -23,8 +31,20 @@ export function Card({ card, labelTitles, repositoryTitles }: CardProps) {
 		<article
 			data-testid="board-card"
 			data-issue-id={card.id}
-			className="rounded border border-neutral-800 bg-neutral-900 px-2.5 py-2 text-sm"
+			className="relative rounded border border-neutral-800 bg-neutral-900 px-2.5 py-2 text-sm"
 		>
+			{onSelect ? (
+				// Stretched trigger covering the Card: keeps the visible content as
+				// non-interactive markup while exposing a single labelled button so
+				// keyboard and pointer users open the same modal.
+				<button
+					type="button"
+					data-testid="card-open"
+					onClick={() => onSelect(card.id)}
+					aria-label={`Open ${card.id}: ${card.title}`}
+					className="absolute inset-0 z-10 cursor-pointer rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500"
+				/>
+			) : null}
 			<div className="flex items-center gap-2 font-mono text-xs text-neutral-400">
 				{card.repository ? (
 					<span data-testid="card-repository" title={repositoryTitle}>

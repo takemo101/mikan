@@ -1,15 +1,22 @@
 import { Board } from "../components/board.tsx";
+import { IssueDetailModal } from "../components/issue-detail-modal.tsx";
 import { useBoardQuery } from "./board-query.ts";
+import { useIssueDetailQuery } from "./issue-detail-query.ts";
 import { useRepositoryFilter } from "./use-repository-filter.ts";
+import { useSelectedIssue } from "./use-selected-issue.ts";
 
-// Browser app shell wired to the Board API poll (MIK-151) and rendering the real
-// Kanban board with primary-Repository filtering (MIK-152). The visual direction
+// Browser app shell wired to the Board API poll (MIK-151), rendering the real
+// Kanban board with primary-Repository filtering (MIK-152), and opening the
+// Focused Markdown Modal for the selected Issue (MIK-153). The visual direction
 // is the dark, compact, developer-native "Local Command Board", close in spirit
-// to the TUI. The active Repository filter is mirrored in the `repository` URL
-// query parameter and restored on reload.
+// to the TUI. The active Repository filter (`repository`) and the open Issue
+// (`issue`) are independent URL query parameters, both restored on reload; the
+// two are managed separately so closing the modal never clears the filter.
 export function App() {
 	const { data, isPending, isError } = useBoardQuery();
 	const [repository, setRepository] = useRepositoryFilter();
+	const [selectedIssue, setSelectedIssue] = useSelectedIssue();
+	const detail = useIssueDetailQuery(selectedIssue);
 
 	return (
 		<main className="min-h-screen bg-neutral-950 text-neutral-100">
@@ -40,6 +47,7 @@ export function App() {
 						board={data.board}
 						repository={repository}
 						onRepositoryChange={setRepository}
+						onSelectIssue={setSelectedIssue}
 					/>
 				) : (
 					<p data-testid="board-status" role="alert" className="text-red-400">
@@ -47,6 +55,15 @@ export function App() {
 					</p>
 				)}
 			</div>
+			{selectedIssue ? (
+				<IssueDetailModal
+					issueId={selectedIssue}
+					data={detail.data}
+					isPending={detail.isPending}
+					isError={detail.isError}
+					onClose={() => setSelectedIssue(undefined)}
+				/>
+			) : null}
 		</main>
 	);
 }

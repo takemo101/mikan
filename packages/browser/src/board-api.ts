@@ -3,10 +3,8 @@ import {
 	buildBoardViewModel,
 	scanBoard,
 } from "@mikan/core";
-import {
-	loadProjectConfig,
-	type ProjectConfigError,
-} from "@mikan/project-config";
+import { loadProjectConfig } from "@mikan/project-config";
+import { type ApiError, mapConfigError } from "./config-error.ts";
 
 // Read-only Board API for `GET /api/board`.
 //
@@ -16,10 +14,7 @@ import {
 // User-fixable config/core errors are mapped to a stable `{ ok: false, error:
 // { code, message } }` envelope. This module never writes to the project.
 
-export type BoardApiError = {
-	code: string;
-	message: string;
-};
+export type BoardApiError = ApiError;
 
 export type BoardApiProject = {
 	key: string;
@@ -61,20 +56,4 @@ export function loadBoardApiResponse(cwd: string): BoardApiResponse {
 		},
 		board: view,
 	};
-}
-
-function mapConfigError(error: ProjectConfigError): BoardApiError {
-	return { code: configErrorCode(error.kind), message: error.message };
-}
-
-function configErrorCode(kind: ProjectConfigError["kind"]): string {
-	switch (kind) {
-		case "not_found":
-			return "config_not_found";
-		case "invalid_yaml":
-		case "invalid_config":
-			return "invalid_config";
-		case "io_error":
-			return "io_error";
-	}
 }
