@@ -5,6 +5,7 @@ Durable project documentation for mikan.
 ## Start here
 
 - [Design](./design.md) — v0 product, architecture, public surfaces, implementation order, and testing strategy.
+- [Browser UI design](./browser.md) — planned local `mikan browser` Web UI adapter.
 - [Smoke flow](./smoke.md) — end-to-end CLI/MCP/TUI/watch verification path.
 - [Release notes](./release-notes.md) — published CLI package release notes.
 - [ADR 0001: Markdown files are the source of truth](./adr/0001-markdown-files-source-of-truth.md) — core storage decision.
