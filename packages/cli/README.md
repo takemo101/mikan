@@ -1,6 +1,6 @@
 # @takemo101/mikan
 
-mikan is a tiny local-first Issue board for AI-assisted development. It stores Issues as Markdown files under `.mikan/` and exposes the same board through a CLI, keyboard-first TUI, stdio MCP server, and polling watcher.
+mikan is a tiny local-first Issue board for AI-assisted development. It stores Issues as Markdown files under `.mikan/` and exposes the same board through a CLI, keyboard-first TUI, local Browser board, stdio MCP server, and polling watcher.
 
 Manual: <https://takemo101.github.io/mikan/>
 
@@ -71,6 +71,20 @@ mikan tui --columns 5
 ```
 
 The option changes only how many Columns are visible at once; it never changes configured Statuses or Issue files.
+
+## Browser
+
+`mikan browser` opens a local Web board over the same `.mikan/` Markdown files.
+
+```sh
+mikan browser              # auto-select a port and open the browser
+mikan browser --port 4321  # pin a local port
+mikan browser --no-open    # print the URL without launching a browser
+```
+
+`mikan browser` runs as a foreground process bound to `127.0.0.1`, opens your browser by default, prints the local URL, and exits on Ctrl-C. The initial board renders Status Columns and Cards, a workspace Repository filter, a Focused Markdown Modal on Card click, append forms for Reports and Notes, and drag-and-drop Status moves.
+
+Markdown remains the source of truth, and the Browser is local-only: it is not a shared dashboard, mandatory daemon, scheduler, database, GitHub sync surface, or agent runtime. Full board behavior, raw HTML handling, and deferred surfaces are documented at <https://takemo101.github.io/mikan/browser>.
 
 ## GitHub Mirror
 

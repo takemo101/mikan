@@ -15,6 +15,7 @@ mikan's CLI is intentionally small. Commands are primitive operations over local
 | `mikan append <id>` | Append Markdown to a section such as `Notes` or `Reports`. |
 | `mikan github` | Create or update one-way GitHub Mirrors. |
 | `mikan tui` | Open the keyboard-first board. |
+| `mikan browser` | Open the local Web board in a browser. |
 | `mikan watch` | Run polling hooks for local automation. |
 | `mikan mcp` | Start the stdio MCP server, register it, or print its discovery manifest. |
 | `mikan skills add` | Install agent-facing mikan guidance for a supported agent. |
@@ -69,6 +70,18 @@ mikan update WKS-002 --repository frontend --affects backend
 - On `update`, omitting `--repository` or `--affects` preserves the existing values.
 
 `repository` decides the GitHub Mirror target for new Mirrors. `affects` is display/filter context only, and neither `affects` nor Labels ever choose the Mirror target. `mikan show` prints the Repository frontmatter; `mikan list` stays concise. See [Config](./config.md) for workspace setup and [GitHub Mirror](./github-mirror.md) for per-Repository targets.
+
+## Browser
+
+`mikan browser` opens a local Web board over the same `.mikan/` Markdown files:
+
+```sh
+mikan browser
+mikan browser --port 4321
+mikan browser --no-open
+```
+
+It runs as a foreground process bound to `127.0.0.1`, auto-selects an available port (use `--port <port>` to pin one), opens your browser by default (`--no-open` skips launching one), and exits on Ctrl-C. See [Browser](./browser.md) for the board, detail modal, append, drag-and-drop move, guardrails, and deferred surfaces.
 
 ## GitHub Mirror
 

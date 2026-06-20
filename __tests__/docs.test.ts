@@ -11,6 +11,10 @@ const packageReadme = readFileSync(
 const configManual = readFileSync(join(repoRoot, "site", "config.md"), "utf8");
 const cliManual = readFileSync(join(repoRoot, "site", "cli.md"), "utf8");
 const tuiManual = readFileSync(join(repoRoot, "site", "tui.md"), "utf8");
+const browserManual = readFileSync(
+	join(repoRoot, "site", "browser.md"),
+	"utf8",
+);
 const mcpManual = readFileSync(
 	join(repoRoot, "site", "mcp-and-skills.md"),
 	"utf8",
@@ -241,5 +245,91 @@ describe("manual site documentation", () => {
 		expect(designDoc).toContain("no mandatory/shared server");
 		expect(contextDoc).toContain("**Browser UI**");
 		expect(contextDoc).toContain("not a shared dashboard");
+	});
+});
+
+describe("mikan browser user documentation", () => {
+	test("README overviews mikan browser and links to the manual", () => {
+		expect(readme).toContain("mikan browser");
+		expect(readme).toContain("| `mikan browser` |");
+		expect(readme).toContain("--port");
+		expect(readme).toContain("--no-open");
+		expect(readme).toContain("https://takemo101.github.io/mikan/browser");
+	});
+
+	test("package README documents the mikan browser command and flags", () => {
+		expect(packageReadme).toContain("mikan browser");
+		expect(packageReadme).toContain("--port");
+		expect(packageReadme).toContain("--no-open");
+		expect(packageReadme).toContain(
+			"https://takemo101.github.io/mikan/browser",
+		);
+	});
+
+	test("Browser manual documents local-only runtime behavior", () => {
+		expect(browserManual).toContain("mikan browser");
+		expect(browserManual).toContain("foreground process");
+		expect(browserManual).toContain("127.0.0.1");
+		expect(browserManual).toContain("--port");
+		expect(browserManual).toContain("--no-open");
+		expect(browserManual).toContain("Ctrl-C");
+		expect(browserManual).toContain("opens your browser automatically");
+	});
+
+	test("Browser manual documents initial UI support", () => {
+		for (const required of [
+			"Board display",
+			"Repository filter",
+			"Markdown detail modal",
+			"Focused Markdown Modal",
+			"Append Reports/Notes",
+			"drag-and-drop Status move",
+			"Moved via mikan browser",
+		]) {
+			expect(browserManual).toContain(required);
+		}
+	});
+
+	test("Browser manual preserves guardrails and source-of-truth scope", () => {
+		expect(browserManual).toContain("Markdown remains the source of truth");
+		expect(browserManual).toContain("not a shared dashboard");
+		expect(browserManual).toContain("mandatory daemon");
+		expect(browserManual).toContain("scheduler");
+		expect(browserManual).toContain("database");
+		expect(browserManual).toContain("GitHub sync surface");
+		expect(browserManual).toContain("agent runtime");
+		expect(browserManual).toContain("Host/Origin");
+	});
+
+	test("Browser manual documents raw HTML behavior in Markdown rendering", () => {
+		expect(browserManual).toContain("react-markdown");
+		expect(browserManual).toContain("remark-gfm");
+		expect(browserManual).toContain("Raw HTML");
+		expect(browserManual).toContain("cannot inject elements");
+	});
+
+	test("Browser manual lists the deferred surfaces", () => {
+		for (const deferred of [
+			"GitHub Mirror actions",
+			"Label editing",
+			"archive/unarchive",
+			"include-affected Repository filtering",
+			"full keyboard shortcut parity with the TUI",
+			"remote or shared dashboard mode",
+		]) {
+			expect(browserManual).toContain(deferred);
+		}
+	});
+
+	test("Browser is linked from the manual navigation and CLI page", () => {
+		expect(vitepressConfig).toContain("/browser");
+		expect(cliManual).toContain("mikan browser");
+		expect(cliManual).toContain("./browser.md");
+	});
+
+	test("README scopes the no-drag/drop limitation to the TUI", () => {
+		expect(readme).toContain(
+			"no drag/drop board interactions in the TUI (the local Browser board supports drag-and-drop Status moves)",
+		);
 	});
 });

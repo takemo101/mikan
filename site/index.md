@@ -26,6 +26,9 @@ features:
   - icon: 🖥️
     title: Keyboard-first TUI
     details: Open a dense board, inspect full-page Markdown details, append Notes, move Issues, and archive completed context from the terminal.
+  - icon: 🌐
+    title: Local Browser board
+    details: Open a local Web board with mikan browser. It binds to 127.0.0.1, opens on demand, and supports a Markdown detail modal, appends, and drag-and-drop Status moves — no shared server.
   - icon: 🔌
     title: Stdio MCP for agents
     details: Register mikan with common AI coding agents so they can read and update the same local Issue files through explicit tools.
