@@ -157,6 +157,19 @@ describe("issue detail modal", () => {
 		).toBeGreaterThan(0);
 	});
 
+	test("keeps the overlay fixed while only the modal body scrolls", async () => {
+		stubFetch();
+		renderApp();
+		await openCard();
+
+		const overlay = await screen.findByTestId("issue-detail-overlay");
+		expect(overlay.className).toContain("overflow-hidden");
+		expect(overlay.className).not.toContain("overflow-y-auto");
+		const body = screen.getByTestId("issue-detail-scroll-body");
+		expect(body.className).toContain("overflow-y-auto");
+		expect(body.className).toContain("overscroll-contain");
+	});
+
 	test("reflects the selected Issue in the `issue` URL query parameter", async () => {
 		stubFetch();
 		renderApp();

@@ -39,7 +39,7 @@ export function Column({
 			data-column-id={column.id}
 			data-drop-over={draggable && isOver ? "true" : undefined}
 			aria-label={column.title}
-			className={`flex max-h-[calc(100vh-14rem)] min-h-0 w-[min(18rem,82vw)] shrink-0 flex-col rounded-md border bg-white shadow-sm lg:w-auto lg:min-w-0 lg:flex-1 dark:bg-neutral-900/40 ${
+			className={`flex h-full min-h-0 w-[min(18rem,82vw)] shrink-0 flex-col rounded-md border bg-white shadow-sm lg:w-auto lg:min-w-0 lg:flex-1 dark:bg-neutral-900/40 ${
 				draggable && isOver
 					? "border-sky-500 bg-sky-50 dark:bg-sky-500/5"
 					: "border-neutral-200 dark:border-neutral-800"

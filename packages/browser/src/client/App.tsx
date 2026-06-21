@@ -23,9 +23,9 @@ export function App() {
 	const [theme, toggleTheme] = useBrowserTheme();
 
 	return (
-		<main className="min-h-screen bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-100">
-			<div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-				<header className="mb-6 flex flex-wrap items-center gap-3">
+		<main className="h-screen overflow-hidden bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-100">
+			<div className="mx-auto flex h-full max-w-7xl flex-col px-4 pt-6 sm:px-6 sm:pt-8">
+				<header className="mb-6 flex shrink-0 flex-wrap items-center gap-3">
 					<div className="flex flex-wrap items-baseline gap-3">
 						<h1 className="text-lg font-semibold tracking-tight">
 							mikan browser
@@ -43,10 +43,11 @@ export function App() {
 						type="button"
 						data-testid="theme-toggle"
 						onClick={toggleTheme}
-						className="ml-auto rounded border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-sm outline-none hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+						className="ml-auto inline-flex size-8 items-center justify-center rounded-full border border-neutral-300 bg-white text-base leading-none text-neutral-700 shadow-sm outline-none hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
 						aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+						title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
 					>
-						{theme === "dark" ? "Dark" : "Light"}
+						<span aria-hidden="true">{theme === "dark" ? "☾" : "☀︎"}</span>
 					</button>
 				</header>
 				{isPending ? (
