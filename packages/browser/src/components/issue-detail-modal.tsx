@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import type { IssueDetailResponse, IssueDetailView } from "../issue-api.ts";
 import { IssueAppendForm } from "./issue-append-form.tsx";
 import { IssueArchiveAction } from "./issue-archive-action.tsx";
+import { IssueGitHubMirrorAction } from "./issue-github-mirror-action.tsx";
 import { IssueLabelEditor } from "./issue-label-editor.tsx";
 
 // The Focused Markdown Modal: a large, accessible dialog centered on reading the
@@ -75,7 +76,12 @@ export function IssueDetailModal({
 								currentLabels={data.issue.labels}
 								configLabels={configLabels}
 							/>
-							<div className="ml-auto">
+							<div className="ml-auto flex items-center gap-2">
+								<IssueGitHubMirrorAction
+									issueId={data.issue.id}
+									isMirrored={data.issue.githubIssue !== undefined}
+									mirrorTarget={data.issue.mirrorTarget}
+								/>
 								<IssueArchiveAction
 									issueId={data.issue.id}
 									onArchived={onArchived}

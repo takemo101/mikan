@@ -18,6 +18,7 @@
       "dependencies": {
         "@atlaskit/pragmatic-drag-and-drop": "^1",
         "@mikan/core": "workspace:*",
+        "@mikan/github": "workspace:*",
         "@mikan/project-config": "workspace:*",
         "@tanstack/react-query": "^5.101.0",
         "@tanstack/react-router": "^1.170.0",
@@ -43,7 +44,7 @@
     },
     "packages/cli": {
       "name": "@takemo101/mikan",
-      "version": "0.0.14",
+      "version": "0.0.15",
       "bin": {
         "mikan": "dist/bin.js",
       },

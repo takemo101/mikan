@@ -4,6 +4,7 @@ import {
 	type IssueMetadata,
 	type MutationError,
 } from "@mikan/core";
+import { resolveGitHubMirrorTarget } from "@mikan/github";
 import { loadProjectConfig } from "@mikan/project-config";
 import { type ApiError, mapConfigError } from "./config-error.ts";
 
@@ -15,6 +16,19 @@ import { type ApiError, mapConfigError } from "./config-error.ts";
 // Markdown Modal needs, and maps missing/malformed Issues to the same stable
 // `{ ok: false, error: { code, message } }` envelope as the Board API with
 // user-fixable codes. This module never writes to the project.
+
+// The GitHub Mirror target the detail action confirmation displays before any
+// external GitHub work. It is resolved through `@mikan/github`'s
+// `resolveGitHubMirrorTarget`, so it follows the exact Mirror target rules and
+// never duplicates them: existing Mirrors keep their stored `github_issue.repo`;
+// new Mirrors resolve through single-project `github.repo` or, in workspace mode,
+// the Issue's primary `repository` to its configured `repositories[].github.repo`.
+// Labels and `affects` never choose the target. When the target cannot be
+// resolved (missing/unknown config), the failure is surfaced so the confirmation
+// can explain why a Mirror is not yet possible rather than silently omitting it.
+export type IssueMirrorTarget =
+	| { ok: true; repo: string }
+	| { ok: false; code: string; message: string };
 
 export type IssueDetailView = {
 	id: string;
@@ -30,6 +44,7 @@ export type IssueDetailView = {
 	unmetDependencies?: string[];
 	dependencyStatus?: "ready" | "blocked";
 	githubIssue?: BoardGithubIssue;
+	mirrorTarget: IssueMirrorTarget;
 	metadata?: IssueMetadata;
 	createdAt: string;
 	updatedAt: string;
@@ -71,6 +86,16 @@ export function loadIssueDetailResponse(
 	const affects = issue.affects.map(String);
 	const dependsOn = issue.dependencies.map(String);
 	const unmetDependencies = located.value.unmetDependencies.map(String);
+	// Resolve the Mirror target through the shared GitHub rules so the detail
+	// action can confirm the destination repo without re-deriving it here.
+	const resolvedTarget = resolveGitHubMirrorTarget(loaded.value.config, issue);
+	const mirrorTarget: IssueMirrorTarget = resolvedTarget.ok
+		? { ok: true, repo: resolvedTarget.value }
+		: {
+				ok: false,
+				code: resolvedTarget.error.kind,
+				message: resolvedTarget.error.message,
+			};
 
 	return {
 		ok: true,
@@ -110,6 +135,7 @@ export function loadIssueDetailResponse(
 						},
 					}
 				: {}),
+			mirrorTarget,
 			...(Object.keys(issue.metadata).length > 0
 				? { metadata: issue.metadata }
 				: {}),
