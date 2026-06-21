@@ -285,7 +285,10 @@ describe("issue Label editor", () => {
 
 	test("does not optimistically render the new Labels before the refetch", async () => {
 		// The labels response and the detail refetch both keep the original Labels,
-		// proving the modal never injects the toggled selection itself.
+		// proving the modal never injects the toggled selection itself. CI can run
+		// this Browser suite under enough contention that the TanStack invalidation
+		// path occasionally takes more than the default test budget, so this mirrors
+		// the longer timeout used by the other Browser action refetch tests.
 		stubFetch();
 		renderApp();
 		await openPopover();
@@ -299,5 +302,5 @@ describe("issue Label editor", () => {
 		// toggled-but-refetched-as-original herdr selection is not injected.
 		const content = screen.getByTestId("issue-detail-content");
 		expect(content.textContent).not.toContain("Herdr");
-	}, 10000);
+	}, 20_000);
 });
