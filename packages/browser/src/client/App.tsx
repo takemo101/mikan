@@ -3,6 +3,7 @@ import { IssueDetailModal } from "../components/issue-detail-modal.tsx";
 import { useBoardQuery } from "./board-query.ts";
 import { useIssueDetailQuery } from "./issue-detail-query.ts";
 import { useBoardMove } from "./move-mutation.ts";
+import { useBrowserTheme } from "./theme.ts";
 import { useRepositoryFilter } from "./use-repository-filter.ts";
 import { useSelectedIssue } from "./use-selected-issue.ts";
 
@@ -19,25 +20,40 @@ export function App() {
 	const [selectedIssue, setSelectedIssue] = useSelectedIssue();
 	const detail = useIssueDetailQuery(selectedIssue);
 	const { moveIssue, moveError, clearMoveError } = useBoardMove();
+	const [theme, toggleTheme] = useBrowserTheme();
 
 	return (
-		<main className="min-h-screen bg-neutral-950 text-neutral-100">
-			<div className="mx-auto max-w-7xl px-6 py-8">
-				<header className="mb-6 flex items-baseline gap-3">
-					<h1 className="text-lg font-semibold tracking-tight">
-						mikan browser
-					</h1>
-					{data?.ok ? (
-						<span
-							data-testid="board-project"
-							className="text-sm text-neutral-500"
-						>
-							{data.project.name} · {data.project.key}
-						</span>
-					) : null}
+		<main className="min-h-screen bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-100">
+			<div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+				<header className="mb-6 flex flex-wrap items-center gap-3">
+					<div className="flex flex-wrap items-baseline gap-3">
+						<h1 className="text-lg font-semibold tracking-tight">
+							mikan browser
+						</h1>
+						{data?.ok ? (
+							<span
+								data-testid="board-project"
+								className="text-sm text-neutral-500 dark:text-neutral-500"
+							>
+								{data.project.name} · {data.project.key}
+							</span>
+						) : null}
+					</div>
+					<button
+						type="button"
+						data-testid="theme-toggle"
+						onClick={toggleTheme}
+						className="ml-auto rounded border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-sm outline-none hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+						aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+					>
+						{theme === "dark" ? "Dark" : "Light"}
+					</button>
 				</header>
 				{isPending ? (
-					<p data-testid="board-status" className="text-neutral-500">
+					<p
+						data-testid="board-status"
+						className="text-neutral-500 dark:text-neutral-500"
+					>
 						Loading board…
 					</p>
 				) : isError ? (

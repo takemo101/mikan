@@ -52,7 +52,7 @@ export function IssueAppendForm({ issueId }: IssueAppendFormProps) {
 	return (
 		<section
 			data-testid="issue-append"
-			className="mt-6 border-t border-neutral-800 pt-4"
+			className="mt-6 border-t border-neutral-200 pt-4 dark:border-neutral-800"
 		>
 			<div
 				role="tablist"
@@ -69,8 +69,8 @@ export function IssueAppendForm({ issueId }: IssueAppendFormProps) {
 						onClick={() => selectSection(name)}
 						className={`rounded px-2 py-1 text-xs outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 ${
 							section === name
-								? "bg-neutral-800 text-neutral-100"
-								: "text-neutral-400 hover:text-neutral-100"
+								? "bg-neutral-900 text-white dark:bg-neutral-800 dark:text-neutral-100"
+								: "text-neutral-500 hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-neutral-100"
 						}`}
 					>
 						{name}
@@ -88,7 +88,7 @@ export function IssueAppendForm({ issueId }: IssueAppendFormProps) {
 					value={text}
 					onChange={(event) => setText(event.currentTarget.value)}
 					rows={3}
-					className="w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100 outline-none focus-visible:border-sky-500"
+					className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-950 outline-none focus-visible:border-sky-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
 				/>
 				{formError ? (
 					<p

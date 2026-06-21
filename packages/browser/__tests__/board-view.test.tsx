@@ -111,6 +111,20 @@ describe("browser board view", () => {
 		]);
 	});
 
+	test("constrains board height so long Columns scroll independently", async () => {
+		stubFetch(boardResponse());
+		renderApp();
+		await screen.findByRole("heading", { name: "Ready" });
+		const row = screen.getByTestId("board-columns");
+		expect(row.className).toContain("items-start");
+		const column = screen.getAllByTestId("board-column")[0];
+		expect(column).toBeDefined();
+		expect(column?.className).toContain("max-h-");
+		const cardList = within(column as HTMLElement).getAllByRole("list")[0];
+		expect(cardList).toBeDefined();
+		expect(cardList?.className).toContain("overflow-y-auto");
+	});
+
 	test("renders Card metadata: ID, title, label, repository prefix, affects, and dependency marker", async () => {
 		stubFetch(boardResponse());
 		renderApp();

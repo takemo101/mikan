@@ -44,7 +44,7 @@ export function Card({
 			data-testid="board-card"
 			data-issue-id={card.id}
 			data-dragging={dragging ? "true" : undefined}
-			className={`relative rounded border border-neutral-800 bg-neutral-900 px-2.5 py-2 text-sm ${
+			className={`relative rounded border border-neutral-200 bg-white px-2.5 py-2 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-900 ${
 				columnId ? "cursor-grab active:cursor-grabbing" : ""
 			} ${dragging ? "opacity-50" : ""}`}
 		>
@@ -60,13 +60,15 @@ export function Card({
 					className="absolute inset-0 z-10 cursor-pointer rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500"
 				/>
 			) : null}
-			<div className="flex items-center gap-2 font-mono text-xs text-neutral-400">
+			<div className="flex items-center gap-2 font-mono text-xs text-neutral-500 dark:text-neutral-400">
 				{card.repository ? (
 					<span data-testid="card-repository" title={repositoryTitle}>
 						[{card.repository}]
 					</span>
 				) : null}
-				<span className="text-neutral-500">{card.id}</span>
+				<span className="text-neutral-500 dark:text-neutral-500">
+					{card.id}
+				</span>
 				{card.dependencyStatus ? (
 					<span
 						data-testid="card-dependency"
@@ -84,14 +86,16 @@ export function Card({
 					</span>
 				) : null}
 			</div>
-			<h3 className="mt-1 leading-snug text-neutral-100">{card.title}</h3>
+			<h3 className="mt-1 leading-snug text-neutral-950 dark:text-neutral-100">
+				{card.title}
+			</h3>
 			{card.labels.length > 0 ? (
 				<ul aria-label="labels" className="mt-1.5 flex flex-wrap gap-1">
 					{card.labels.map((label) => (
 						<li
 							key={label}
 							data-testid="card-label"
-							className="rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-300"
+							className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
 						>
 							{labelTitles?.[label] ?? label}
 						</li>
@@ -101,7 +105,7 @@ export function Card({
 			{affects.length > 0 ? (
 				<p
 					data-testid="card-affects"
-					className="mt-1.5 font-mono text-xs text-neutral-500"
+					className="mt-1.5 font-mono text-xs text-neutral-500 dark:text-neutral-500"
 				>
 					+{affects.map((id) => repositoryTitles?.[id] ?? id).join(", ")}
 				</p>

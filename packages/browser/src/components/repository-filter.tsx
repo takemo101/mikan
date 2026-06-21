@@ -33,11 +33,11 @@ export function RepositoryFilter({
 	const scopeDisabled = selectValue === "";
 
 	return (
-		<div className="flex items-center gap-3">
+		<div className="flex flex-wrap items-center gap-3">
 			<div className="flex items-center gap-2">
 				<label
 					htmlFor="repository-filter"
-					className="text-xs font-medium uppercase tracking-wide text-neutral-500"
+					className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-500"
 				>
 					Repository
 				</label>
@@ -52,7 +52,7 @@ export function RepositoryFilter({
 							includeAffected,
 						})
 					}
-					className="rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-200"
+					className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-900 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
 				>
 					<option value="">All repositories</option>
 					{repositories.map((repository) => (
@@ -63,13 +63,13 @@ export function RepositoryFilter({
 				</select>
 			</div>
 			<div className="flex items-center gap-2">
-				<span className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+				<span className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-500">
 					Scope
 				</span>
 				<fieldset
 					data-testid="repository-scope"
 					aria-label="Repository scope"
-					className="inline-flex overflow-hidden rounded border border-neutral-700 p-0"
+					className="inline-flex overflow-hidden rounded border border-neutral-300 p-0 shadow-sm dark:border-neutral-700"
 				>
 					<ScopeButton
 						label="Primary"
@@ -109,8 +109,8 @@ function ScopeButton({ label, active, disabled, onClick }: ScopeButtonProps) {
 			onClick={onClick}
 			className={`px-2 py-1 text-sm ${
 				active
-					? "bg-neutral-200 text-neutral-900"
-					: "bg-neutral-900 text-neutral-300 hover:bg-neutral-800"
+					? "bg-neutral-900 text-white dark:bg-neutral-200 dark:text-neutral-900"
+					: "bg-white text-neutral-600 hover:bg-neutral-100 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
 			} disabled:cursor-not-allowed disabled:opacity-50`}
 		>
 			{label}

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Dialog, Modal, ModalOverlay } from "react-aria-components";
 import { useGitHubMirrorMutation } from "../client/github-mirror-mutation.ts";
 import type { IssueMirrorTarget } from "../issue-api.ts";
 
@@ -51,10 +52,10 @@ export function IssueGitHubMirrorAction({
 		setOpen(true);
 	};
 
-	const closeConfirm = () => {
+	const closeConfirm = useCallback(() => {
 		setOpen(false);
 		setError(undefined);
-	};
+	}, []);
 
 	const onConfirm = () => {
 		setError(undefined);
@@ -70,79 +71,100 @@ export function IssueGitHubMirrorAction({
 		});
 	};
 
+	useEffect(() => {
+		if (!open) return;
+		const closeOnEscape = (event: KeyboardEvent) => {
+			if (event.key !== "Escape") return;
+			event.stopPropagation();
+			if (!mutation.isPending) closeConfirm();
+		};
+		document.addEventListener("keydown", closeOnEscape, { capture: true });
+		return () => {
+			document.removeEventListener("keydown", closeOnEscape, { capture: true });
+		};
+	}, [closeConfirm, open, mutation.isPending]);
+
 	return (
 		<>
 			<button
 				type="button"
 				data-testid="github-mirror-button"
 				onClick={openConfirm}
-				className="rounded border border-sky-700/60 px-2 py-1 text-xs text-sky-300 outline-none hover:bg-sky-950/40 hover:text-sky-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500"
+				className="rounded border border-sky-300 px-2 py-1 text-xs text-sky-700 outline-none hover:bg-sky-50 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-sky-700/60 dark:text-sky-300 dark:hover:bg-sky-950/40 dark:hover:text-sky-200"
 			>
 				{actionLabel}
 			</button>
 			{open ? (
-				<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
-					<div
-						role="dialog"
-						aria-modal="true"
-						aria-label={`${actionLabel} for ${issueId}`}
-						data-testid="github-mirror-confirm"
-						className="w-full max-w-md rounded-lg border border-neutral-800 bg-neutral-950 p-5 text-neutral-100 shadow-xl outline-none"
-					>
-						<h2 className="text-sm font-semibold text-neutral-100">
-							{actionLabel} for {issueId}?
-						</h2>
-						<div
-							data-testid="github-mirror-confirm-message"
-							className="mt-2 space-y-2 text-sm text-neutral-400"
+				<ModalOverlay
+					isOpen
+					isDismissable={!mutation.isPending}
+					onOpenChange={(nextOpen) => {
+						if (!nextOpen && !mutation.isPending) closeConfirm();
+					}}
+					className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+				>
+					<Modal className="w-full max-w-md">
+						<Dialog
+							aria-label={`${actionLabel} for ${issueId}`}
+							className="rounded-lg border border-neutral-200 bg-white text-neutral-950 shadow-xl outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"
 						>
-							{mirrorTarget.ok ? (
-								<p>
-									{isMirrored ? "Updates" : "Creates"} the GitHub Issue mirror
-									in{" "}
-									<code data-testid="github-mirror-target">
-										{mirrorTarget.repo}
-									</code>
-									. The mikan Markdown Issue stays the source of truth.
-								</p>
-							) : (
-								<p data-testid="github-mirror-target-error">
-									No GitHub Mirror target is configured for this Issue:{" "}
-									{mirrorTarget.code}: {mirrorTarget.message}
-								</p>
-							)}
-						</div>
-						{error ? (
-							<p
-								role="alert"
-								data-testid="github-mirror-error"
-								className="mt-3 text-sm text-red-400"
-							>
-								{error}
-							</p>
-						) : null}
-						<div className="mt-4 flex justify-end gap-2">
-							<button
-								type="button"
-								data-testid="github-mirror-cancel"
-								disabled={mutation.isPending}
-								onClick={closeConfirm}
-								className="rounded px-2 py-1 text-xs text-neutral-400 outline-none hover:text-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 disabled:opacity-60"
-							>
-								Cancel
-							</button>
-							<button
-								type="button"
-								data-testid="github-mirror-confirm-button"
-								disabled={mutation.isPending || !mirrorTarget.ok}
-								onClick={onConfirm}
-								className="rounded bg-sky-600 px-3 py-1 text-xs text-white outline-none hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400 disabled:opacity-60"
-							>
-								{mutation.isPending ? "Mirroring…" : actionLabel}
-							</button>
-						</div>
-					</div>
-				</div>
+							<div data-testid="github-mirror-confirm" className="p-5">
+								<h2 className="text-sm font-semibold text-neutral-950 dark:text-neutral-100">
+									{actionLabel} for {issueId}?
+								</h2>
+								<div
+									data-testid="github-mirror-confirm-message"
+									className="mt-2 space-y-2 text-sm text-neutral-600 dark:text-neutral-400"
+								>
+									{mirrorTarget.ok ? (
+										<p>
+											{isMirrored ? "Updates" : "Creates"} the GitHub Issue
+											mirror in{" "}
+											<code data-testid="github-mirror-target">
+												{mirrorTarget.repo}
+											</code>
+											. The mikan Markdown Issue stays the source of truth.
+										</p>
+									) : (
+										<p data-testid="github-mirror-target-error">
+											No GitHub Mirror target is configured for this Issue:{" "}
+											{mirrorTarget.code}: {mirrorTarget.message}
+										</p>
+									)}
+								</div>
+								{error ? (
+									<p
+										role="alert"
+										data-testid="github-mirror-error"
+										className="mt-3 text-sm text-red-400"
+									>
+										{error}
+									</p>
+								) : null}
+								<div className="mt-4 flex justify-end gap-2">
+									<button
+										type="button"
+										data-testid="github-mirror-cancel"
+										disabled={mutation.isPending}
+										onClick={closeConfirm}
+										className="rounded px-2 py-1 text-xs text-neutral-500 outline-none hover:text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 disabled:opacity-60 dark:text-neutral-400 dark:hover:text-neutral-100"
+									>
+										Cancel
+									</button>
+									<button
+										type="button"
+										data-testid="github-mirror-confirm-button"
+										disabled={mutation.isPending || !mirrorTarget.ok}
+										onClick={onConfirm}
+										className="rounded bg-sky-600 px-3 py-1 text-xs text-white outline-none hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400 disabled:opacity-60"
+									>
+										{mutation.isPending ? "Mirroring…" : actionLabel}
+									</button>
+								</div>
+							</div>
+						</Dialog>
+					</Modal>
+				</ModalOverlay>
 			) : null}
 		</>
 	);

@@ -226,6 +226,21 @@ describe("issue GitHub Mirror action", () => {
 		expect(screen.getByTestId("issue-detail")).toBeDefined();
 	});
 
+	test("Escape closes only the confirm modal and keeps Issue detail open", async () => {
+		stubFetch();
+		renderApp();
+		await openConfirm();
+
+		fireEvent.keyDown(screen.getByTestId("github-mirror-confirm"), {
+			key: "Escape",
+		});
+
+		await waitFor(() => {
+			expect(screen.queryByTestId("github-mirror-confirm")).toBeNull();
+		});
+		expect(screen.getByTestId("issue-detail")).toBeDefined();
+	});
+
 	test("confirming posts to the github-mirror endpoint", async () => {
 		const calls = stubFetch();
 		renderApp();
