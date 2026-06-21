@@ -26,7 +26,6 @@ function getInitialTheme(): BrowserTheme {
 
 export function applyBrowserTheme(theme: BrowserTheme): void {
 	document.documentElement.dataset.theme = theme;
-	document.documentElement.classList.toggle("dark", theme === "dark");
 }
 
 export function useBrowserTheme(): [BrowserTheme, () => void] {

@@ -57,16 +57,18 @@ describe("browser app shell", () => {
 		);
 	});
 
-	test("lets users switch between dark and light themes", () => {
+	test("lets users switch between dark and light themes with an icon button", () => {
 		window.localStorage.setItem("mikan-browser-theme", "dark");
 		renderApp();
 		const toggle = screen.getByTestId("theme-toggle");
-		expect(toggle.textContent).toContain("Dark");
+		expect(toggle.textContent).toContain("☾");
+		expect(toggle.getAttribute("aria-label")).toBe("Switch to light theme");
 		expect(document.documentElement.dataset.theme).toBe("dark");
 
 		fireEvent.click(toggle);
 
-		expect(toggle.textContent).toContain("Light");
+		expect(toggle.textContent).toContain("☀︎");
+		expect(toggle.getAttribute("aria-label")).toBe("Switch to dark theme");
 		expect(document.documentElement.dataset.theme).toBe("light");
 		expect(window.localStorage.getItem("mikan-browser-theme")).toBe("light");
 	});

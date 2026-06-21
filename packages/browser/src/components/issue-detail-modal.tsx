@@ -44,13 +44,14 @@ export function IssueDetailModal({
 			onOpenChange={(open) => {
 				if (!open) onClose();
 			}}
-			className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 p-4 sm:p-8 dark:bg-black/70"
+			data-testid="issue-detail-overlay"
+			className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/55 p-4 sm:p-8 dark:bg-black/70"
 		>
-			<Modal className="w-full max-w-3xl">
+			<Modal className="flex max-h-full w-full max-w-3xl">
 				<Dialog
 					aria-label={`Issue ${issueId}`}
 					data-testid="issue-detail"
-					className="rounded-lg border border-neutral-200 bg-white text-neutral-950 shadow-xl outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"
+					className="flex max-h-[calc(100vh-2rem)] w-full flex-col rounded-lg border border-neutral-200 bg-white text-neutral-950 shadow-xl outline-none sm:max-h-[calc(100vh-4rem)] dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"
 				>
 					<header className="flex items-center justify-between gap-3 border-b border-neutral-200 px-5 py-3 dark:border-neutral-800">
 						<span className="font-mono text-xs text-neutral-500 dark:text-neutral-500">
@@ -89,7 +90,10 @@ export function IssueDetailModal({
 							</div>
 						</div>
 					) : null}
-					<div className="max-h-[75vh] overflow-y-auto px-5 py-4">
+					<div
+						data-testid="issue-detail-scroll-body"
+						className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+					>
 						{isPending ? (
 							<p data-testid="issue-detail-status" className="text-neutral-500">
 								Loading issue…
