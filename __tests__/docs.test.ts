@@ -319,17 +319,24 @@ describe("mikan browser user documentation", () => {
 		expect(browserManual).toContain("cannot inject elements");
 	});
 
-	test("Browser manual documents planned detail actions and remaining deferred surfaces", () => {
-		for (const planned of [
+	test("Browser manual documents shipped detail actions and remaining deferred surfaces", () => {
+		for (const shipped of [
+			"## Repository filter scope",
 			"Primary | +Affected",
 			"includeAffected=1",
+			"## Detail actions",
 			"Edit labels",
 			"Create/Update GitHub Mirror",
 			"Archived via mikan browser",
 			"Labels and `affects` never choose the target",
 		]) {
-			expect(browserManual).toContain(planned);
+			expect(browserManual).toContain(shipped);
 		}
+
+		// Shipped behavior, not planned/future framing.
+		expect(browserManual).not.toContain("Planned action design");
+		expect(browserManual).not.toContain("are designed for the Issue detail");
+		expect(browserManual).toContain("Even with these detail actions shipped");
 
 		for (const deferred of [
 			"unarchive and show-archived Browser views",
@@ -339,6 +346,17 @@ describe("mikan browser user documentation", () => {
 		]) {
 			expect(browserManual).toContain(deferred);
 		}
+	});
+
+	test("README surfaces document the shipped Browser detail actions", () => {
+		for (const docs of [readme, packageReadme]) {
+			expect(docs).toContain("Primary | +Affected");
+			expect(docs).toContain("includeAffected=1");
+			expect(docs).toContain("Edit labels");
+			expect(docs).toContain("Archived via mikan browser");
+		}
+		expect(readme).toContain("Create/Update GitHub Mirror");
+		expect(packageReadme).toContain("Create/Update GitHub Mirror");
 	});
 
 	test("Browser is linked from the manual navigation and CLI page", () => {

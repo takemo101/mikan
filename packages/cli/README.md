@@ -82,7 +82,7 @@ mikan browser --port 4321  # pin a local port
 mikan browser --no-open    # print the URL without launching a browser
 ```
 
-`mikan browser` runs as a foreground process bound to `127.0.0.1`, opens your browser by default, prints the local URL, and exits on Ctrl-C. The initial board renders Status Columns and Cards, a workspace Repository filter, a Focused Markdown Modal on Card click, append forms for Reports and Notes, and drag-and-drop Status moves.
+`mikan browser` runs as a foreground process bound to `127.0.0.1`, opens your browser by default, prints the local URL, and exits on Ctrl-C. The board renders Status Columns and Cards, a workspace Repository filter with a `Primary | +Affected` scope toggle (`includeAffected=1` in the URL), a Focused Markdown Modal on Card click, append forms for Reports and Notes, and drag-and-drop Status moves. The detail modal's action bar adds **Edit labels** (frontmatter-only Label edits), a confirmed **Archive** (writing `Archived via mikan browser`), and a confirmed one-way **Create/Update GitHub Mirror**.
 
 Markdown remains the source of truth, and the Browser is local-only: it is not a shared dashboard, mandatory daemon, scheduler, database, GitHub sync surface, or agent runtime. Full board behavior, raw HTML handling, and deferred surfaces are documented at <https://takemo101.github.io/mikan/browser>.
 

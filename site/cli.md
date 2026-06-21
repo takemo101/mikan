@@ -81,7 +81,7 @@ mikan browser --port 4321
 mikan browser --no-open
 ```
 
-It runs as a foreground process bound to `127.0.0.1`, auto-selects an available port (use `--port <port>` to pin one), opens your browser by default (`--no-open` skips launching one), and exits on Ctrl-C. See [Browser](./browser.md) for the board, detail modal, append, drag-and-drop move, guardrails, and deferred surfaces.
+It runs as a foreground process bound to `127.0.0.1`, auto-selects an available port (use `--port <port>` to pin one), opens your browser by default (`--no-open` skips launching one), and exits on Ctrl-C. See [Browser](./browser.md) for the board, the `Primary | +Affected` Repository filter scope, the detail modal append forms, drag-and-drop move, the Label / Archive / GitHub Mirror detail actions, guardrails, and deferred surfaces.
 
 ## GitHub Mirror
 
