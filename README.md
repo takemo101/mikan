@@ -189,7 +189,9 @@ mikan browser --port 4321
 mikan browser --no-open
 ```
 
-It runs as a foreground process bound to `127.0.0.1`, auto-selects an available port (use `--port <port>` to pin one), opens your browser by default (`--no-open` skips launching one), prints the local URL, and exits on Ctrl-C. The initial board shows Status Columns and Cards, a workspace Repository filter, a Focused Markdown Modal opened by clicking a Card, append forms for Reports and Notes, and drag-and-drop Status moves.
+It runs as a foreground process bound to `127.0.0.1`, auto-selects an available port (use `--port <port>` to pin one), opens your browser by default (`--no-open` skips launching one), prints the local URL, and exits on Ctrl-C. The board shows Status Columns and Cards, a workspace Repository filter with a `Primary | +Affected` scope toggle (stored in the URL as `includeAffected=1`), a Focused Markdown Modal opened by clicking a Card, append forms for Reports and Notes, and drag-and-drop Status moves.
+
+The detail modal also has an action bar for small Issue mutations: **Edit labels** (frontmatter-only Label edits), **Create/Update GitHub Mirror** (a confirmed, synchronous one-way Mirror create/update), and **Archive** (a confirmed move to `archived` that writes `Archived via mikan browser`). Labels and `affects` never choose the GitHub Mirror target.
 
 Markdown remains the source of truth. The Browser is local-only: it is not a shared dashboard, mandatory daemon, scheduler, database, GitHub sync surface, or agent runtime.
 

@@ -3,6 +3,30 @@
 Release notes for the published `@takemo101/mikan` CLI package. Versions are the
 `packages/cli/package.json` version users install from npm.
 
+## 0.0.16 — Browser detail actions
+
+Extends `mikan browser` with the next action slices, exposing a few existing mikan
+mutations from the Issue detail modal while keeping the Browser a small local UI
+adapter. Markdown remains the source of truth and the Browser stays local-only.
+
+- **Include-affected Repository filter**: the workspace Repository filter gains a
+  segmented `Primary | +Affected` scope control. `Primary` stays the default and
+  matches only the primary `repository`; `+Affected` also includes Issues whose
+  `affects` contains the selected Repository. The expanded scope is stored in the
+  URL as `includeAffected=1`. `affects` never chooses the GitHub Mirror target.
+- **Browser Label editing**: the detail action bar's `Edit labels` popover edits
+  config-defined Labels, preserves config-unknown existing Labels, and writes
+  frontmatter only — no Status Log, Note, or GitHub Mirror side effects.
+- **Browser Archive**: the detail action bar's `Archive` action confirms, then
+  moves the Issue to `archived` through the existing core move behavior and writes
+  the Status Log entry `Archived via mikan browser`. It adds no unarchive or
+  show-archived Browser views.
+- **Browser GitHub Mirror**: the detail action bar's `Create/Update GitHub Mirror`
+  action confirms the target Repository, then runs a synchronous one-way Mirror
+  create/update through the existing GitHub Mirror behavior. Single-project targets
+  use `github.repo`; workspace targets use the Issue's `repository` and
+  `repositories[].github.repo`. Labels and `affects` never choose the target.
+
 ## 0.0.15 — mikan browser
 
 Adds `mikan browser`, a local-first Browser UI for the board that complements the
