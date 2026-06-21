@@ -10,7 +10,9 @@ if (!(globalThis as { document?: unknown }).document) {
 }
 
 const { QueryClientProvider } = await import("@tanstack/react-query");
-const { cleanup, render, screen } = await import("@testing-library/react");
+const { cleanup, fireEvent, render, screen } = await import(
+	"@testing-library/react"
+);
 const { App } = await import("../src/client/App.tsx");
 const { createBrowserQueryClient } = await import(
 	"../src/client/board-query.ts"
@@ -27,6 +29,8 @@ beforeEach(() => {
 afterEach(() => {
 	cleanup();
 	globalThis.fetch = originalFetch;
+	window.localStorage.clear();
+	document.documentElement.removeAttribute("data-theme");
 });
 
 function renderApp() {
@@ -51,5 +55,19 @@ describe("browser app shell", () => {
 		expect(screen.getByTestId("board-status").textContent).toContain(
 			"Loading board",
 		);
+	});
+
+	test("lets users switch between dark and light themes", () => {
+		window.localStorage.setItem("mikan-browser-theme", "dark");
+		renderApp();
+		const toggle = screen.getByTestId("theme-toggle");
+		expect(toggle.textContent).toContain("Dark");
+		expect(document.documentElement.dataset.theme).toBe("dark");
+
+		fireEvent.click(toggle);
+
+		expect(toggle.textContent).toContain("Light");
+		expect(document.documentElement.dataset.theme).toBe("light");
+		expect(window.localStorage.getItem("mikan-browser-theme")).toBe("light");
 	});
 });

@@ -185,6 +185,19 @@ describe("issue Archive action", () => {
 		expect(screen.getByTestId("issue-detail")).toBeDefined();
 	});
 
+	test("Escape closes only the archive confirmation and keeps Issue detail open", async () => {
+		stubFetch();
+		renderApp();
+		await openConfirm();
+
+		fireEvent.keyDown(screen.getByTestId("archive-confirm"), { key: "Escape" });
+
+		await waitFor(() => {
+			expect(screen.queryByTestId("archive-confirm")).toBeNull();
+		});
+		expect(screen.getByTestId("issue-detail")).toBeDefined();
+	});
+
 	test("confirming posts to the archive endpoint", async () => {
 		const calls = stubFetch();
 		renderApp();

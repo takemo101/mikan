@@ -25,7 +25,7 @@ export function Warnings({ warnings, details }: WarningsProps) {
 		<section
 			data-testid="board-warnings"
 			role="status"
-			className="rounded border border-amber-900/60 bg-amber-950/30 text-amber-200"
+			className="rounded border border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
 		>
 			<details>
 				<summary
@@ -39,7 +39,7 @@ export function Warnings({ warnings, details }: WarningsProps) {
 						<li
 							key={`${item.issueId ?? "warning"}:${item.text}`}
 							data-testid="warning-detail"
-							className="font-mono text-amber-300/90"
+							className="font-mono text-amber-800 dark:text-amber-300/90"
 						>
 							{item.text}
 						</li>

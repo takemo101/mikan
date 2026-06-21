@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Dialog, Modal, ModalOverlay } from "react-aria-components";
 import { useArchiveMutation } from "../client/archive-mutation.ts";
 
 // Detail-modal Archive action: the right-aligned `Archive` button plus its
@@ -36,10 +37,10 @@ export function IssueArchiveAction({
 		setOpen(true);
 	};
 
-	const closeConfirm = () => {
+	const closeConfirm = useCallback(() => {
 		setOpen(false);
 		setError(undefined);
-	};
+	}, []);
 
 	const onConfirm = () => {
 		setError(undefined);
@@ -56,68 +57,89 @@ export function IssueArchiveAction({
 		});
 	};
 
+	useEffect(() => {
+		if (!open) return;
+		const closeOnEscape = (event: KeyboardEvent) => {
+			if (event.key !== "Escape") return;
+			event.stopPropagation();
+			if (!mutation.isPending) closeConfirm();
+		};
+		document.addEventListener("keydown", closeOnEscape, { capture: true });
+		return () => {
+			document.removeEventListener("keydown", closeOnEscape, { capture: true });
+		};
+	}, [closeConfirm, open, mutation.isPending]);
+
 	return (
 		<>
 			<button
 				type="button"
 				data-testid="archive-button"
 				onClick={openConfirm}
-				className="rounded border border-amber-700/60 px-2 py-1 text-xs text-amber-300 outline-none hover:bg-amber-950/40 hover:text-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+				className="rounded border border-amber-300 px-2 py-1 text-xs text-amber-700 outline-none hover:bg-amber-50 hover:text-amber-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 dark:border-amber-700/60 dark:text-amber-300 dark:hover:bg-amber-950/40 dark:hover:text-amber-200"
 			>
 				Archive
 			</button>
 			{open ? (
-				<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
-					<div
-						role="dialog"
-						aria-modal="true"
-						aria-label={`Archive issue ${issueId}`}
-						data-testid="archive-confirm"
-						className="w-full max-w-md rounded-lg border border-neutral-800 bg-neutral-950 p-5 text-neutral-100 shadow-xl outline-none"
-					>
-						<h2 className="text-sm font-semibold text-neutral-100">
-							Archive {issueId}?
-						</h2>
-						<p
-							data-testid="archive-confirm-message"
-							className="mt-2 text-sm text-neutral-400"
+				<ModalOverlay
+					isOpen
+					isDismissable={!mutation.isPending}
+					onOpenChange={(nextOpen) => {
+						if (!nextOpen && !mutation.isPending) closeConfirm();
+					}}
+					className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+				>
+					<Modal className="w-full max-w-md">
+						<Dialog
+							aria-label={`Archive issue ${issueId}`}
+							className="rounded-lg border border-neutral-200 bg-white text-neutral-950 shadow-xl outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"
 						>
-							This moves the Issue to Status <code>archived</code>. It stays a
-							Markdown file under your project — it is not deleted — and
-							disappears from the default board once archived Issues are
-							filtered out.
-						</p>
-						{error ? (
-							<p
-								role="alert"
-								data-testid="archive-error"
-								className="mt-3 text-sm text-red-400"
-							>
-								{error}
-							</p>
-						) : null}
-						<div className="mt-4 flex justify-end gap-2">
-							<button
-								type="button"
-								data-testid="archive-cancel"
-								disabled={mutation.isPending}
-								onClick={closeConfirm}
-								className="rounded px-2 py-1 text-xs text-neutral-400 outline-none hover:text-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 disabled:opacity-60"
-							>
-								Cancel
-							</button>
-							<button
-								type="button"
-								data-testid="archive-confirm-button"
-								disabled={mutation.isPending}
-								onClick={onConfirm}
-								className="rounded bg-amber-600 px-3 py-1 text-xs text-white outline-none hover:bg-amber-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 disabled:opacity-60"
-							>
-								{mutation.isPending ? "Archiving…" : "Archive"}
-							</button>
-						</div>
-					</div>
-				</div>
+							<div data-testid="archive-confirm" className="p-5">
+								<h2 className="text-sm font-semibold text-neutral-950 dark:text-neutral-100">
+									Archive {issueId}?
+								</h2>
+								<p
+									data-testid="archive-confirm-message"
+									className="mt-2 text-sm text-neutral-600 dark:text-neutral-400"
+								>
+									This moves the Issue to Status <code>archived</code>. It stays
+									a Markdown file under your project — it is not deleted — and
+									disappears from the default board once archived Issues are
+									filtered out.
+								</p>
+								{error ? (
+									<p
+										role="alert"
+										data-testid="archive-error"
+										className="mt-3 text-sm text-red-400"
+									>
+										{error}
+									</p>
+								) : null}
+								<div className="mt-4 flex justify-end gap-2">
+									<button
+										type="button"
+										data-testid="archive-cancel"
+										disabled={mutation.isPending}
+										onClick={closeConfirm}
+										className="rounded px-2 py-1 text-xs text-neutral-500 outline-none hover:text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 disabled:opacity-60 dark:text-neutral-400 dark:hover:text-neutral-100"
+									>
+										Cancel
+									</button>
+									<button
+										type="button"
+										data-testid="archive-confirm-button"
+										disabled={mutation.isPending}
+										onClick={onConfirm}
+										className="rounded bg-amber-600 px-3 py-1 text-xs text-white outline-none hover:bg-amber-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 disabled:opacity-60"
+									>
+										{mutation.isPending ? "Archiving…" : "Archive"}
+									</button>
+								</div>
+							</div>
+						</Dialog>
+					</Modal>
+				</ModalOverlay>
 			) : null}
 		</>
 	);

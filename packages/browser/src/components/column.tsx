@@ -39,19 +39,19 @@ export function Column({
 			data-column-id={column.id}
 			data-drop-over={draggable && isOver ? "true" : undefined}
 			aria-label={column.title}
-			className={`flex w-64 shrink-0 flex-col rounded-md border bg-neutral-900/40 ${
+			className={`flex max-h-[calc(100vh-14rem)] min-h-0 w-[min(18rem,82vw)] shrink-0 flex-col rounded-md border bg-white shadow-sm lg:w-auto lg:min-w-0 lg:flex-1 dark:bg-neutral-900/40 ${
 				draggable && isOver
-					? "border-sky-500 bg-sky-500/5"
-					: "border-neutral-800"
+					? "border-sky-500 bg-sky-50 dark:bg-sky-500/5"
+					: "border-neutral-200 dark:border-neutral-800"
 			}`}
 		>
-			<header className="flex items-baseline justify-between border-b border-neutral-800 px-3 py-2">
-				<h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-300">
+			<header className="flex shrink-0 items-baseline justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-800">
+				<h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
 					{column.title}
 				</h2>
 				<span
 					data-testid="column-count"
-					className="font-mono text-xs text-neutral-500"
+					className="font-mono text-xs text-neutral-500 dark:text-neutral-500"
 				>
 					{column.cards.length}
 				</span>
@@ -59,12 +59,12 @@ export function Column({
 			{column.cards.length === 0 ? (
 				<p
 					data-testid="column-empty"
-					className="px-3 py-6 text-center text-xs text-neutral-600"
+					className="px-3 py-6 text-center text-xs text-neutral-500 dark:text-neutral-600"
 				>
 					No issues
 				</p>
 			) : (
-				<ul className="flex flex-col gap-2 p-2">
+				<ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
 					{column.cards.map((card) => (
 						<li key={card.id}>
 							<Card

@@ -49,7 +49,7 @@ export function Board({
 		board.repositories.length > 0;
 
 	return (
-		<div className="flex flex-col gap-4">
+		<div className="flex min-h-0 flex-col gap-4">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<RepositoryFilter
 					repositories={board.repositories}
@@ -80,13 +80,16 @@ export function Board({
 				</div>
 			) : null}
 			{filtering && !hasMatches ? (
-				<p data-testid="board-no-match" className="text-sm text-neutral-500">
+				<p
+					data-testid="board-no-match"
+					className="text-sm text-neutral-500 dark:text-neutral-500"
+				>
 					No issues for this repository.
 				</p>
 			) : null}
 			<div
 				data-testid="board-columns"
-				className="flex gap-3 overflow-x-auto pb-2"
+				className="flex items-start gap-3 overflow-x-auto pb-2 lg:overflow-x-visible"
 			>
 				{filtered.columns.map((column) => (
 					<Column

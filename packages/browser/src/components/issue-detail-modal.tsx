@@ -44,16 +44,16 @@ export function IssueDetailModal({
 			onOpenChange={(open) => {
 				if (!open) onClose();
 			}}
-			className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 sm:p-8"
+			className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 p-4 sm:p-8 dark:bg-black/70"
 		>
 			<Modal className="w-full max-w-3xl">
 				<Dialog
 					aria-label={`Issue ${issueId}`}
 					data-testid="issue-detail"
-					className="rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 shadow-xl outline-none"
+					className="rounded-lg border border-neutral-200 bg-white text-neutral-950 shadow-xl outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"
 				>
-					<header className="flex items-center justify-between gap-3 border-b border-neutral-800 px-5 py-3">
-						<span className="font-mono text-xs text-neutral-500">
+					<header className="flex items-center justify-between gap-3 border-b border-neutral-200 px-5 py-3 dark:border-neutral-800">
+						<span className="font-mono text-xs text-neutral-500 dark:text-neutral-500">
 							{issueId}
 						</span>
 						<Button
@@ -61,7 +61,7 @@ export function IssueDetailModal({
 							data-testid="issue-detail-close"
 							onPress={onClose}
 							aria-label="Close issue detail"
-							className="rounded px-2 py-1 text-sm text-neutral-400 outline-none hover:text-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500"
+							className="rounded px-2 py-1 text-sm text-neutral-500 outline-none hover:text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:text-neutral-400 dark:hover:text-neutral-100"
 						>
 							✕
 						</Button>
@@ -69,7 +69,7 @@ export function IssueDetailModal({
 					{data?.ok ? (
 						<div
 							data-testid="issue-detail-action-bar"
-							className="flex items-center gap-2 border-b border-neutral-800 px-5 py-2"
+							className="flex items-center gap-2 border-b border-neutral-200 px-5 py-2 dark:border-neutral-800"
 						>
 							<IssueLabelEditor
 								issueId={data.issue.id}
@@ -129,17 +129,19 @@ function IssueDetailBody({ issue }: { issue: IssueDetailView }) {
 	const blocked = issue.dependencyStatus === "blocked";
 	return (
 		<article data-testid="issue-detail-content">
-			<h2 className="text-lg font-semibold leading-snug text-neutral-100">
+			<h2 className="text-lg font-semibold leading-snug text-neutral-950 dark:text-neutral-100">
 				{issue.title}
 			</h2>
-			<dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-neutral-500">
+			<dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-neutral-500 dark:text-neutral-500">
 				<div className="flex gap-1">
-					<dt className="text-neutral-600">status</dt>
+					<dt className="text-neutral-400 dark:text-neutral-600">status</dt>
 					<dd data-testid="issue-detail-status-value">{issue.status}</dd>
 				</div>
 				{issue.repository ? (
 					<div className="flex gap-1">
-						<dt className="text-neutral-600">repository</dt>
+						<dt className="text-neutral-400 dark:text-neutral-600">
+							repository
+						</dt>
 						<dd title={issue.repositoryTitle}>{issue.repository}</dd>
 					</div>
 				) : null}
@@ -157,7 +159,7 @@ function IssueDetailBody({ issue }: { issue: IssueDetailView }) {
 					{issue.labels.map((label) => (
 						<li
 							key={label}
-							className="rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-300"
+							className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
 						>
 							{issue.labelTitles?.[label] ?? label}
 						</li>
@@ -166,7 +168,7 @@ function IssueDetailBody({ issue }: { issue: IssueDetailView }) {
 			) : null}
 			<div
 				data-testid="issue-markdown"
-				className="prose prose-invert prose-sm mt-4 max-w-none"
+				className="prose prose-neutral prose-sm mt-4 max-w-none dark:prose-invert"
 			>
 				<ReactMarkdown remarkPlugins={[remarkGfm]}>{issue.body}</ReactMarkdown>
 			</div>

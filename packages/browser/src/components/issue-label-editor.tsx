@@ -85,24 +85,24 @@ export function IssueLabelEditor({
 				aria-expanded={open}
 				aria-haspopup="dialog"
 				onClick={() => (open ? closePopover() : openPopover())}
-				className="rounded border border-neutral-800 px-2 py-1 text-xs text-neutral-300 outline-none hover:bg-neutral-900 hover:text-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500"
+				className="rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-700 outline-none hover:bg-neutral-100 hover:text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
 			>
 				Edit labels
 			</button>
 			{open ? (
 				<div
 					data-testid="label-popover"
-					className="absolute left-0 z-10 mt-1 w-64 rounded-lg border border-neutral-800 bg-neutral-950 p-3 shadow-xl"
+					className="absolute left-0 z-10 mt-1 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-xl dark:border-neutral-800 dark:bg-neutral-950"
 				>
 					<fieldset className="m-0 border-0 p-0">
-						<legend className="mb-2 text-xs font-medium text-neutral-400">
+						<legend className="mb-2 text-xs font-medium text-neutral-500 dark:text-neutral-400">
 							Labels
 						</legend>
 						{configLabels.length > 0 ? (
 							<ul className="flex flex-col gap-1">
 								{configLabels.map((label) => (
 									<li key={label.id}>
-										<label className="flex items-center gap-2 text-sm text-neutral-200">
+										<label className="flex items-center gap-2 text-sm text-neutral-800 dark:text-neutral-200">
 											<input
 												type="checkbox"
 												data-testid={`label-checkbox-${label.id}`}
@@ -116,14 +116,14 @@ export function IssueLabelEditor({
 								))}
 							</ul>
 						) : (
-							<p className="text-xs text-neutral-500">
+							<p className="text-xs text-neutral-500 dark:text-neutral-500">
 								No Labels are defined in config.
 							</p>
 						)}
 					</fieldset>
 					{preservedUnknown.length > 0 ? (
-						<div className="mt-3 border-t border-neutral-800 pt-2">
-							<p className="mb-1 text-xs text-neutral-500">
+						<div className="mt-3 border-t border-neutral-200 pt-2 dark:border-neutral-800">
+							<p className="mb-1 text-xs text-neutral-500 dark:text-neutral-500">
 								Preserved (not in config)
 							</p>
 							<ul
@@ -134,7 +134,7 @@ export function IssueLabelEditor({
 									<li
 										key={label}
 										data-testid="preserved-label"
-										className="rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-400"
+										className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
 									>
 										{label}
 									</li>
@@ -156,7 +156,7 @@ export function IssueLabelEditor({
 							type="button"
 							data-testid="label-cancel"
 							onClick={closePopover}
-							className="rounded px-2 py-1 text-xs text-neutral-400 outline-none hover:text-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500"
+							className="rounded px-2 py-1 text-xs text-neutral-500 outline-none hover:text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:text-neutral-400 dark:hover:text-neutral-100"
 						>
 							Cancel
 						</button>
