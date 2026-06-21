@@ -11,6 +11,7 @@
 		"test": "bun test",
 		"check": "biome check .",
 		"fix": "biome check --write .",
+		"browser:dev": "bun run ./scripts/dev-browser.ts",
 		"docs:dev": "vitepress dev site",
 		"docs:build": "vitepress build site",
 		"docs:preview": "vitepress preview site"
