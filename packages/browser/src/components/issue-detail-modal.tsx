@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { IssueDetailResponse, IssueDetailView } from "../issue-api.ts";
 import { IssueAppendForm } from "./issue-append-form.tsx";
+import { IssueArchiveAction } from "./issue-archive-action.tsx";
 import { IssueLabelEditor } from "./issue-label-editor.tsx";
 
 // The Focused Markdown Modal: a large, accessible dialog centered on reading the
@@ -21,6 +22,9 @@ type IssueDetailModalProps = {
 	// used to populate the Label editor popover's checklist.
 	configLabels: BoardLabelView[];
 	onClose: () => void;
+	// Called after a successful archive so the app can close the detail when the
+	// archived Issue leaves the visible board.
+	onArchived: () => void;
 };
 
 export function IssueDetailModal({
@@ -30,6 +34,7 @@ export function IssueDetailModal({
 	isError,
 	configLabels,
 	onClose,
+	onArchived,
 }: IssueDetailModalProps) {
 	return (
 		<ModalOverlay
@@ -70,6 +75,12 @@ export function IssueDetailModal({
 								currentLabels={data.issue.labels}
 								configLabels={configLabels}
 							/>
+							<div className="ml-auto">
+								<IssueArchiveAction
+									issueId={data.issue.id}
+									onArchived={onArchived}
+								/>
+							</div>
 						</div>
 					) : null}
 					<div className="max-h-[75vh] overflow-y-auto px-5 py-4">

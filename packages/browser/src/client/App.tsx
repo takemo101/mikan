@@ -61,6 +61,9 @@ export function App() {
 					</p>
 				)}
 			</div>
+			{/* A successful archive moves the Issue to `archived`, which this slice
+			    never shows on the board, so the archived Issue always leaves the
+			    visible board and the detail closes. */}
 			{selectedIssue ? (
 				<IssueDetailModal
 					issueId={selectedIssue}
@@ -69,6 +72,7 @@ export function App() {
 					isError={detail.isError}
 					configLabels={data?.ok ? (data.board.labels ?? []) : []}
 					onClose={() => setSelectedIssue(undefined)}
+					onArchived={() => setSelectedIssue(undefined)}
 				/>
 			) : null}
 		</main>
