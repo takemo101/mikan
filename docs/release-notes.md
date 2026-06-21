@@ -3,6 +3,17 @@
 Release notes for the published `@takemo101/mikan` CLI package. Versions are the
 `packages/cli/package.json` version users install from npm.
 
+## 0.0.17 — Browser UI polish
+
+Polishes the local `mikan browser` experience after the detail action release,
+making the board easier to use with large Issue sets and adding theme control.
+
+- **Browser developer command**: adds `just browser-dev -- ...` / `bun run browser:dev` to build the packaged CLI dist and launch `mikan browser` from the same bundled path users install.
+- **Viewport-height Status columns**: Status Columns now stretch to the bottom of the viewport while each Column's Card list scrolls independently, so a long `Completed` lane no longer stretches every other lane or the page itself.
+- **Light/Dark theme toggle**: adds a persisted icon button for switching between light and dark Browser themes.
+- **Detail modal scroll containment**: the detail modal overlay no longer scrolls outside the modal; only the modal body scrolls with overscroll containment.
+- **Nested confirmation polish**: Archive and GitHub Mirror confirmations use managed modal layering and keep Escape scoped to the topmost confirmation.
+
 ## 0.0.16 — Browser detail actions
 
 Extends `mikan browser` with the next action slices, exposing a few existing mikan
