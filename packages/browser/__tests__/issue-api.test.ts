@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createIssue } from "@mikan/core";
-import { initProject } from "@mikan/project-config";
+import { initProject, loadProjectConfig } from "@mikan/project-config";
 import type { IssueDetailResponse } from "../src/index.ts";
 import { createBrowserApp } from "../src/index.ts";
 
@@ -141,5 +141,112 @@ describe("GET /api/issues/:id", () => {
 		await getIssue(root, "MIK-001");
 		const after = snapshotTree(join(root, ".mikan"));
 		expect(after).toEqual(before);
+	});
+});
+
+// `mirrorTarget` is what the detail GitHub Mirror action confirmation displays.
+// It is resolved through `@mikan/github`'s shared rules, so these tests pin the
+// target behavior the UI depends on — including the regression that Labels and
+// `affects` never choose the target.
+describe("GET /api/issues/:id mirrorTarget", () => {
+	function appendConfig(root: string, block: string): void {
+		const configPath = join(root, ".mikan", "config.yaml");
+		writeFileSync(configPath, `${readFileSync(configPath, "utf8")}${block}`);
+	}
+
+	async function readIssue(
+		root: string,
+		id: string,
+	): Promise<IssueDetailResponse> {
+		const response = await getIssue(root, id);
+		return (await response.json()) as IssueDetailResponse;
+	}
+
+	test("resolves a single-project target from top-level github.repo", async () => {
+		const root = tempProject();
+		appendConfig(root, "github:\n  repo: takemo101/mikan\n");
+		const body = await readIssue(root, "MIK-001");
+		expect(body.ok).toBe(true);
+		if (!body.ok) throw new Error("expected ok response");
+		expect(body.issue.mirrorTarget).toEqual({
+			ok: true,
+			repo: "takemo101/mikan",
+		});
+	});
+
+	test("surfaces a missing target as an unresolved mirrorTarget", async () => {
+		const root = tempProject();
+		const body = await readIssue(root, "MIK-001");
+		expect(body.ok).toBe(true);
+		if (!body.ok) throw new Error("expected ok response");
+		expect(body.issue.mirrorTarget.ok).toBe(false);
+		if (body.issue.mirrorTarget.ok) throw new Error("expected unresolved");
+		expect(body.issue.mirrorTarget.code).toBe("missing_config");
+	});
+
+	test("resolves a workspace target via the primary repository, never labels/affects", async () => {
+		const root = mkdtempSync(join(tmpdir(), "mikan-browser-issue-ws-"));
+		cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+		const init = initProject(root, { key: "MIK", name: "mikan" });
+		if (!init.ok) throw new Error("init failed");
+		appendConfig(
+			root,
+			[
+				"repositories:",
+				"  - id: backend",
+				"    title: Backend",
+				"    path: backend",
+				"    github:",
+				"      repo: org/backend",
+				"  - id: frontend",
+				"    title: Frontend",
+				"    path: frontend",
+				"    github:",
+				"      repo: org/frontend",
+				"",
+			].join("\n"),
+		);
+		// Reload config from disk so createIssue uses the workspace repositories.
+		const reloaded = loadProjectConfig(root);
+		if (!reloaded.ok) throw new Error("reload failed");
+		const created = createIssue({
+			projectRoot: root,
+			config: reloaded.value.config,
+			title: "Workspace issue",
+			status: "ready",
+			repository: "backend",
+			affects: ["frontend"],
+			labels: ["automation"],
+			now,
+		});
+		if (!created.ok) throw new Error("createIssue failed");
+
+		const body = await readIssue(root, "MIK-001");
+		expect(body.ok).toBe(true);
+		if (!body.ok) throw new Error("expected ok response");
+		// Primary repository wins; affects (frontend) and labels never decide it.
+		expect(body.issue.mirrorTarget).toEqual({ ok: true, repo: "org/backend" });
+	});
+
+	test("keeps an existing Mirror's stored repo regardless of config target", async () => {
+		const root = tempProject();
+		appendConfig(root, "github:\n  repo: takemo101/mikan\n");
+		// Inject a github_issue pointing at a different repo than the config target.
+		const path = join(root, ".mikan", "ready", "MIK-001.md");
+		const original = readFileSync(path, "utf8");
+		writeFileSync(
+			path,
+			original.replace(
+				/^---\n/,
+				"---\ngithub_issue:\n  repo: takemo101/legacy\n  number: 4\n  url: https://github.com/takemo101/legacy/issues/4\n  last_mirrored_at: 2026-05-30T00:00:00Z\n",
+			),
+		);
+		const body = await readIssue(root, "MIK-001");
+		expect(body.ok).toBe(true);
+		if (!body.ok) throw new Error("expected ok response");
+		expect(body.issue.mirrorTarget).toEqual({
+			ok: true,
+			repo: "takemo101/legacy",
+		});
 	});
 });

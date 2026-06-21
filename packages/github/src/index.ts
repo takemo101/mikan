@@ -46,7 +46,7 @@ type GitHubMirrorRepository = {
 	github?: { repo?: string };
 };
 
-type GitHubMirrorConfig = Omit<BoardConfig, "repositories"> & {
+export type GitHubMirrorConfig = Omit<BoardConfig, "repositories"> & {
 	github?: GitHubConfig;
 	repositories?: GitHubMirrorRepository[];
 };
@@ -78,6 +78,20 @@ export async function pushGitHubMirror(
 	options: GitHubMirrorOptions,
 ): Promise<Result<GitHubMirrorResult, GitHubMirrorError>> {
 	return mirrorOrPush(options, { requireExistingMirror: true });
+}
+
+// Thin public wrapper over the existing GitHub Mirror target resolution. It lets
+// other adapters (the Browser detail API) show the repo a mirror would write to
+// without duplicating the rules: existing Mirrors keep their stored
+// `github_issue.repo`; new Mirrors resolve through single-project `github.repo`
+// or, in workspace mode, the Issue's primary `repository` to its configured
+// `repositories[].github.repo`. Labels and `affects` never choose the target.
+// This is a behavior-preserving re-export of `resolveTargetRepo`.
+export function resolveGitHubMirrorTarget(
+	config: GitHubMirrorConfig,
+	issue: ParsedIssue,
+): Result<string, GitHubMirrorError> {
+	return resolveTargetRepo(config, issue);
 }
 
 export const defaultGhApiRunner: GhApiRunner = async (request) => {

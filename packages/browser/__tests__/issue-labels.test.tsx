@@ -68,6 +68,7 @@ function issueResponse(labels: string[] = ["automation"]): IssueDetailResponse {
 			labels,
 			labelTitles: Object.fromEntries(labels.map((label) => [label, label])),
 			dependencyStatus: "ready",
+			mirrorTarget: { ok: true, repo: "takemo101/mikan" },
 			createdAt: "2026-05-30T00:00:00Z",
 			updatedAt: "2026-05-30T00:00:00Z",
 			body: "## Summary\n\nOriginal body.\n",

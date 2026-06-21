@@ -88,6 +88,7 @@ function issueResponse(): IssueDetailResponse {
 			repository: "backend",
 			repositoryTitle: "Backend",
 			dependencyStatus: "ready",
+			mirrorTarget: { ok: true, repo: "takemo101/mikan" },
 			createdAt: "2026-05-30T00:00:00Z",
 			updatedAt: "2026-05-30T00:00:00Z",
 			body: ISSUE_BODY,

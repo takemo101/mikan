@@ -62,6 +62,7 @@ function issueResponse(): IssueDetailResponse {
 			path: "ready/MIK-200.md",
 			labels: [],
 			dependencyStatus: "ready",
+			mirrorTarget: { ok: true, repo: "takemo101/mikan" },
 			createdAt: "2026-05-30T00:00:00Z",
 			updatedAt: "2026-05-30T00:00:00Z",
 			body: "## Summary\n\nOriginal body.\n",

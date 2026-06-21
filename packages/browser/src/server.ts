@@ -1,8 +1,10 @@
 import { resolve, sep } from "node:path";
+import type { GhApiRunner } from "@mikan/github";
 import { Hono } from "hono";
 import { type AppendInput, appendIssueResponse } from "./append-api.ts";
 import { archiveIssueResponse } from "./archive-api.ts";
 import { loadBoardApiResponse } from "./board-api.ts";
+import { mirrorIssueToGitHubResponse } from "./github-mirror-api.ts";
 import { loadIssueDetailResponse } from "./issue-api.ts";
 import { type LabelsInput, updateLabelsResponse } from "./labels-api.ts";
 import { type MoveInput, moveIssueResponse } from "./move-api.ts";
@@ -20,6 +22,10 @@ export type CreateBrowserAppOptions = {
 	// Active project root used by `GET /api/board` to reload config/board state
 	// from disk on each request. Defaults to the current working directory.
 	projectRoot?: string;
+	// Injectable gh API caller for `POST /api/issues/:id/github-mirror`. Tests pass
+	// a fake runner so the GitHub Mirror endpoint exercises real Mirror behavior
+	// without shelling out to `gh`; production omits it to use core's gh-CLI runner.
+	githubMirrorRunner?: GhApiRunner;
 };
 
 export type BrowserApp = {
@@ -169,6 +175,23 @@ export function createBrowserApp(options: CreateBrowserAppOptions): BrowserApp {
 		const guard = checkWriteOrigin(c.req.raw);
 		if (!guard.ok) return c.json({ ok: false, error: guard.error }, 403);
 		return c.json(archiveIssueResponse(projectRoot, c.req.param("id")));
+	});
+
+	// GitHub Mirror write endpoint backing the detail-modal GitHub Mirror action.
+	// Same guard-first, reload-from-disk shape as the other write endpoints and,
+	// like archive, it carries no request body: the Mirror target and create/update
+	// choice are derived entirely by core `mirrorIssueToGitHub`. The Host/Origin
+	// guard runs before any mutation, then the request synchronously creates or
+	// updates the Issue's GitHub Mirror through the existing Mirror behavior. The
+	// gh API caller is injected from app options so tests run without `gh`.
+	app.post("/api/issues/:id/github-mirror", async (c) => {
+		const guard = checkWriteOrigin(c.req.raw);
+		if (!guard.ok) return c.json({ ok: false, error: guard.error }, 403);
+		return c.json(
+			await mirrorIssueToGitHubResponse(projectRoot, c.req.param("id"), {
+				runner: options.githubMirrorRunner,
+			}),
+		);
 	});
 
 	app.get("/assets/*", async (c) => {

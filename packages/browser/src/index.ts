@@ -27,8 +27,14 @@ export type {
 export { loadBoardApiResponse } from "./board-api.ts";
 export type { ApiError } from "./config-error.ts";
 export type {
+	GitHubMirrorOptions,
+	GitHubMirrorResponse,
+} from "./github-mirror-api.ts";
+export { mirrorIssueToGitHubResponse } from "./github-mirror-api.ts";
+export type {
 	IssueDetailResponse,
 	IssueDetailView,
+	IssueMirrorTarget,
 } from "./issue-api.ts";
 export { loadIssueDetailResponse } from "./issue-api.ts";
 export type { LabelsInput, LabelsResponse } from "./labels-api.ts";
