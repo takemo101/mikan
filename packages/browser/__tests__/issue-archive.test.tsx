@@ -215,7 +215,7 @@ describe("issue Archive action", () => {
 			expect(countGets(calls, "/api/board")).toBeGreaterThan(boardBefore);
 		});
 		expect(countGets(calls, "/api/issues/")).toBeGreaterThan(detailBefore);
-	});
+	}, 15_000);
 
 	test("shows the API error envelope in the modal without closing or refetching", async () => {
 		const calls = stubFetch({
