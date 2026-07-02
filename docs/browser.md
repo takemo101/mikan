@@ -48,7 +48,9 @@ The initial Browser product target is split across multiple implementation Issue
 
 - real Kanban board display with configured Columns and Cards;
 - the selected **Local Command Board** visual direction: dark, compact, developer-native, and close in spirit to the TUI;
-- warning summary/details from board scanning;
+- a compact header warning button, placed left of the theme toggle, that opens
+  grouped warning details from board scanning without taking vertical board
+  space;
 - Card labels, dependency readiness markers, primary Repository prefix, affected Repository context where useful, and workspace Repository filter UI;
 - Repository filtering by primary `repository` only; `affects` does not widen results in the initial release;
 - URL query state for active Repository filter and selected Issue, for example `?repository=backend&issue=MIK-123`;
@@ -167,7 +169,8 @@ The Browser should poll the Board API through TanStack Query every few seconds s
 
 3. **Real Web board display**
    - Render Columns and Cards in React.
-   - Show labels, dependency status, warnings, Repository prefix/context, empty Columns, and Repository filter UI.
+   - Show labels, dependency status, a compact warning button/modal,
+     Repository prefix/context, empty Columns, and Repository filter UI.
    - Persist `repository` filter in URL query state.
 
 4. **Markdown Issue detail**
