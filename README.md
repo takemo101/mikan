@@ -387,7 +387,10 @@ The published package is dist-only:
 - `package.json` declares runtime metadata and native OpenTUI optional dependencies;
 - `README.md` is included for npm package documentation.
 
-Releases are published from `.github/workflows/publish.yml` using npm Trusted Publishing and provenance on `v*` tags or manual workflow dispatch.
+Releases are published from `.github/workflows/publish.yml` using npm Trusted
+Publishing and provenance. Creating and pushing a `v*` tag is the release
+trigger; manual workflow dispatch is intentionally disabled to keep one publish
+path.
 
 ## Limitations
 
