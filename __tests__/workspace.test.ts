@@ -12,14 +12,34 @@ const packages = [
 	"tui",
 ] as const;
 
+type PackageJson = {
+	private?: boolean;
+	type?: string;
+	workspaces?: string[];
+	scripts?: Record<string, string>;
+	dependencies?: Record<string, string>;
+	devDependencies?: Record<string, string>;
+};
+
+function readPackageJson(path: string): PackageJson {
+	try {
+		return JSON.parse(readFileSync(path, "utf8")) as PackageJson;
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`Could not parse package.json at ${path}: ${message}`);
+	}
+}
+
 describe("workspace scaffold", () => {
 	test("defines the expected Bun workspace and root scripts", () => {
-		const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+		const pkg = readPackageJson(join(root, "package.json"));
+		const scripts = pkg.scripts ?? {};
+		const devDependencies = pkg.devDependencies ?? {};
 
 		expect(pkg.private).toBe(true);
 		expect(pkg.type).toBe("module");
 		expect(pkg.workspaces).toEqual(["packages/*"]);
-		expect(Object.keys(pkg.scripts)).toEqual(
+		expect(Object.keys(scripts)).toEqual(
 			expect.arrayContaining([
 				"build",
 				"typecheck",
@@ -31,10 +51,10 @@ describe("workspace scaffold", () => {
 				"docs:preview",
 			]),
 		);
-		expect(pkg.scripts["docs:dev"]).toBe("vitepress dev site");
-		expect(pkg.scripts["docs:build"]).toBe("vitepress build site");
-		expect(pkg.scripts["docs:preview"]).toBe("vitepress preview site");
-		expect(pkg.devDependencies.vitepress).toBe("1.6.4");
+		expect(scripts["docs:dev"]).toBe("vitepress dev site");
+		expect(scripts["docs:build"]).toBe("vitepress build site");
+		expect(scripts["docs:preview"]).toBe("vitepress preview site");
+		expect(devDependencies.vitepress).toBe("1.6.4");
 	});
 
 	test("has a public launch README with install and quickstart", () => {
@@ -56,7 +76,9 @@ describe("workspace scaffold", () => {
 		expect(workflow).toContain("name: Publish to npm");
 		expect(workflow).toContain("tags:");
 		expect(workflow).toMatch(/- ['"]v\*['"]/);
-		expect(workflow).toContain("workflow_dispatch:");
+		expect(workflow).not.toContain("workflow_dispatch:");
+		expect(workflow).toContain("Verify tag matches CLI package version");
+		expect(workflow).toContain("Check npm publish state");
 		expect(workflow).toContain("id-token: write");
 		expect(workflow).toContain("oven-sh/setup-bun@v2");
 		expect(workflow).toContain("bun install --frozen-lockfile");
@@ -117,8 +139,8 @@ describe("workspace scaffold", () => {
 	});
 
 	test("keeps core independent from adapter packages", () => {
-		const corePkg = JSON.parse(
-			readFileSync(join(root, "packages", "core", "package.json"), "utf8"),
+		const corePkg = readPackageJson(
+			join(root, "packages", "core", "package.json"),
 		);
 		const deps = {
 			...(corePkg.dependencies ?? {}),
