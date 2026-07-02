@@ -25,6 +25,12 @@ function enableWorkspaceMode(cwd: string): void {
 
 import { mkdtempSync } from "node:fs";
 
+type PackedCliPackage = {
+	files: Array<{ path: string }>;
+	name: string;
+	version: string;
+};
+
 async function cli(
 	cwd: string,
 	argv: string[],
@@ -37,10 +43,19 @@ async function cli(
 	});
 }
 
+function parsePackDryRunJson(stdout: string): PackedCliPackage[] {
+	try {
+		return JSON.parse(stdout) as PackedCliPackage[];
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`npm pack --json returned invalid JSON: ${message}`);
+	}
+}
+
 describe("CLI read path", () => {
 	test("package metadata targets scoped npm dist bin", () => {
 		expect(packageJson.name).toBe("@takemo101/mikan");
-		expect(packageJson.version).toBe("0.0.17");
+		expect(packageJson.version).toBe("0.0.18");
 		expect(packageJson.private).toBe(false);
 		expect(packageJson.bin).toEqual({ mikan: "dist/bin.js" });
 		expect(packageJson.repository).toEqual({
@@ -70,13 +85,8 @@ describe("CLI read path", () => {
 			await $`bun ${join(import.meta.dir, "..", "dist", "bin.js")} --help`.quiet();
 		const pack =
 			await $`npm pack --dry-run --json ${join(import.meta.dir, "..")}`.quiet();
-		const [packed] = JSON.parse(pack.stdout.toString()) as [
-			{
-				files: Array<{ path: string }>;
-				name: string;
-				version: string;
-			},
-		];
+		const [packed] = parsePackDryRunJson(pack.stdout.toString());
+		if (!packed) throw new Error("npm pack --json returned no packages");
 		const packedFiles = packed.files.map((file) => file.path);
 
 		expect(help.exitCode).toBe(0);
@@ -85,7 +95,7 @@ describe("CLI read path", () => {
 			true,
 		);
 		expect(packed.name).toBe("@takemo101/mikan");
-		expect(packed.version).toBe("0.0.17");
+		expect(packed.version).toBe("0.0.18");
 		expect(packedFiles).toContain("dist/bin.js");
 		expect(packedFiles).toContain("package.json");
 		expect(packedFiles).toContain("README.md");
@@ -120,8 +130,8 @@ describe("CLI read path", () => {
 		expect(globalHelp.stdout).toContain(
 			"skills    Install agent-facing mikan usage guidance",
 		);
-		expect(version).toMatchObject({ exitCode: 0, stdout: "0.0.17\n" });
-		expect(shortVersion).toMatchObject({ exitCode: 0, stdout: "0.0.17\n" });
+		expect(version).toMatchObject({ exitCode: 0, stdout: "0.0.18\n" });
+		expect(shortVersion).toMatchObject({ exitCode: 0, stdout: "0.0.18\n" });
 		expect(addHelp.exitCode).toBe(0);
 		expect(addHelp.stdout).toContain("Usage:\n  mikan add <title>");
 		expect(addHelp.stdout).toContain("-s, --status <status>");
