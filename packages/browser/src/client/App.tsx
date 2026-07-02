@@ -1,5 +1,6 @@
 import { Board } from "../components/board.tsx";
 import { IssueDetailModal } from "../components/issue-detail-modal.tsx";
+import { Warnings } from "../components/warnings.tsx";
 import { useBoardQuery } from "./board-query.ts";
 import { useIssueDetailQuery } from "./issue-detail-query.ts";
 import { useBoardMove } from "./move-mutation.ts";
@@ -39,16 +40,24 @@ export function App() {
 							</span>
 						) : null}
 					</div>
-					<button
-						type="button"
-						data-testid="theme-toggle"
-						onClick={toggleTheme}
-						className="ml-auto inline-flex size-8 items-center justify-center rounded-full border border-neutral-300 bg-white text-base leading-none text-neutral-700 shadow-sm outline-none hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
-						aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-						title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-					>
-						<span aria-hidden="true">{theme === "dark" ? "☾" : "☀︎"}</span>
-					</button>
+					<div className="ml-auto flex items-center gap-2">
+						{data?.ok ? (
+							<Warnings
+								warnings={data.board.warnings}
+								details={data.board.warningDetails}
+							/>
+						) : null}
+						<button
+							type="button"
+							data-testid="theme-toggle"
+							onClick={toggleTheme}
+							className="inline-flex size-8 items-center justify-center rounded-full border border-neutral-300 bg-white text-base leading-none text-neutral-700 shadow-sm outline-none hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+							aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+							title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+						>
+							<span aria-hidden="true">{theme === "dark" ? "☾" : "☀︎"}</span>
+						</button>
+					</div>
 				</header>
 				{isPending ? (
 					<p

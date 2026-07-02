@@ -7,7 +7,7 @@ if (!(globalThis as { document?: unknown }).document) {
 }
 
 const { QueryClientProvider } = await import("@tanstack/react-query");
-const { cleanup, render, screen, within } = await import(
+const { cleanup, fireEvent, render, screen, within } = await import(
 	"@testing-library/react"
 );
 const { App } = await import("../src/client/App.tsx");
@@ -178,13 +178,54 @@ describe("browser board view", () => {
 		).toBeDefined();
 	});
 
-	test("surfaces warning summary and details from the read model", async () => {
-		stubFetch(boardResponse());
+	test("opens grouped board warnings from a compact toolbar button", async () => {
+		const response = boardResponse();
+		if (response.ok) {
+			response.board.warnings = [
+				"unmet_dependency: MIK-201 depends on MIK-199",
+				"unknown_label: config has unknown label frontend-ish",
+			];
+			response.board.warningDetails = [
+				{
+					text: "unmet_dependency: MIK-201 depends on MIK-199",
+					kind: "unmet_dependency",
+					message: "MIK-201 depends on MIK-199",
+					issueId: "MIK-201",
+				},
+				{
+					text: "unknown_label: config has unknown label frontend-ish",
+					kind: "unknown_label",
+					message: "config has unknown label frontend-ish",
+				},
+			];
+		}
+		stubFetch(response);
 		renderApp();
-		const summary = await screen.findByTestId("warning-summary");
-		expect(summary.textContent).toContain("1 warning");
-		const detail = screen.getByTestId("warning-detail");
-		expect(detail.textContent).toContain("MIK-201 depends on MIK-199");
+		const trigger = await screen.findByTestId("warning-trigger");
+		expect(trigger.textContent).toContain("2");
+		expect(trigger.getAttribute("aria-label")).toBe("Open 2 board warnings");
+		expect(
+			trigger.compareDocumentPosition(screen.getByTestId("theme-toggle")) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+		expect(screen.getByTestId("board-warnings").className).not.toContain(
+			"absolute",
+		);
+		expect(screen.queryByTestId("warning-detail")).toBeNull();
+
+		fireEvent.click(trigger);
+
+		const dialog = await screen.findByRole("dialog", {
+			name: "Board warnings",
+		});
+		expect(within(dialog).getByTestId("warning-group-MIK-201")).toBeDefined();
+		expect(
+			within(dialog).getByText("MIK-201 depends on MIK-199"),
+		).toBeDefined();
+		expect(within(dialog).getByTestId("warning-group-board")).toBeDefined();
+		expect(
+			within(dialog).getByText("config has unknown label frontend-ish"),
+		).toBeDefined();
 	});
 
 	test("renders no warning surface when there are no warnings", async () => {

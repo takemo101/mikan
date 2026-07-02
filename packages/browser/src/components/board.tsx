@@ -8,12 +8,10 @@ import type { RepositoryFilterState } from "../client/use-repository-filter.ts";
 import type { ApiError } from "../config-error.ts";
 import { Column } from "./column.tsx";
 import { RepositoryFilter } from "./repository-filter.tsx";
-import { Warnings } from "./warnings.tsx";
 
-// The real Kanban board: a toolbar (Repository filter + warning surface) above a
-// horizontally scrolling row of Status Columns. Warnings are board-level and so
-// read from the unfiltered model; Columns render the primary-Repository-filtered
-// view, preserving empty lanes.
+// The real Kanban board: a toolbar (Repository filter) above a horizontally
+// scrolling row of Status Columns. Columns render the
+// primary-Repository-filtered view, preserving empty lanes.
 //
 // When `onMoveIssue` is provided, Columns become drag-and-drop targets for
 // cross-Column Status moves (MIK-155). A failed move surfaces as the board-level
@@ -50,14 +48,13 @@ export function Board({
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-4">
-			<div className="flex flex-wrap items-center justify-between gap-3">
+			<div className="flex flex-wrap items-center gap-3">
 				<RepositoryFilter
 					repositories={board.repositories}
 					value={repository}
 					includeAffected={includeAffected}
 					onChange={onRepositoryChange}
 				/>
-				<Warnings warnings={board.warnings} details={board.warningDetails} />
 			</div>
 			{moveError ? (
 				<div
