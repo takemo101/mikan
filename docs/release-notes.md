@@ -3,6 +3,22 @@
 Release notes for the published `@takemo101/mikan` CLI package. Versions are the
 `packages/cli/package.json` version users install from npm.
 
+## 0.0.18 — Browser warning modal
+
+Keeps Browser board warnings visible without letting long warning text shrink the
+Kanban board. Warning details now live in a dedicated modal near the existing
+header controls.
+
+- **Header warning entry point**: moves the warning button next to the
+  Light/Dark theme toggle so it stays discoverable without overlapping Cards or
+  consuming board toolbar space.
+- **Grouped warning modal**: opens warning details in a scroll-contained modal
+  grouped by Issue ID when structured details are available, with board/config
+  warnings collected separately.
+- **Board space preservation**: removes the expanding inline warning details
+  from the board flow so long dependency, Label, or config warnings no longer
+  reduce the visible Kanban area.
+
 ## 0.0.17 — Browser UI polish
 
 Polishes the local `mikan browser` experience after the detail action release,
