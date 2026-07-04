@@ -48,6 +48,7 @@ import {
 	getSelectedDetails,
 	Header,
 	IssueCard,
+	isNoopTuiRefresh,
 	isWorkspaceMode,
 	keyToDirection,
 	keyToTuiAction,
@@ -75,6 +76,7 @@ import {
 	type TuiSelection,
 	toFullIndexSelection,
 	toggleFocusedLabel,
+	tuiModelFileFingerprint,
 	updateSelectedIssueLabels,
 	visibleColumnCountForViewport,
 } from "../src/index.ts";
@@ -2733,6 +2735,154 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(refreshed.selection.columnIndex).toBe(1);
 		expect(refreshed.selection.cardIndex).toBe(0);
 		expect(refreshed.selection.detailOpen).toBe(false);
+	});
+
+	test("no-op auto-refresh is detected so the poll interval skips state updates", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+			detailScrollOffset: 12,
+			moveOpen: true,
+			moveTargetIndex: 2,
+			message: "Still here",
+		};
+
+		const refreshed = refreshTuiModel({ cwd, model, selection });
+
+		expect(isNoopTuiRefresh({ model, selection }, refreshed)).toBe(true);
+	});
+
+	test("no-op detection treats rebuilt false flags as equal to absent flags", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		// Column 0 (backlog) has no Cards, so refreshTuiModel rebuilds the
+		// selection through the no-selected-Card path with explicit false flags.
+		const selection: TuiSelection = {
+			columnIndex: 0,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+
+		const refreshed = refreshTuiModel({ cwd, model, selection });
+
+		expect(refreshed.selection.moveOpen).toBe(false);
+		expect(isNoopTuiRefresh({ model, selection }, refreshed)).toBe(true);
+	});
+
+	test("auto-refresh still commits when the board changes externally", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const loaded = loadProjectConfig(cwd);
+		expect(loaded.ok).toBe(true);
+		if (!loaded.ok) throw new Error("config failed");
+		moveIssue({
+			projectRoot: loaded.value.projectRoot,
+			config: loaded.value.config,
+			id: "MIK-001",
+			status: "backlog",
+			log: "external move",
+			now,
+		});
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+
+		const refreshed = refreshTuiModel({ cwd, model, selection });
+
+		expect(isNoopTuiRefresh({ model, selection }, refreshed)).toBe(false);
+	});
+
+	test("auto-refresh still commits when the selected Issue disappears", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		unlinkSync(join(cwd, ".mikan", "ready", "MIK-001.md"));
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+
+		const refreshed = refreshTuiModel({ cwd, model, selection });
+
+		expect(refreshed.selection.detailOpen).toBe(false);
+		expect(isNoopTuiRefresh({ model, selection }, refreshed)).toBe(false);
+	});
+
+	test("auto-refresh still commits when the selection needs clamping", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 5,
+			detailOpen: false,
+		};
+
+		const refreshed = refreshTuiModel({ cwd, model, selection });
+
+		expect(refreshed.selection.cardIndex).toBe(0);
+		expect(isNoopTuiRefresh({ model, selection }, refreshed)).toBe(false);
+	});
+
+	test("body-only edit changes the file fingerprint while the model stays a no-op", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: true,
+		};
+		const before = tuiModelFileFingerprint(model);
+		const issuePath = join(cwd, ".mikan", "ready", "MIK-001.md");
+		writeFileSync(
+			issuePath,
+			`${readFileSync(issuePath, "utf8")}\nExternally appended note line.\n`,
+		);
+
+		const refreshed = refreshTuiModel({ cwd, model, selection });
+
+		// The model alone cannot see the edit, so the interval must not treat
+		// this refresh as skippable: the fingerprint is what forces the commit.
+		expect(isNoopTuiRefresh({ model, selection }, refreshed)).toBe(true);
+		expect(tuiModelFileFingerprint(refreshed.model)).not.toBe(before);
+	});
+
+	test("file fingerprint is stable while Issue files are untouched", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+
+		const refreshed = refreshTuiModel({ cwd, model, selection });
+
+		expect(tuiModelFileFingerprint(refreshed.model)).toBe(
+			tuiModelFileFingerprint(model),
+		);
+	});
+
+	test("file fingerprint stats every card and marks missing files", () => {
+		const cwd = tempProject();
+		const model = loadTuiModel(cwd);
+		const cardPaths = model.columns.flatMap((column) =>
+			column.cards.map((card) => card.path),
+		);
+		const statted: string[] = [];
+
+		const fingerprint = tuiModelFileFingerprint(model, (path) => {
+			statted.push(path);
+			return undefined;
+		});
+
+		expect(cardPaths.length).toBeGreaterThan(0);
+		expect(statted).toEqual(cardPaths);
+		expect(fingerprint).toContain(":missing");
 	});
 
 	test("buildTuiModel is pure for startup smoke", () => {

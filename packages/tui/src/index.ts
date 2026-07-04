@@ -23,9 +23,11 @@ import {
 	archiveSelectedIssue,
 	beginSelectedIssueGitHubMirror,
 	confirmSelectedIssueGitHubMirror,
+	isNoopTuiRefresh,
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
 	refreshTuiModel,
+	tuiModelFileFingerprint,
 	updateSelectedIssueLabels,
 } from "./mutations.ts";
 import {
@@ -137,9 +139,11 @@ export {
 	archiveSelectedIssue,
 	beginSelectedIssueGitHubMirror,
 	confirmSelectedIssueGitHubMirror,
+	isNoopTuiRefresh,
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
 	refreshTuiModel,
+	tuiModelFileFingerprint,
 	updateSelectedIssueLabels,
 } from "./mutations.ts";
 export {
@@ -329,6 +333,13 @@ export async function launchTui(
 			import("@opentui/core").ScrollBoxRenderable | null
 		>(null);
 		const columnScrollTargetRef = React.useRef<string | undefined>(undefined);
+		// Detail bodies are read from disk during render, not stored in the model,
+		// so the poll interval also tracks Issue file freshness to notice external
+		// body-only edits that leave the model unchanged (MIK-164).
+		const fileFingerprintRef = React.useRef<string | null>(null);
+		if (fileFingerprintRef.current === null) {
+			fileFingerprintRef.current = tuiModelFileFingerprint(model);
+		}
 		// Mutations/refreshes reload and resolve Issues against the full board, so
 		// inputs are translated to full-model indices and results are re-mapped back
 		// into the active Repository filter. Both are passthroughs when no filter is
@@ -351,6 +362,7 @@ export async function launchTui(
 						: reconciled;
 				modelRef.current = result.model;
 				selectionRef.current = next;
+				fileFingerprintRef.current = tuiModelFileFingerprint(result.model);
 				setModel(result.model);
 				setSelection(next);
 			},
@@ -412,14 +424,29 @@ export async function launchTui(
 
 		React.useEffect(() => {
 			const interval = setInterval(() => {
+				const fullSelection = toFullIndexSelection(
+					modelRef.current,
+					selectionRef.current,
+				);
 				const refreshed = refreshTuiModel({
 					cwd: options.cwd,
 					model: modelRef.current,
-					selection: toFullIndexSelection(
-						modelRef.current,
-						selectionRef.current,
-					),
+					selection: fullSelection,
 				});
+				// Idle polling must not touch React state: each commit rerenders the
+				// OpenTUI tree and leaks memory over time (MIK-164). An unchanged
+				// model is not enough to skip — detail bodies live on disk, so a
+				// body-only edit only shows up in the file fingerprint.
+				if (
+					isNoopTuiRefresh(
+						{ model: modelRef.current, selection: fullSelection },
+						refreshed,
+					) &&
+					tuiModelFileFingerprint(refreshed.model) ===
+						fileFingerprintRef.current
+				) {
+					return;
+				}
 				commitResult(refreshed);
 			}, pollMs);
 			return () => clearInterval(interval);

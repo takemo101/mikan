@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import { appendIssue, moveIssue, type Result, updateIssue } from "@mikan/core";
 import {
 	mirrorIssueToGitHub as defaultMirrorIssueToGitHub,
@@ -89,6 +90,75 @@ export function refreshTuiModel(options: {
 			repositoryFilterFocusIndex: options.selection.repositoryFilterFocusIndex,
 		},
 	};
+}
+
+/**
+ * True when a refresh produced the same board snapshot and selection as its
+ * inputs, so interval-driven callers can skip React state updates (and the
+ * OpenTUI rerender they trigger) while the board is idle (MIK-164). Model
+ * comparison relies on both snapshots coming from `loadTuiModel`, which builds
+ * models with deterministic key order.
+ */
+export function isNoopTuiRefresh(
+	current: { model: TuiModel; selection: TuiSelection },
+	refreshed: TuiRefreshResult,
+): boolean {
+	return (
+		JSON.stringify(refreshed.model) === JSON.stringify(current.model) &&
+		selectionFingerprint(refreshed.selection) ===
+			selectionFingerprint(current.selection)
+	);
+}
+
+/**
+ * Fingerprint of the Issue files behind a TUI model. The detail view reads
+ * Markdown bodies from disk during render, so a body-only edit (Reports,
+ * Notes, Summary) leaves `TuiModel` unchanged; the poll interval must compare
+ * this fingerprint too before treating a refresh as skippable, or external
+ * body edits would never reach the open detail view (MIK-164). Stat metadata
+ * (size + mtimeMs) is enough to detect edits without reading every file each
+ * second.
+ */
+export function tuiModelFileFingerprint(
+	model: TuiModel,
+	statFile: (
+		path: string,
+	) => { size: number; mtimeMs: number } | undefined = statIssueFile,
+): string {
+	const parts: string[] = [];
+	for (const column of model.columns) {
+		for (const card of column.cards) {
+			const stat = statFile(card.path);
+			parts.push(
+				stat
+					? `${card.path}:${stat.size}:${stat.mtimeMs}`
+					: `${card.path}:missing`,
+			);
+		}
+	}
+	return parts.join("\n");
+}
+
+function statIssueFile(
+	path: string,
+): { size: number; mtimeMs: number } | undefined {
+	try {
+		const stat = statSync(path);
+		return { size: stat.size, mtimeMs: stat.mtimeMs };
+	} catch {
+		return undefined;
+	}
+}
+
+// Selection flags treat absent, `undefined`, and `false` interchangeably, and
+// `refreshTuiModel` rebuilds selections with explicit `false` flags and its own
+// key order, so the fingerprint normalizes those differences away.
+function selectionFingerprint(selection: TuiSelection): string {
+	return JSON.stringify(
+		Object.entries(selection)
+			.filter(([, value]) => value !== undefined && value !== false)
+			.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+	);
 }
 
 export function moveSelectedIssueByDirection(options: {
