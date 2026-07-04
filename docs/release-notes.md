@@ -3,6 +3,24 @@
 Release notes for the published `@takemo101/mikan` CLI package. Versions are the
 `packages/cli/package.json` version users install from npm.
 
+## 0.0.19 — TUI scroll and idle refresh stability
+
+Improves long-running `mikan tui` stability after the Status Column scrollbox
+release, keeping native scrolling usable without unnecessary idle rerenders.
+
+- **Status Column scrollboxes**: Status Issue lists now render inside native
+  OpenTUI scrollboxes, keep the selected Card visible, and avoid resetting scroll
+  position during model-only auto-refreshes.
+- **Cursor-first wheel scrolling**: vertical wheel/trackpad scrolling moves the
+  selected Card up or down and lets the scrollbox follow it; unreliable
+  horizontal slide gestures are ignored.
+- **Card layout containment**: long Issue titles and Labels are clipped,
+  no-wrapped, and truncated so scrolling cannot wrap Card text into extra rows or
+  break Column layout.
+- **Idle refresh memory reduction**: the TUI auto-refresh loop skips React/OpenTUI
+  state updates when the board, selection, and Issue-file freshness fingerprint
+  are unchanged, while still rerendering for body-only Markdown edits.
+
 ## 0.0.18 — Browser warning modal
 
 Keeps Browser board warnings visible without letting long warning text shrink the
