@@ -1,6 +1,14 @@
-import { fg, StyledText } from "@opentui/core";
+import {
+	fg,
+	type MouseEvent,
+	type ScrollBoxRenderable,
+	StyledText,
+} from "@opentui/core";
 import React from "react";
-import type { TuiAppViewProps } from "./app-view-props.ts";
+import type {
+	TuiAppViewProps,
+	TuiColumnScrollDirection,
+} from "./app-view-props.ts";
 import {
 	type BoardColumnView,
 	buildBoardViewModel,
@@ -16,6 +24,14 @@ import {
 import { cardDependencyStatus, type TuiCard } from "./model.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
 
+function columnScrollDirection(
+	event: MouseEvent,
+): TuiColumnScrollDirection | undefined {
+	if (event.modifiers?.shift) return undefined;
+	const direction = event.scroll?.direction;
+	return direction === "up" || direction === "down" ? direction : undefined;
+}
+
 export function BoardView({
 	model,
 	selection,
@@ -23,6 +39,8 @@ export function BoardView({
 	viewportHeight,
 	viewportWidth,
 	columns,
+	columnScrollBoxRef,
+	onColumnScroll,
 }: TuiAppViewProps): React.ReactElement {
 	// A fixed columns count overrides the responsive width; "auto" (or unset)
 	// keeps the sliding viewport derived from viewport width.
@@ -73,6 +91,8 @@ export function BoardView({
 						column,
 						theme,
 						width: columnWidthPercent(columnIndex, group.columns.length),
+						scrollBoxRef: column.active ? columnScrollBoxRef : undefined,
+						onScroll: column.active ? onColumnScroll : undefined,
 					}),
 				),
 			),
@@ -84,6 +104,8 @@ export function ColumnPane(props: {
 	column: BoardColumnView;
 	theme?: TuiTheme;
 	width?: string;
+	scrollBoxRef?: React.RefObject<ScrollBoxRenderable | null>;
+	onScroll?: (direction: TuiColumnScrollDirection) => void;
 }): React.ReactElement {
 	const theme = props.theme ?? buildTuiTheme();
 	const cardChildren = props.column.empty
@@ -93,7 +115,7 @@ export function ColumnPane(props: {
 					content: props.column.emptyText,
 				}),
 			]
-		: props.column.visibleCards.map((card) =>
+		: props.column.cards.map((card) =>
 				React.createElement(IssueCard, {
 					key: card.id,
 					card,
@@ -101,7 +123,6 @@ export function ColumnPane(props: {
 					theme,
 				}),
 			);
-	const children = cardChildren;
 	return React.createElement(
 		"box",
 		{
@@ -118,10 +139,33 @@ export function ColumnPane(props: {
 					: theme.base.muted,
 				flexDirection: "column",
 				flexGrow: 1,
+				minHeight: 0,
 				width: props.width,
 			},
 		},
-		...children,
+		React.createElement(
+			"scrollbox",
+			{
+				id: `column-${props.column.id}-card-list`,
+				ref: props.scrollBoxRef,
+				onMouseScroll: props.onScroll
+					? (event: MouseEvent) => {
+							const direction = columnScrollDirection(event);
+							if (direction) {
+								queueMicrotask(() => props.onScroll?.(direction));
+							}
+						}
+					: undefined,
+				scrollY: true,
+				scrollX: false,
+				style: {
+					flexGrow: 1,
+					minHeight: 0,
+					overflow: "hidden",
+				},
+			},
+			...cardChildren,
+		),
 	);
 }
 
@@ -167,10 +211,15 @@ export function IssueCard(props: {
 					: theme.base.surface,
 				flexDirection: "column",
 				height: 1,
+				overflow: "hidden",
+				width: "100%",
 			},
 		},
 		React.createElement("text", {
 			content: issueCardContent(props.card, props.selected, theme),
+			truncate: true,
+			wrapMode: "none",
+			style: { overflow: "hidden", width: "100%" },
 		}),
 	);
 }

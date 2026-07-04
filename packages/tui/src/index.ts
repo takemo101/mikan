@@ -1,6 +1,10 @@
 import React from "react";
 import packageJson from "../../cli/package.json" with { type: "json" };
-import type { TuiAppViewProps, TuiColumnsMode } from "./app-view-props.ts";
+import type {
+	TuiAppViewProps,
+	TuiColumnScrollDirection,
+	TuiColumnsMode,
+} from "./app-view-props.ts";
 import { BoardView, Footer } from "./board-view.ts";
 import { DetailPage } from "./detail-view.ts";
 import {
@@ -27,13 +31,16 @@ import {
 import {
 	applyRepositoryFilterChoice,
 	beginGitHubMirrorSubmission,
+	columnScrollTargetKey,
 	footerMode,
 	getMoveTargets,
 	keyToTuiAction,
 	moveLabelFocus,
 	moveRepositoryFilterFocus,
 	moveSelection,
+	moveSelectionFromColumnScroll,
 	reconcileFilteredSelection,
+	shouldSyncColumnScroll,
 	toFullIndexSelection,
 	toggleFocusedLabel,
 } from "./navigation.ts";
@@ -44,7 +51,11 @@ import {
 } from "./selection.ts";
 import { buildTuiTheme, type TuiTheme } from "./theme.ts";
 
-export type { TuiAppViewProps, TuiColumnsMode } from "./app-view-props.ts";
+export type {
+	TuiAppViewProps,
+	TuiColumnScrollDirection,
+	TuiColumnsMode,
+} from "./app-view-props.ts";
 export type { FooterProps } from "./board-view.ts";
 // Public facade re-exports for extracted board rendering components (MIK-081).
 export {
@@ -134,6 +145,8 @@ export {
 export {
 	applyRepositoryFilterChoice,
 	beginGitHubMirrorSubmission,
+	cardIndexForColumnScrollDirection,
+	columnScrollTargetKey,
 	footerMode,
 	getAdjacentMoveTarget,
 	getMoveTargets,
@@ -143,8 +156,10 @@ export {
 	moveLabelFocus,
 	moveRepositoryFilterFocus,
 	moveSelection,
+	moveSelectionFromColumnScroll,
 	reconcileFilteredSelection,
 	repositoryFilterOptions,
+	shouldSyncColumnScroll,
 	toFullIndexSelection,
 	toggleFocusedLabel,
 } from "./navigation.ts";
@@ -191,6 +206,8 @@ export function TuiAppView({
 	noteTextareaRef,
 	onNoteSubmit,
 	detailScrollBoxRef,
+	columnScrollBoxRef,
+	onColumnScroll,
 }: TuiAppViewProps): React.ReactElement {
 	const model = applyRepositoryFilter(fullModel, selection.repositoryFilter);
 	const details = selection.detailOpen
@@ -229,6 +246,8 @@ export function TuiAppView({
 						viewportHeight,
 						viewportWidth,
 						columns,
+						columnScrollBoxRef,
+						onColumnScroll,
 					}),
 		),
 		selection.moveOpen
@@ -306,6 +325,10 @@ export async function launchTui(
 		const detailScrollBoxRef = React.useRef<
 			import("@opentui/core").ScrollBoxRenderable | null
 		>(null);
+		const columnScrollBoxRef = React.useRef<
+			import("@opentui/core").ScrollBoxRenderable | null
+		>(null);
+		const columnScrollTargetRef = React.useRef<string | undefined>(undefined);
 		// Mutations/refreshes reload and resolve Issues against the full board, so
 		// inputs are translated to full-model indices and results are re-mapped back
 		// into the active Repository filter. Both are passthroughs when no filter is
@@ -350,6 +373,42 @@ export async function launchTui(
 		);
 		modelRef.current = model;
 		selectionRef.current = selection;
+
+		React.useEffect(() => {
+			const board = applyRepositoryFilter(model, selection.repositoryFilter);
+			const nextTarget = columnScrollTargetKey(board, selection);
+			if (!shouldSyncColumnScroll(columnScrollTargetRef.current, nextTarget)) {
+				columnScrollTargetRef.current = nextTarget;
+				return;
+			}
+			columnScrollTargetRef.current = nextTarget;
+			const card =
+				board.columns[selection.columnIndex]?.cards[selection.cardIndex];
+			if (card) {
+				columnScrollBoxRef.current?.scrollChildIntoView(`card-${card.id}`);
+			}
+		}, [model, selection]);
+
+		const syncCursorToColumnScroll = React.useCallback(
+			(direction: TuiColumnScrollDirection) => {
+				setSelection((current) => {
+					const board = applyRepositoryFilter(
+						modelRef.current,
+						current.repositoryFilter,
+					);
+					const next = moveSelectionFromColumnScroll(board, current, direction);
+					if (
+						next.columnIndex === current.columnIndex &&
+						next.cardIndex === current.cardIndex
+					) {
+						return current;
+					}
+					selectionRef.current = next;
+					return next;
+				});
+			},
+			[],
+		);
 
 		React.useEffect(() => {
 			const interval = setInterval(() => {
@@ -588,6 +647,8 @@ export async function launchTui(
 			viewportWidth: dimensions.width,
 			columns: options.columns,
 			noteTextareaRef,
+			columnScrollBoxRef,
+			onColumnScroll: syncCursorToColumnScroll,
 			onNoteSubmit: submitNote,
 			detailScrollBoxRef,
 		});

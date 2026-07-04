@@ -43,6 +43,64 @@ type TuiSelectionAction =
 	| "repository-filter"
 	| "help";
 
+function isPlainBoardSelection(selection: TuiSelection): boolean {
+	return [
+		selection.detailOpen,
+		selection.moveOpen,
+		selection.noteOpen,
+		selection.labelOpen,
+		selection.archiveOpen,
+		selection.githubConfirmOpen,
+		selection.repositoryFilterOpen,
+		selection.warningsOpen,
+		selection.helpOpen,
+	].every((open) => !open);
+}
+
+export function columnScrollTargetKey(
+	model: TuiModel,
+	selection: TuiSelection,
+): string | undefined {
+	if (!isPlainBoardSelection(selection)) return undefined;
+	const card = model.columns[selection.columnIndex]?.cards[selection.cardIndex];
+	return card ? `${selection.columnIndex}:${card.id}` : undefined;
+}
+
+export function shouldSyncColumnScroll(
+	previousTarget: string | undefined,
+	nextTarget: string | undefined,
+): boolean {
+	return nextTarget !== undefined && previousTarget !== nextTarget;
+}
+
+export function cardIndexForColumnScrollDirection(
+	cardIndex: number,
+	cardCount: number,
+	direction: "up" | "down",
+): number {
+	return clamp(
+		cardIndex + (direction === "down" ? 1 : -1),
+		0,
+		Math.max(0, cardCount - 1),
+	);
+}
+
+export function moveSelectionFromColumnScroll(
+	model: TuiModel,
+	selection: TuiSelection,
+	direction: "up" | "down",
+): TuiSelection {
+	const cardCount = model.columns[selection.columnIndex]?.cards.length ?? 0;
+	return {
+		...selection,
+		cardIndex: cardIndexForColumnScrollDirection(
+			selection.cardIndex,
+			cardCount,
+			direction,
+		),
+	};
+}
+
 export function moveSelection(
 	model: TuiModel,
 	selection: TuiSelection,
