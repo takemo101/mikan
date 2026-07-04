@@ -2,6 +2,7 @@
 .claude/
 .omc/
 .pi-lens/
+.pi-subagents/
 .mikan/.state/
 .superpowers/
 node_modules/
