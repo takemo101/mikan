@@ -33,6 +33,8 @@ import {
 	buildTuiModel,
 	buildTuiTheme,
 	ColumnPane,
+	cardIndexForColumnScrollDirection,
+	columnScrollTargetKey,
 	confirmSelectedIssueGitHubMirror,
 	createTuiAppElement,
 	DetailPage,
@@ -58,12 +60,14 @@ import {
 	moveSelectedIssue,
 	moveSelectedIssueByDirection,
 	moveSelection,
+	moveSelectionFromColumnScroll,
 	NotePrompt,
 	RepositoryFilterPrompt,
 	reconcileFilteredSelection,
 	refreshTuiModel,
 	renderTuiText,
 	repositoryFilterOptions,
+	shouldSyncColumnScroll,
 	TUI_VERSION,
 	TuiAppView,
 	type TuiGitHubMirrorOperations,
@@ -1094,6 +1098,191 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(bottomPage?.lineRangeText).toBe("Lines: 9-12/12 | ↑8");
 	});
 
+	test("renders Status Column Issue lists inside OpenTUI scrollboxes", () => {
+		const model = loadTuiModel(tempProject());
+		const tree = TuiAppView({
+			model,
+			selection: { columnIndex: 1, cardIndex: 0, detailOpen: false },
+		});
+		const readyList = findElementById(tree, "column-ready-card-list");
+		const activeList = findElementById(tree, "column-active-card-list");
+
+		expect(readyList?.type).toBe("scrollbox");
+		expect(readyList?.props).toMatchObject({
+			scrollY: true,
+			scrollX: false,
+		});
+		expect(readyList?.props?.style).toMatchObject({
+			flexGrow: 1,
+			minHeight: 0,
+			overflow: "hidden",
+		});
+		expect(activeList?.type).toBe("scrollbox");
+		expect(collectTextContent(readyList)).toContain("MIK-001 │ Ready issue");
+		expect(collectTextContent(activeList)).toContain("No Issues");
+	});
+
+	test("renders every Column Card inside the scrollbox instead of only the pre-windowed slice", () => {
+		const model = {
+			columns: [
+				{
+					id: "ready",
+					title: "Ready",
+					cards: Array.from({ length: 8 }, (_, index) => ({
+						id: `MIK-${String(index + 1).padStart(3, "0")}`,
+						title: `Issue ${index + 1}`,
+						labels: [],
+						status: "ready",
+						path: `/tmp/MIK-${String(index + 1).padStart(3, "0")}.md`,
+					})),
+				},
+			],
+			warnings: [],
+		};
+		const view = buildBoardViewModel(
+			model,
+			{ columnIndex: 0, cardIndex: 5, detailOpen: false },
+			{ visibleCardCount: 4 },
+		);
+		const column = view.columns[0];
+		if (!column) throw new Error("expected column");
+
+		const tree = ColumnPane({ column });
+		const list = findElementById(tree, "column-ready-card-list");
+		const text = collectTextContent(list);
+
+		expect(column.visibleCards.map((card) => card.id)).toEqual([
+			"MIK-004",
+			"MIK-005",
+			"MIK-006",
+			"MIK-007",
+		]);
+		expect(text).toContain("MIK-001 │ Issue 1");
+		expect(text).toContain("▶ MIK-006 │ Issue 6");
+		expect(text).toContain("MIK-008 │ Issue 8");
+	});
+
+	test("wires the active Column scrollbox ref for keyboard-driven scroll positioning", () => {
+		const model = loadTuiModel(tempProject());
+		const columnScrollBoxRef = { current: null };
+		const tree = TuiAppView({
+			model,
+			selection: { columnIndex: 1, cardIndex: 0, detailOpen: false },
+			columnScrollBoxRef,
+		} as Parameters<typeof TuiAppView>[0] & {
+			columnScrollBoxRef: typeof columnScrollBoxRef;
+		});
+		const readyList = findElementById(tree, "column-ready-card-list");
+		const activeList = findElementById(tree, "column-active-card-list");
+
+		expect(readyList?.props?.ref).toBe(columnScrollBoxRef);
+		expect(activeList?.props?.ref).toBeUndefined();
+	});
+
+	test("does not force the active Column scrollbox back to the selected Card on model-only refreshes", () => {
+		const model = loadTuiModel(tempProject());
+		const selection: TuiSelection = {
+			columnIndex: 1,
+			cardIndex: 0,
+			detailOpen: false,
+		};
+		const target = columnScrollTargetKey(model, selection);
+
+		expect(target).toBe("1:MIK-001");
+		expect(shouldSyncColumnScroll(undefined, target)).toBe(true);
+		expect(shouldSyncColumnScroll(target, target)).toBe(false);
+		expect(shouldSyncColumnScroll(target, "2:MIK-001")).toBe(true);
+		expect(
+			columnScrollTargetKey(model, { ...selection, detailOpen: true }),
+		).toBeUndefined();
+	});
+
+	test("maps Column scroll directions to adjacent cursor Card movement", () => {
+		expect(cardIndexForColumnScrollDirection(3, 8, "down")).toBe(4);
+		expect(cardIndexForColumnScrollDirection(3, 8, "up")).toBe(2);
+		expect(cardIndexForColumnScrollDirection(7, 8, "down")).toBe(7);
+		expect(cardIndexForColumnScrollDirection(0, 8, "up")).toBe(0);
+		expect(cardIndexForColumnScrollDirection(3, 0, "down")).toBe(0);
+	});
+
+	test("wires Column mouse scrolling so vertical scroll follows the native scrollbox", async () => {
+		const model = loadTuiModel(tempProject());
+		const scrollDirections: string[] = [];
+		const tree = TuiAppView({
+			model,
+			selection: { columnIndex: 1, cardIndex: 0, detailOpen: false },
+			onColumnScroll: (direction) => scrollDirections.push(direction),
+		});
+		const readyList = findElementById(tree, "column-ready-card-list");
+		const activeList = findElementById(tree, "column-active-card-list");
+
+		expect(readyList?.props?.onMouseScroll).toEqual(expect.any(Function));
+		expect(activeList?.props?.onMouseScroll).toBeUndefined();
+		(readyList?.props?.onMouseScroll as (event: unknown) => void)?.({
+			scroll: { direction: "down" },
+		});
+		await Promise.resolve();
+		expect(scrollDirections).toEqual(["down"]);
+	});
+
+	test("derives cursor Card movement from vertical Column scrolling", () => {
+		const model: TuiModel = {
+			columns: [
+				{
+					id: "ready",
+					title: "Ready",
+					cards: Array.from({ length: 8 }, (_, index) => ({
+						id: `MIK-${String(index + 1).padStart(3, "0")}`,
+						title: `Issue ${index + 1}`,
+						labels: [],
+						status: "ready",
+						path: `/tmp/MIK-${String(index + 1).padStart(3, "0")}.md`,
+					})),
+				},
+			],
+			warnings: [],
+		};
+		const selection: TuiSelection = {
+			columnIndex: 0,
+			cardIndex: 3,
+			detailOpen: false,
+		};
+
+		expect(
+			moveSelectionFromColumnScroll(model, selection, "down"),
+		).toMatchObject({
+			cardIndex: 4,
+		});
+		expect(moveSelectionFromColumnScroll(model, selection, "up")).toMatchObject(
+			{
+				cardIndex: 2,
+			},
+		);
+	});
+
+	test("ignores horizontal and shifted Column mouse scrolling", async () => {
+		const model = loadTuiModel(tempProject());
+		const scrollDirections: string[] = [];
+		const tree = TuiAppView({
+			model,
+			selection: { columnIndex: 1, cardIndex: 0, detailOpen: false },
+			onColumnScroll: (direction) => scrollDirections.push(direction),
+		});
+		const readyList = findElementById(tree, "column-ready-card-list");
+
+		(readyList?.props?.onMouseScroll as (event: unknown) => void)?.({
+			scroll: { direction: "right" },
+			modifiers: { shift: false },
+		});
+		await Promise.resolve();
+		(readyList?.props?.onMouseScroll as (event: unknown) => void)?.({
+			scroll: { direction: "down" },
+			modifiers: { shift: true },
+		});
+		await Promise.resolve();
+		expect(scrollDirections).toEqual([]);
+	});
+
 	test("builds an OpenTUI component tree with named board layout boundaries", () => {
 		const model = loadTuiModel(tempProject());
 		const selection: TuiSelection = {
@@ -1233,9 +1422,19 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(cardProps.style).toMatchObject({
 			backgroundColor: theme.base.surface,
 			height: 1,
+			overflow: "hidden",
+			width: "100%",
 		});
 		expect(cardProps.style?.color).toBeUndefined();
 		const cardText = findElementByType(card, "text");
+		expect(cardText?.props).toMatchObject({
+			truncate: true,
+			wrapMode: "none",
+		});
+		expect(cardText?.props?.style).toMatchObject({
+			overflow: "hidden",
+			width: "100%",
+		});
 		expect(styledContentPlain(cardText?.props?.content)).toBe(
 			"MIK-002 │ Quiet issue #automation",
 		);
