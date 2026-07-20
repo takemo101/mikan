@@ -43,9 +43,22 @@ async function cli(
 	});
 }
 
+function isPackedCliPackage(value: unknown): value is PackedCliPackage {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"files" in value &&
+		"name" in value &&
+		"version" in value
+	);
+}
+
 function parsePackDryRunJson(stdout: string): PackedCliPackage[] {
 	try {
-		return JSON.parse(stdout) as PackedCliPackage[];
+		const parsed = JSON.parse(stdout) as unknown;
+		if (Array.isArray(parsed)) return parsed as PackedCliPackage[];
+		if (isPackedCliPackage(parsed)) return [parsed];
+		return Object.values(parsed as Record<string, PackedCliPackage>);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(`npm pack --json returned invalid JSON: ${message}`);
@@ -53,6 +66,28 @@ function parsePackDryRunJson(stdout: string): PackedCliPackage[] {
 }
 
 describe("CLI read path", () => {
+	test("parses single-package npm pack JSON", () => {
+		const packed: PackedCliPackage = {
+			files: [{ path: "dist/bin.js" }],
+			name: "@takemo101/mikan",
+			version: "0.0.20",
+		};
+
+		expect(parsePackDryRunJson(JSON.stringify(packed))).toEqual([packed]);
+	});
+
+	test("parses keyed npm pack JSON", () => {
+		const packed: PackedCliPackage = {
+			files: [{ path: "dist/bin.js" }],
+			name: "@takemo101/mikan",
+			version: "0.0.20",
+		};
+
+		expect(
+			parsePackDryRunJson(JSON.stringify({ "@takemo101/mikan": packed })),
+		).toEqual([packed]);
+	});
+
 	test("package metadata targets scoped npm dist bin", () => {
 		expect(packageJson.name).toBe("@takemo101/mikan");
 		expect(packageJson.version).toBe("0.0.20");
@@ -83,8 +118,7 @@ describe("CLI read path", () => {
 		await $`bun run --cwd ${join(import.meta.dir, "..")} build:dist`.quiet();
 		const help =
 			await $`bun ${join(import.meta.dir, "..", "dist", "bin.js")} --help`.quiet();
-		const pack =
-			await $`npm pack --dry-run --json ${join(import.meta.dir, "..")}`.quiet();
+		const pack = await $`npm pack --dry-run --json ./packages/cli`.quiet();
 		const [packed] = parsePackDryRunJson(pack.stdout.toString());
 		if (!packed) throw new Error("npm pack --json returned no packages");
 		const packedFiles = packed.files.map((file) => file.path);
