@@ -73,6 +73,17 @@ export function shouldSyncColumnScroll(
 	return nextTarget !== undefined && previousTarget !== nextTarget;
 }
 
+export function verticalScrollDeltaForBounds(
+	cardTop: number,
+	cardBottom: number,
+	viewportTop: number,
+	viewportBottom: number,
+): number {
+	if (cardTop < viewportTop) return cardTop - viewportTop;
+	if (cardBottom > viewportBottom) return cardBottom - viewportBottom;
+	return 0;
+}
+
 export function cardIndexForColumnScrollDirection(
 	cardIndex: number,
 	cardCount: number,

@@ -78,6 +78,7 @@ import {
 	toggleFocusedLabel,
 	tuiModelFileFingerprint,
 	updateSelectedIssueLabels,
+	verticalScrollDeltaForBounds,
 	visibleColumnCountForViewport,
 } from "../src/index.ts";
 
@@ -1197,6 +1198,12 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(
 			columnScrollTargetKey(model, { ...selection, detailOpen: true }),
 		).toBeUndefined();
+	});
+
+	test("only derives vertical scroll when a selected Card leaves its viewport", () => {
+		expect(verticalScrollDeltaForBounds(4, 5, 0, 8)).toBe(0);
+		expect(verticalScrollDeltaForBounds(-1, 0, 0, 8)).toBe(-1);
+		expect(verticalScrollDeltaForBounds(8, 9, 0, 8)).toBe(1);
 	});
 
 	test("maps Column scroll directions to adjacent cursor Card movement", () => {

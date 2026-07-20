@@ -45,6 +45,7 @@ import {
 	shouldSyncColumnScroll,
 	toFullIndexSelection,
 	toggleFocusedLabel,
+	verticalScrollDeltaForBounds,
 } from "./navigation.ts";
 import {
 	applyRepositoryFilter,
@@ -166,6 +167,7 @@ export {
 	shouldSyncColumnScroll,
 	toFullIndexSelection,
 	toggleFocusedLabel,
+	verticalScrollDeltaForBounds,
 } from "./navigation.ts";
 export type {
 	ArchivePromptViewModel,
@@ -396,8 +398,19 @@ export async function launchTui(
 			columnScrollTargetRef.current = nextTarget;
 			const card =
 				board.columns[selection.columnIndex]?.cards[selection.cardIndex];
-			if (card) {
-				columnScrollBoxRef.current?.scrollChildIntoView(`card-${card.id}`);
+			const scrollBox = columnScrollBoxRef.current;
+			const selectedCard = card
+				? scrollBox?.content.findDescendantById(`card-${card.id}`)
+				: undefined;
+			if (!scrollBox || !selectedCard) return;
+			const verticalDelta = verticalScrollDeltaForBounds(
+				selectedCard.y,
+				selectedCard.y + selectedCard.height,
+				scrollBox.viewport.y,
+				scrollBox.viewport.y + scrollBox.viewport.height,
+			);
+			if (verticalDelta !== 0) {
+				scrollBox.scrollBy({ x: 0, y: verticalDelta });
 			}
 		}, [model, selection]);
 
