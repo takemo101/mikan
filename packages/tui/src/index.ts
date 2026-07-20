@@ -1,3 +1,4 @@
+import type { KeyEvent } from "@opentui/core";
 import React from "react";
 import packageJson from "../../cli/package.json" with { type: "json" };
 import type {
@@ -42,6 +43,7 @@ import {
 	moveSelection,
 	moveSelectionFromColumnScroll,
 	reconcileFilteredSelection,
+	shouldPreventNativeArrowScroll,
 	shouldSyncColumnScroll,
 	toFullIndexSelection,
 	toggleFocusedLabel,
@@ -164,6 +166,7 @@ export {
 	moveSelectionFromColumnScroll,
 	reconcileFilteredSelection,
 	repositoryFilterOptions,
+	shouldPreventNativeArrowScroll,
 	shouldSyncColumnScroll,
 	toFullIndexSelection,
 	toggleFocusedLabel,
@@ -465,13 +468,16 @@ export async function launchTui(
 			return () => clearInterval(interval);
 		}, [commitResult]);
 
-		useKeyboard((key: { name?: string; shift?: boolean; ctrl?: boolean }) => {
+		useKeyboard((key: KeyEvent) => {
 			const action = keyToTuiAction(key.name, key.shift, key.ctrl);
 			// `board` is the model the user sees (Repository filter applied); `selection`
 			// indexes into it. `fullSelection` re-targets the same Issue in the unfiltered
 			// model for the shared mutation helpers. Both equal their inputs with no filter.
 			const board = applyRepositoryFilter(model, selection.repositoryFilter);
 			const fullSelection = toFullIndexSelection(model, selection);
+			if (shouldPreventNativeArrowScroll(action, Boolean(selection.noteOpen))) {
+				key.preventDefault();
+			}
 			if (selection.helpOpen) {
 				if (action === "escape" || action === "help") {
 					setSelection((current) => moveSelection(board, current, action));

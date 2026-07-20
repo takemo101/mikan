@@ -528,6 +528,7 @@ OpenTUI implementation notes:
 - Treat terminal dimensions as reactive state. Components that derive layout from terminal size should subscribe through OpenTUI React resize/dimension hooks rather than only reading `renderer.height` or `renderer.width` during render; stale dimensions after a resize can make borders, scroll areas, and footer hints overlap until the next unrelated render.
 - Keep fixed chrome such as the header and footer from shrinking, and let the main/detail content area shrink instead. Use `minHeight: 0` on flex containers that own scrollable children, clip overflow at the detail page boundary, and put Markdown body content inside the scrollable child.
 - Programmatic Card selection synchronization must skip ScrollBox updates when the selected Card is already vertically visible; when adjustment is necessary, use vertical-only scrolling so native horizontal Issue-row position remains unchanged.
+- When mikan handles non-Note arrow-key navigation, it must prevent the focused renderable's default key action so ScrollBoxes do not also perform a native scroll.
 - When fixing layout bugs, add a focused TUI regression test that locks the intended style contract for fixed chrome, shrinkable content, and scrollbox containment.
 
 Must not support initially:

@@ -68,6 +68,7 @@ import {
 	refreshTuiModel,
 	renderTuiText,
 	repositoryFilterOptions,
+	shouldPreventNativeArrowScroll,
 	shouldSyncColumnScroll,
 	TUI_VERSION,
 	TuiAppView,
@@ -1204,6 +1205,15 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(verticalScrollDeltaForBounds(4, 5, 0, 8)).toBe(0);
 		expect(verticalScrollDeltaForBounds(-1, 0, 0, 8)).toBe(-1);
 		expect(verticalScrollDeltaForBounds(8, 9, 0, 8)).toBe(1);
+	});
+
+	test("prevents native ScrollBox arrows only outside Note input", () => {
+		expect(shouldPreventNativeArrowScroll("up", false)).toBe(true);
+		expect(shouldPreventNativeArrowScroll("down", false)).toBe(true);
+		expect(shouldPreventNativeArrowScroll("left", false)).toBe(true);
+		expect(shouldPreventNativeArrowScroll("right", false)).toBe(true);
+		expect(shouldPreventNativeArrowScroll("up", true)).toBe(false);
+		expect(shouldPreventNativeArrowScroll("enter", false)).toBe(false);
 	});
 
 	test("maps Column scroll directions to adjacent cursor Card movement", () => {
