@@ -29,7 +29,12 @@ function columnScrollDirection(
 ): TuiColumnScrollDirection | undefined {
 	if (event.modifiers?.shift) return undefined;
 	const direction = event.scroll?.direction;
-	return direction === "up" || direction === "down" ? direction : undefined;
+	return direction === "up" ||
+		direction === "down" ||
+		direction === "left" ||
+		direction === "right"
+		? direction
+		: undefined;
 }
 
 export function BoardView({

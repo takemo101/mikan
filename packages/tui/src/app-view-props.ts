@@ -12,7 +12,7 @@ export type TuiNoteTextareaHandle = {
 // keeps the sliding viewport; a number requests an explicit fixed count. Kept
 // free of CLI imports so `@mikan/cli`'s TuiColumnsOption stays assignable here.
 export type TuiColumnsMode = "auto" | number;
-export type TuiColumnScrollDirection = "up" | "down";
+export type TuiColumnScrollDirection = "up" | "down" | "left" | "right";
 
 // Shared props contract for the top-level OpenTUI view components (board page,
 // detail page, modal prompts). Lives in a leaf Module so the rendering

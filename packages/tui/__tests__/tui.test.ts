@@ -1262,7 +1262,7 @@ updated_at: 2026-05-30T00:00:00Z
 		);
 	});
 
-	test("ignores horizontal and shifted Column mouse scrolling", async () => {
+	test("forwards horizontal Column scrolling and ignores shifted scrolling", async () => {
 		const model = loadTuiModel(tempProject());
 		const scrollDirections: string[] = [];
 		const tree = TuiAppView({
@@ -1277,12 +1277,39 @@ updated_at: 2026-05-30T00:00:00Z
 			modifiers: { shift: false },
 		});
 		await Promise.resolve();
+		expect(scrollDirections).toEqual(["right"]);
 		(readyList?.props?.onMouseScroll as (event: unknown) => void)?.({
 			scroll: { direction: "down" },
 			modifiers: { shift: true },
 		});
 		await Promise.resolve();
-		expect(scrollDirections).toEqual([]);
+		expect(scrollDirections).toEqual(["right"]);
+	});
+
+	test("preserves the Issue row when horizontal navigation changes Columns", () => {
+		const cards = (count: number, status: string) =>
+			Array.from({ length: count }, (_, index) => ({
+				id: `MIK-${status}-${index + 1}`,
+				title: `Issue ${index + 1}`,
+				labels: [],
+				status,
+				path: `/tmp/MIK-${status}-${index + 1}.md`,
+			}));
+		const model: TuiModel = {
+			columns: [
+				{ id: "ready", title: "Ready", cards: cards(4, "ready") },
+				{ id: "active", title: "Active", cards: cards(2, "active") },
+			],
+			warnings: [],
+		};
+
+		expect(
+			moveSelection(
+				model,
+				{ columnIndex: 0, cardIndex: 3, detailOpen: false },
+				"right",
+			),
+		).toMatchObject({ columnIndex: 1, cardIndex: 1 });
 	});
 
 	test("builds an OpenTUI component tree with named board layout boundaries", () => {
