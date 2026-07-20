@@ -500,7 +500,7 @@ Must support:
 - show Cards from corresponding directories with compact Issue ID, title, labels, and focused Card styling;
 - in workspace mode, show each Card's primary Repository so All repositories view remains understandable;
 - highlight the selected Card/Column and keep empty Columns visible with a muted empty state;
-- use `h`/`l`, left/right arrow keys, or horizontal swipe input for Column focus; horizontal swipe preserves the selected Issue row where possible and selects the final Issue in a shorter destination Column; use `j`/`k` or up/down arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `f` for Repository filtering in workspace mode, `e` for Label editing, `w` for warning details, `r` for reload, Esc for close/back, and `q` for quit;
+- use `h`/`l` or left/right arrow keys for Column focus; horizontal swipe scrolls long Issue rows in the active Column without changing selection; use `j`/`k` or up/down arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `f` for Repository filtering in workspace mode, `e` for Label editing, `w` for warning details, `r` for reload, Esc for close/back, and `q` for quit;
 - select a Card and press Enter/Return to switch from the board page to a full-page Markdown detail page;
 - in detail mode, render body Markdown without frontmatter and scroll it independently from board selection;
 - press Esc to return from detail, move, or note-entry modes while preserving board selection when possible;

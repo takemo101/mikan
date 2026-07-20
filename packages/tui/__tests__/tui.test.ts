@@ -1112,7 +1112,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(readyList?.type).toBe("scrollbox");
 		expect(readyList?.props).toMatchObject({
 			scrollY: true,
-			scrollX: false,
+			scrollX: true,
 		});
 		expect(readyList?.props?.style).toMatchObject({
 			flexGrow: 1,
@@ -1262,7 +1262,7 @@ updated_at: 2026-05-30T00:00:00Z
 		);
 	});
 
-	test("forwards horizontal Column scrolling and ignores shifted scrolling", async () => {
+	test("keeps horizontal Column scrolling out of selection synchronization", async () => {
 		const model = loadTuiModel(tempProject());
 		const scrollDirections: string[] = [];
 		const tree = TuiAppView({
@@ -1277,39 +1277,13 @@ updated_at: 2026-05-30T00:00:00Z
 			modifiers: { shift: false },
 		});
 		await Promise.resolve();
-		expect(scrollDirections).toEqual(["right"]);
+		expect(scrollDirections).toEqual([]);
 		(readyList?.props?.onMouseScroll as (event: unknown) => void)?.({
 			scroll: { direction: "down" },
-			modifiers: { shift: true },
+			modifiers: { shift: false },
 		});
 		await Promise.resolve();
-		expect(scrollDirections).toEqual(["right"]);
-	});
-
-	test("preserves the Issue row when horizontal navigation changes Columns", () => {
-		const cards = (count: number, status: string) =>
-			Array.from({ length: count }, (_, index) => ({
-				id: `MIK-${status}-${index + 1}`,
-				title: `Issue ${index + 1}`,
-				labels: [],
-				status,
-				path: `/tmp/MIK-${status}-${index + 1}.md`,
-			}));
-		const model: TuiModel = {
-			columns: [
-				{ id: "ready", title: "Ready", cards: cards(4, "ready") },
-				{ id: "active", title: "Active", cards: cards(2, "active") },
-			],
-			warnings: [],
-		};
-
-		expect(
-			moveSelection(
-				model,
-				{ columnIndex: 0, cardIndex: 3, detailOpen: false },
-				"right",
-			),
-		).toMatchObject({ columnIndex: 1, cardIndex: 1 });
+		expect(scrollDirections).toEqual(["down"]);
 	});
 
 	test("builds an OpenTUI component tree with named board layout boundaries", () => {
@@ -1451,19 +1425,14 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(cardProps.style).toMatchObject({
 			backgroundColor: theme.base.surface,
 			height: 1,
-			overflow: "hidden",
-			width: "100%",
+			minWidth: "100%",
 		});
 		expect(cardProps.style?.color).toBeUndefined();
+		expect(cardProps.style?.overflow).toBeUndefined();
 		const cardText = findElementByType(card, "text");
-		expect(cardText?.props).toMatchObject({
-			truncate: true,
-			wrapMode: "none",
-		});
-		expect(cardText?.props?.style).toMatchObject({
-			overflow: "hidden",
-			width: "100%",
-		});
+		expect(cardText?.props?.truncate).toBeUndefined();
+		expect(cardText?.props?.wrapMode).toBe("none");
+		expect(cardText?.props?.style).toBeUndefined();
 		expect(styledContentPlain(cardText?.props?.content)).toBe(
 			"MIK-002 │ Quiet issue #automation",
 		);

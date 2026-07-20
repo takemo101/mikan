@@ -408,10 +408,7 @@ export async function launchTui(
 						modelRef.current,
 						current.repositoryFilter,
 					);
-					const next =
-						direction === "left" || direction === "right"
-							? moveSelection(board, current, direction)
-							: moveSelectionFromColumnScroll(board, current, direction);
+					const next = moveSelectionFromColumnScroll(board, current, direction);
 					if (
 						next.columnIndex === current.columnIndex &&
 						next.cardIndex === current.cardIndex
