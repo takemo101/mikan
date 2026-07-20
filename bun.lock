@@ -44,7 +44,7 @@
     },
     "packages/cli": {
       "name": "@takemo101/mikan",
-      "version": "0.0.15",
+      "version": "0.0.20",
       "bin": {
         "mikan": "dist/bin.js",
       },
