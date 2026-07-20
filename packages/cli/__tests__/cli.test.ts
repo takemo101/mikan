@@ -43,10 +43,22 @@ async function cli(
 	});
 }
 
+function isPackedCliPackage(value: unknown): value is PackedCliPackage {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"files" in value &&
+		"name" in value &&
+		"version" in value
+	);
+}
+
 function parsePackDryRunJson(stdout: string): PackedCliPackage[] {
 	try {
-		const parsed = JSON.parse(stdout) as PackedCliPackage | PackedCliPackage[];
-		return Array.isArray(parsed) ? parsed : [parsed];
+		const parsed = JSON.parse(stdout) as unknown;
+		if (Array.isArray(parsed)) return parsed as PackedCliPackage[];
+		if (isPackedCliPackage(parsed)) return [parsed];
+		return Object.values(parsed as Record<string, PackedCliPackage>);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(`npm pack --json returned invalid JSON: ${message}`);
@@ -62,6 +74,18 @@ describe("CLI read path", () => {
 		};
 
 		expect(parsePackDryRunJson(JSON.stringify(packed))).toEqual([packed]);
+	});
+
+	test("parses keyed npm pack JSON", () => {
+		const packed: PackedCliPackage = {
+			files: [{ path: "dist/bin.js" }],
+			name: "@takemo101/mikan",
+			version: "0.0.20",
+		};
+
+		expect(
+			parsePackDryRunJson(JSON.stringify({ "@takemo101/mikan": packed })),
+		).toEqual([packed]);
 	});
 
 	test("package metadata targets scoped npm dist bin", () => {
