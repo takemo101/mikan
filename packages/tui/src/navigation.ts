@@ -73,6 +73,30 @@ export function shouldSyncColumnScroll(
 	return nextTarget !== undefined && previousTarget !== nextTarget;
 }
 
+export function shouldPreventNativeArrowScroll(
+	action: unknown,
+	noteOpen: boolean,
+): boolean {
+	return (
+		!noteOpen &&
+		(action === "up" ||
+			action === "down" ||
+			action === "left" ||
+			action === "right")
+	);
+}
+
+export function verticalScrollDeltaForBounds(
+	cardTop: number,
+	cardBottom: number,
+	viewportTop: number,
+	viewportBottom: number,
+): number {
+	if (cardTop < viewportTop) return cardTop - viewportTop;
+	if (cardBottom > viewportBottom) return cardBottom - viewportBottom;
+	return 0;
+}
+
 export function cardIndexForColumnScrollDirection(
 	cardIndex: number,
 	cardCount: number,

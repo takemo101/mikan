@@ -68,6 +68,7 @@ import {
 	refreshTuiModel,
 	renderTuiText,
 	repositoryFilterOptions,
+	shouldPreventNativeArrowScroll,
 	shouldSyncColumnScroll,
 	TUI_VERSION,
 	TuiAppView,
@@ -78,6 +79,7 @@ import {
 	toggleFocusedLabel,
 	tuiModelFileFingerprint,
 	updateSelectedIssueLabels,
+	verticalScrollDeltaForBounds,
 	visibleColumnCountForViewport,
 } from "../src/index.ts";
 
@@ -1112,7 +1114,7 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(readyList?.type).toBe("scrollbox");
 		expect(readyList?.props).toMatchObject({
 			scrollY: true,
-			scrollX: false,
+			scrollX: true,
 		});
 		expect(readyList?.props?.style).toMatchObject({
 			flexGrow: 1,
@@ -1199,6 +1201,21 @@ updated_at: 2026-05-30T00:00:00Z
 		).toBeUndefined();
 	});
 
+	test("only derives vertical scroll when a selected Card leaves its viewport", () => {
+		expect(verticalScrollDeltaForBounds(4, 5, 0, 8)).toBe(0);
+		expect(verticalScrollDeltaForBounds(-1, 0, 0, 8)).toBe(-1);
+		expect(verticalScrollDeltaForBounds(8, 9, 0, 8)).toBe(1);
+	});
+
+	test("prevents native ScrollBox arrows only outside Note input", () => {
+		expect(shouldPreventNativeArrowScroll("up", false)).toBe(true);
+		expect(shouldPreventNativeArrowScroll("down", false)).toBe(true);
+		expect(shouldPreventNativeArrowScroll("left", false)).toBe(true);
+		expect(shouldPreventNativeArrowScroll("right", false)).toBe(true);
+		expect(shouldPreventNativeArrowScroll("up", true)).toBe(false);
+		expect(shouldPreventNativeArrowScroll("enter", false)).toBe(false);
+	});
+
 	test("maps Column scroll directions to adjacent cursor Card movement", () => {
 		expect(cardIndexForColumnScrollDirection(3, 8, "down")).toBe(4);
 		expect(cardIndexForColumnScrollDirection(3, 8, "up")).toBe(2);
@@ -1262,7 +1279,7 @@ updated_at: 2026-05-30T00:00:00Z
 		);
 	});
 
-	test("ignores horizontal and shifted Column mouse scrolling", async () => {
+	test("keeps horizontal Column scrolling out of selection synchronization", async () => {
 		const model = loadTuiModel(tempProject());
 		const scrollDirections: string[] = [];
 		const tree = TuiAppView({
@@ -1277,12 +1294,13 @@ updated_at: 2026-05-30T00:00:00Z
 			modifiers: { shift: false },
 		});
 		await Promise.resolve();
+		expect(scrollDirections).toEqual([]);
 		(readyList?.props?.onMouseScroll as (event: unknown) => void)?.({
 			scroll: { direction: "down" },
-			modifiers: { shift: true },
+			modifiers: { shift: false },
 		});
 		await Promise.resolve();
-		expect(scrollDirections).toEqual([]);
+		expect(scrollDirections).toEqual(["down"]);
 	});
 
 	test("builds an OpenTUI component tree with named board layout boundaries", () => {
@@ -1424,19 +1442,14 @@ updated_at: 2026-05-30T00:00:00Z
 		expect(cardProps.style).toMatchObject({
 			backgroundColor: theme.base.surface,
 			height: 1,
-			overflow: "hidden",
-			width: "100%",
+			minWidth: "100%",
 		});
 		expect(cardProps.style?.color).toBeUndefined();
+		expect(cardProps.style?.overflow).toBeUndefined();
 		const cardText = findElementByType(card, "text");
-		expect(cardText?.props).toMatchObject({
-			truncate: true,
-			wrapMode: "none",
-		});
-		expect(cardText?.props?.style).toMatchObject({
-			overflow: "hidden",
-			width: "100%",
-		});
+		expect(cardText?.props?.truncate).toBeUndefined();
+		expect(cardText?.props?.wrapMode).toBe("none");
+		expect(cardText?.props?.style).toBeUndefined();
 		expect(styledContentPlain(cardText?.props?.content)).toBe(
 			"MIK-002 │ Quiet issue #automation",
 		);

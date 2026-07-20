@@ -157,7 +157,7 @@ export function ColumnPane(props: {
 						}
 					: undefined,
 				scrollY: true,
-				scrollX: false,
+				scrollX: true,
 				style: {
 					flexGrow: 1,
 					minHeight: 0,
@@ -211,15 +211,12 @@ export function IssueCard(props: {
 					: theme.base.surface,
 				flexDirection: "column",
 				height: 1,
-				overflow: "hidden",
-				width: "100%",
+				minWidth: "100%",
 			},
 		},
 		React.createElement("text", {
 			content: issueCardContent(props.card, props.selected, theme),
-			truncate: true,
 			wrapMode: "none",
-			style: { overflow: "hidden", width: "100%" },
 		}),
 	);
 }

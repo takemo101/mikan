@@ -1,3 +1,4 @@
+import type { KeyEvent } from "@opentui/core";
 import React from "react";
 import packageJson from "../../cli/package.json" with { type: "json" };
 import type {
@@ -42,9 +43,11 @@ import {
 	moveSelection,
 	moveSelectionFromColumnScroll,
 	reconcileFilteredSelection,
+	shouldPreventNativeArrowScroll,
 	shouldSyncColumnScroll,
 	toFullIndexSelection,
 	toggleFocusedLabel,
+	verticalScrollDeltaForBounds,
 } from "./navigation.ts";
 import {
 	applyRepositoryFilter,
@@ -163,9 +166,11 @@ export {
 	moveSelectionFromColumnScroll,
 	reconcileFilteredSelection,
 	repositoryFilterOptions,
+	shouldPreventNativeArrowScroll,
 	shouldSyncColumnScroll,
 	toFullIndexSelection,
 	toggleFocusedLabel,
+	verticalScrollDeltaForBounds,
 } from "./navigation.ts";
 export type {
 	ArchivePromptViewModel,
@@ -396,8 +401,19 @@ export async function launchTui(
 			columnScrollTargetRef.current = nextTarget;
 			const card =
 				board.columns[selection.columnIndex]?.cards[selection.cardIndex];
-			if (card) {
-				columnScrollBoxRef.current?.scrollChildIntoView(`card-${card.id}`);
+			const scrollBox = columnScrollBoxRef.current;
+			const selectedCard = card
+				? scrollBox?.content.findDescendantById(`card-${card.id}`)
+				: undefined;
+			if (!scrollBox || !selectedCard) return;
+			const verticalDelta = verticalScrollDeltaForBounds(
+				selectedCard.y,
+				selectedCard.y + selectedCard.height,
+				scrollBox.viewport.y,
+				scrollBox.viewport.y + scrollBox.viewport.height,
+			);
+			if (verticalDelta !== 0) {
+				scrollBox.scrollBy({ x: 0, y: verticalDelta });
 			}
 		}, [model, selection]);
 
@@ -452,13 +468,16 @@ export async function launchTui(
 			return () => clearInterval(interval);
 		}, [commitResult]);
 
-		useKeyboard((key: { name?: string; shift?: boolean; ctrl?: boolean }) => {
+		useKeyboard((key: KeyEvent) => {
 			const action = keyToTuiAction(key.name, key.shift, key.ctrl);
 			// `board` is the model the user sees (Repository filter applied); `selection`
 			// indexes into it. `fullSelection` re-targets the same Issue in the unfiltered
 			// model for the shared mutation helpers. Both equal their inputs with no filter.
 			const board = applyRepositoryFilter(model, selection.repositoryFilter);
 			const fullSelection = toFullIndexSelection(model, selection);
+			if (shouldPreventNativeArrowScroll(action, Boolean(selection.noteOpen))) {
+				key.preventDefault();
+			}
 			if (selection.helpOpen) {
 				if (action === "escape" || action === "help") {
 					setSelection((current) => moveSelection(board, current, action));

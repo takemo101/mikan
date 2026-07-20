@@ -500,7 +500,7 @@ Must support:
 - show Cards from corresponding directories with compact Issue ID, title, labels, and focused Card styling;
 - in workspace mode, show each Card's primary Repository so All repositories view remains understandable;
 - highlight the selected Card/Column and keep empty Columns visible with a muted empty state;
-- use `h`/`l` or arrow keys for Column focus, `j`/`k` or arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `f` for Repository filtering in workspace mode, `e` for Label editing, `w` for warning details, `r` for reload, Esc for close/back, and `q` for quit;
+- use `h`/`l` or left/right arrow keys for Column focus; horizontal swipe scrolls long Issue rows in the active Column without changing selection; use `j`/`k` or up/down arrow keys for Card/detail scrolling, `H`/`L` for adjacent Status moves, Enter/Return for detail, `f` for Repository filtering in workspace mode, `e` for Label editing, `w` for warning details, `r` for reload, Esc for close/back, and `q` for quit;
 - select a Card and press Enter/Return to switch from the board page to a full-page Markdown detail page;
 - in detail mode, render body Markdown without frontmatter and scroll it independently from board selection;
 - press Esc to return from detail, move, or note-entry modes while preserving board selection when possible;
@@ -527,6 +527,8 @@ OpenTUI implementation notes:
 
 - Treat terminal dimensions as reactive state. Components that derive layout from terminal size should subscribe through OpenTUI React resize/dimension hooks rather than only reading `renderer.height` or `renderer.width` during render; stale dimensions after a resize can make borders, scroll areas, and footer hints overlap until the next unrelated render.
 - Keep fixed chrome such as the header and footer from shrinking, and let the main/detail content area shrink instead. Use `minHeight: 0` on flex containers that own scrollable children, clip overflow at the detail page boundary, and put Markdown body content inside the scrollable child.
+- Programmatic Card selection synchronization must skip ScrollBox updates when the selected Card is already vertically visible; when adjustment is necessary, use vertical-only scrolling so native horizontal Issue-row position remains unchanged.
+- When mikan handles non-Note arrow-key navigation, it must prevent the focused renderable's default key action so ScrollBoxes do not also perform a native scroll.
 - When fixing layout bugs, add a focused TUI regression test that locks the intended style contract for fixed chrome, shrinkable content, and scrollbox containment.
 
 Must not support initially:
